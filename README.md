@@ -1,10 +1,14 @@
-# pinza
+# K4 Pinza
 
 Un editor de pixel art en [Quickshell](https://quickshell.org/) que sabe qué
 estás dibujando antes de que empieces.
 
     ./instalar          # y luego, desde donde sea:
     pinza
+
+El programa se llama **K4 Pinza**. El comando es `pinza` a secas, y también lo
+son la extensión de los ficheros y la carpeta de ajustes: eso no es el nombre,
+es lo que se teclea.
 
 ## La idea
 

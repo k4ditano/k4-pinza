@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 #
-#  Instala pinza en el sistema, sin copiar nada.
+#  Instala K4 Pinza en el sistema, sin copiar nada.
+#
+#  El programa se llama K4 Pinza; el comando, la carpeta de ajustes y la
+#  extensión de los ficheros siguen siendo `pinza` a secas, que es lo que se
+#  teclea y lo que ya está escrito en el disco de quien lo tenga puesto.
 #
 #  Lo que se instala son ENLACES y lanzadores: el código se queda donde está,
 #  así que seguir desarrollando aquí es seguir usando lo instalado, sin volver a
@@ -34,7 +38,7 @@ if [ "${1:-}" = "--quitar" ]; then
         update-desktop-database "${LANZADORES}" 2>/dev/null || true
     command -v gtk-update-icon-cache >/dev/null && \
         gtk-update-icon-cache -qtf "${ICONOS}" 2>/dev/null || true
-    verde "pinza desinstalada. Tus proyectos, tus packs y tus guiones siguen donde estaban."
+    verde "K4 Pinza desinstalada. Tus proyectos, tus packs y tus guiones siguen donde estaban."
     gris  "  ${CONFIG}/pinza/"
     exit 0
 fi
@@ -134,7 +138,7 @@ cat > "${LANZADORES}/pinza.desktop" <<ESCRITORIO
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=pinza
+Name=K4 Pinza
 GenericName=Editor de pixel art
 GenericName[en]=Pixel art editor
 Comment=Un editor de pixel art que sabe qué estás dibujando

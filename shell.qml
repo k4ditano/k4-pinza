@@ -29,7 +29,7 @@ ShellRoot {
         id: ventana
         title: (S.Documento.abierto
                 ? S.Documento.nombre + (S.Documento.sucio ? " •" : "")
-                : "pinza")
+                : "K4 Pinza")
         implicitWidth: 1180
         implicitHeight: 760
         minimumSize.width: 720

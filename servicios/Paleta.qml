@@ -198,7 +198,7 @@ Singleton {
 
     /** GIMP .gpl, que es el que entiende todo el mundo. */
     function aGpl(nombre) {
-        let s = "GIMP Palette\nName: " + (nombre || "pinza") + "\nColumns: 8\n#\n"
+        let s = "GIMP Palette\nName: " + (nombre || "K4 Pinza") + "\nColumns: 8\n#\n"
         for (let i = 0; i < rampas.length; i++) {
             for (let j = 0; j < rampas[i].colores.length; j++) {
                 const c = rampas[i].colores[j]

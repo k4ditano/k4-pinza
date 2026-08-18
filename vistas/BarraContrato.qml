@@ -199,6 +199,50 @@ Rectangle {
             color: C.Tema.borde
         }
 
+        //  Las tres vistas que se pueden apagar, con un botón cada una.
+        //
+        //  Tenían atajo y estaban en los comandos, que es como decir que no
+        //  estaban: si apagas la muestra sin querer, no hay nada en pantalla
+        //  que te diga que existe ni cómo volver a encenderla. El botón que se
+        //  queda encendido cuando la vista está puesta es, además, la única
+        //  forma de saber de un vistazo qué tienes abierto.
+        Row {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: S.Documento.abierto
+            spacing: 1
+            C.Boton {
+                icono: C.Tema.i.lupa
+                width: 26; implicitHeight: 24
+                activo: S.Ajustes.muestra
+                pista: "el dibujo a tamaño real, flotando sobre el lienzo   P"
+                onPulsado: S.Ajustes.muestra = !S.Ajustes.muestra
+            }
+            C.Boton {
+                icono: C.Tema.i.juego
+                width: 26; implicitHeight: 24
+                activo: S.Ajustes.panelPrevia
+                pista: "la previa en juego: sobre el suelo, con su sombra y sus medidas"
+                onPulsado: S.Ajustes.panelPrevia = !S.Ajustes.panelPrevia
+            }
+            C.Boton {
+                icono: C.Tema.i.compas
+                width: 26; implicitHeight: 24
+                activo: S.Ajustes.compas
+                tenue: S.Documento.nOrientaciones < 2
+                pista: S.Documento.nOrientaciones < 2
+                       ? "el compás de las caras (este dibujo sólo tiene una)"
+                       : "el compás: saltar entre las " + S.Documento.nOrientaciones + " caras"
+                onPulsado: S.Ajustes.compas = !S.Ajustes.compas
+            }
+        }
+
+        Rectangle {
+            visible: S.Documento.abierto
+            anchors.verticalCenter: parent.verticalCenter
+            width: 1; height: 18
+            color: C.Tema.borde
+        }
+
         // Un aviso del contrato, si lo hay. No bloquea nada: enseña.
         Rectangle {
             visible: raiz._aviso !== ""

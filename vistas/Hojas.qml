@@ -89,7 +89,7 @@ Item {
             "orientaciones": cOrientaciones, "pack": cPack, "comprobar": cComprobar,
             "etiqueta": cEtiqueta, "cuantizar": cCuantizar, "desplazar": cDesplazar,
             "importar": cImportar, "exportarAnim": cAnim, "guiones": cGuiones,
-            "especie": cEspecie
+            "especie": cEspecie, "transformar": cTransformar
         })
 
         Flickable {
@@ -524,6 +524,154 @@ Item {
                     S.Documento.cambiaPixeles(null)
                     raiz.cierra()
                 }
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // girar y escalar a ojo
+    // ═══════════════════════════════════════════════════════════
+
+    Component {
+        id: cTransformar
+        Column {
+            id: tr
+            spacing: 9
+            property real angulo: 0
+            property real escala: 1
+            property bool suave: true
+            property bool puesta: false
+
+            //  Se guarda el estado de partida al abrir y CADA cambio se aplica
+            //  sobre él, nunca sobre el resultado anterior: girar cinco grados
+            //  cinco veces no es girar veinticinco, es deshacer el dibujo.
+            Component.onCompleted: S.Ordenes.empiezaTransformacion()
+            Component.onDestruction: if (!puesta) S.Ordenes.cancelaTransformacion()
+
+            function receta(paraLaMarca) {
+                const a = angulo, e = escala
+                //  La marca nunca se suaviza: el promediado de RotSprite la
+                //  muerde por los bordes y parte de lo girado se quedaría fuera
+                //  de su propia selección.
+                const s = paraLaMarca ? false : suave
+                return function (b) {
+                    let r = b
+                    if (Math.abs(e - 1) > 0.001) {
+                        const w = Math.max(1, Math.round(b.w * e))
+                        const h = Math.max(1, Math.round(b.h * e))
+                        r = s ? P.escalaSuave(r, w, h) : P.escalaVecino(r, w, h)
+                    }
+                    if (Math.abs(a) > 0.001) r = P.giraLibre(r, a, s)
+                    return r
+                }
+            }
+
+            //  Con retardo: mover el mando dispara veinte cambios por segundo y
+            //  cada uno rehace el dibujo entero desde cero.
+            Timer {
+                id: posa
+                interval: 110
+                onTriggered: S.Ordenes.ensaya(tr.receta(false), tr.receta(true))
+            }
+            onAnguloChanged: posa.restart()
+            onEscalaChanged: posa.restart()
+            onSuaveChanged: posa.restart()
+
+            Text {
+                width: parent.width
+                text: S.Seleccion.activa
+                      ? "sobre lo que tienes marcado; el resto del dibujo no se toca"
+                      : "sobre la capa entera, porque no hay nada marcado"
+                wrapMode: Text.WordWrap
+                font.family: C.Tema.tipo; font.pixelSize: 10
+                color: S.Seleccion.activa ? C.Tema.acento : C.Tema.tenue
+            }
+
+            C.Rotulo { text: "girar" }
+            C.Desliz {
+                width: parent.width
+                etiqueta: "ángulo"; anchoEtiqueta: 52; sufijo: "°"
+                minimo: -180; maximo: 180; paso: 1; decimales: 0
+                valor: tr.angulo
+                onCambiado: (v) => tr.angulo = v
+            }
+            Row {
+                spacing: 3
+                Repeater {
+                    model: [-90, -45, -15, 15, 45, 90]
+                    C.Boton {
+                        texto: (modelData > 0 ? "+" : "") + modelData
+                        relleno: 6; implicitHeight: 20
+                        onPulsado: tr.angulo = Math.max(-180, Math.min(180, tr.angulo + modelData))
+                    }
+                }
+            }
+
+            Item { width: 1; height: 4 }
+            C.Rotulo { text: "escalar" }
+            C.Desliz {
+                width: parent.width
+                etiqueta: "tamaño"; anchoEtiqueta: 52; sufijo: "%"
+                minimo: 10; maximo: 400; paso: 5; decimales: 0
+                valor: tr.escala * 100
+                onCambiado: (v) => tr.escala = v / 100
+            }
+            Row {
+                spacing: 3
+                Repeater {
+                    model: [[0.5, "½"], [2, "×2"], [3, "×3"]]
+                    C.Boton {
+                        texto: modelData[1]
+                        relleno: 8; implicitHeight: 20
+                        onPulsado: tr.escala = modelData[0]
+                    }
+                }
+                C.Boton {
+                    texto: "sin tocar"; relleno: 8; implicitHeight: 20
+                    onPulsado: { tr.angulo = 0; tr.escala = 1 }
+                }
+            }
+
+            Item { width: 1; height: 4 }
+            C.Interruptor {
+                width: parent.width
+                etiqueta: "suavizado tipo RotSprite"
+                valor: tr.suave
+                onCambiado: (v) => tr.suave = v
+            }
+            Text {
+                width: parent.width
+                text: "agranda ×8 limpiando las escaleras, gira, y vuelve a encoger quedándose "
+                      + "con el color que más se repite. No inventa colores nuevos, que es lo "
+                      + "que estropea un giro en pixel art."
+                wrapMode: Text.WordWrap
+                font.family: C.Tema.tipo; font.pixelSize: 10; color: C.Tema.tenue
+            }
+
+            Item { width: 1; height: 6 }
+            Row {
+                spacing: 6
+                C.Boton {
+                    texto: "aplicar"; activo: true; relleno: 14
+                    onPulsado: {
+                        tr.puesta = true
+                        S.Ordenes.aceptaTransformacion(
+                            S.Seleccion.activa ? "girar la selección" : "girar la capa",
+                            tr.receta(false), tr.receta(true))
+                        raiz.cierra()
+                    }
+                }
+                C.Boton {
+                    texto: "dejarlo"
+                    onPulsado: { S.Ordenes.cancelaTransformacion(); tr.puesta = true; raiz.cierra() }
+                }
+            }
+            Text {
+                width: parent.width
+                text: "lo que ves ya es el resultado; aplicar sólo lo deja puesto y lo apunta "
+                      + "en el historial como un paso"
+                wrapMode: Text.WordWrap
+                font.family: C.Tema.tipo; font.pixelSize: 10; color: C.Tema.apagado
             }
         }
     }

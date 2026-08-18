@@ -419,26 +419,95 @@ function escalaVecino(b, w, h) {
 }
 
 /**
- * Escalado tipo RotSprite: se agranda ×8 decidiendo cada subpíxel por
- * mayoría de sus vecinos, y se vuelve a bajar. Sale mucho más limpio que el
- * vecino cercano a secas cuando el factor no es entero, que es casi siempre.
+ * Agranda ×g decidiendo cada subpíxel por sus vecinos.
+ *
+ * Es la primera mitad de RotSprite: en las esquinas donde dos vecinos coinciden
+ * entre sí y no con el píxel central, el subpíxel se queda con el de los
+ * vecinos. Eso redondea las escaleras ANTES de girar o escalar, que es lo que
+ * evita que un giro de quince grados convierta el dibujo en confeti.
  */
-function escalaSuave(b, w, h) {
-    const g = 8
-    const grande = nuevo(b.w * g, b.h * g)
+function agranda(b, g) {
+    const r = nuevo(b.w * g, b.h * g)
     for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) {
         const c = lee(b, x, y)
         for (let j = 0; j < g; j++) for (let i = 0; i < g; i++) {
-            // esquina redondeada si los dos vecinos de ese lado coinciden
             let usa = c
             const hx = i < g / 2 ? -1 : 1, hy = j < g / 2 ? -1 : 1
             const a = lee(b, x + hx, y), d = lee(b, x, y + hy)
-            const borde = (i < g/4 || i >= g*3/4) && (j < g/4 || j >= g*3/4)
-            if (borde && distancia(a, d) < 24 && distancia(a, c) > 48) usa = a
-            pon(grande, x * g + i, y * g + j, usa)
+            const esquina = (i < g / 4 || i >= g * 3 / 4) && (j < g / 4 || j >= g * 3 / 4)
+            if (esquina && distancia(a, d) < 24 && distancia(a, c) > 48) usa = a
+            pon(r, x * g + i, y * g + j, usa)
         }
     }
-    return escalaVecino(grande, w, h)
+    return r
+}
+
+/**
+ * Encoge ×g quedándose con el color que MÁS SE REPITE en cada bloque.
+ *
+ * La segunda mitad de RotSprite. Promediar metería colores que no están en la
+ * paleta —y entonces deja de ser pixel art—; coger el del centro deja los
+ * bordes mordidos. La mayoría conserva la paleta y la silueta.
+ */
+function encoge(b, g) {
+    const w = Math.max(1, Math.round(b.w / g)), h = Math.max(1, Math.round(b.h / g))
+    const r = nuevo(w, h)
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const cuenta = {}
+        let mejor = null, veces = 0
+        for (let j = 0; j < g; j++) for (let i = 0; i < g; i++) {
+            const c = lee(b, x * g + i, y * g + j)
+            const k = c[3] === 0 ? "-" : c.join(",")
+            const n = (cuenta[k] = (cuenta[k] || 0) + 1)
+            if (n > veces) { veces = n; mejor = c }
+        }
+        if (mejor) pon(r, x, y, mejor)
+    }
+    return r
+}
+
+/**
+ * Escalado tipo RotSprite: agrandar limpiando esquinas y volver a encoger.
+ *
+ * Sale mucho más limpio que el vecino cercano a secas cuando el factor no es
+ * entero, que es casi siempre.
+ */
+function escalaSuave(b, w, h) {
+    const g = 8
+    return encoge(escalaVecino(agranda(b, g), w * g, h * g), g)
+}
+
+/**
+ * Gira un ángulo cualquiera.
+ *
+ * El lienzo de salida es el que necesita la caja girada, así que nada se pierde
+ * por los bordes; quien llama lo recoloca. Con `suave` pasa por RotSprite, que
+ * es la diferencia entre un giro que se puede usar y uno que hay que repasar
+ * píxel a píxel.
+ *
+ * Se muestrea al REVÉS —de destino a origen— porque hacerlo al derecho deja
+ * agujeros: al girar, varios píxeles de destino caen sobre el mismo de origen y
+ * otros sobre ninguno.
+ */
+function giraLibre(b, grados, suave) {
+    const rad = (grados * Math.PI) / 180
+    const co = Math.cos(rad), si = Math.sin(rad)
+    const g = suave ? 8 : 1
+    const src = suave ? agranda(b, g) : b
+
+    const nw = Math.max(1, Math.ceil(Math.abs(src.w * co) + Math.abs(src.h * si)))
+    const nh = Math.max(1, Math.ceil(Math.abs(src.w * si) + Math.abs(src.h * co)))
+    const out = nuevo(nw, nh)
+    const cx = src.w / 2, cy = src.h / 2
+
+    for (let y = 0; y < nh; y++) for (let x = 0; x < nw; x++) {
+        const dx = x + 0.5 - nw / 2, dy = y + 0.5 - nh / 2
+        const sx = Math.floor(cx + dx * co + dy * si)
+        const sy = Math.floor(cy - dx * si + dy * co)
+        if (sx < 0 || sy < 0 || sx >= src.w || sy >= src.h) continue
+        pon(out, x, y, lee(src, sx, sy))
+    }
+    return suave ? encoge(out, g) : out
 }
 
 /** Sesgado horizontal/vertical en píxeles enteros. */

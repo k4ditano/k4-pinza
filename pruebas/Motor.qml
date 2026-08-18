@@ -137,6 +137,30 @@ ShellRoot {
            doble.w === 8 && P.lee(doble, 1, 1).join() === naranja.join())
         const suave = P.escalaSuave(t, 8, 4)
         ck("el escalado suave da el tamaño pedido", suave.w === 8 && suave.h === 4)
+
+        // ── giro libre ───────────────────────────────────────────
+        let cruz = P.nuevo(9, 9)
+        for (let i = 1; i < 8; i++) { P.pon(cruz, i, 4, naranja); P.pon(cruz, 4, i, naranja) }
+        const g0 = P.giraLibre(cruz, 0, false)
+        ck("girar cero grados no cambia nada", g0.d.join() === cruz.d.join())
+        const g90 = P.giraLibre(cruz, 90, false)
+        ck("girar 90° libre deja una cruz igual de grande",
+           g90.w === 9 && g90.h === 9 && P.lee(g90, 4, 4)[3] === 255,
+           g90.w + "×" + g90.h)
+        const g45 = P.giraLibre(cruz, 45, false)
+        ck("girar 45° agranda el lienzo para que no se pierda nada",
+           g45.w > 9 && g45.h > 9, g45.w + "×" + g45.h)
+        ck("y lo girado sigue teniendo dibujo", !P.vacio(g45))
+        //  Lo que de verdad importa de un giro en pixel art: que no invente
+        //  colores. Promediar sería lo fácil y lo que lo estropea.
+        const antes = P.coloresDe(cruz).length
+        const despues = P.coloresDe(P.giraLibre(cruz, 33, true)).length
+        ck("girar suave no inventa colores nuevos", despues <= antes,
+           despues + " colores tras girar, " + antes + " antes)")
+        const gv = P.giraLibre(cruz, 33, false)
+        ck("y el giro sin suavizar tampoco", P.coloresDe(gv).length <= antes)
+        ck("agranda y encoge se deshacen el uno al otro",
+           P.encoge(P.agranda(cruz, 4), 4).d.join() === cruz.d.join())
         const des = P.desplaza(t, 1, 0)
         ck("desplazar envuelve por el otro lado", P.lee(des, 1, 0).join() === naranja.join())
         const des2 = P.desplaza(t, -1, 0)

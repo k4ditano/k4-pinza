@@ -61,43 +61,127 @@ Singleton {
      * pata — y para eso hace falta que la operación toque sólo lo que marcaste
      * y que el resto del dibujo siga donde estaba.
      *
-     * La selección se transforma CON el dibujo, encajándola en un búfer por su
-     * alfa y pasándola por la misma función: así girar noventa grados deja la
-     * marca girada también, y se puede encadenar sin volver a seleccionar.
+     * La selección se transforma CON el dibujo, metiéndola en un búfer por su
+     * alfa y pasándola por la misma función: así girar deja la marca girada
+     * también, y se puede encadenar sin volver a seleccionar.
+     *
+     * `fnMarca` existe porque la marca NO quiere el mismo trato que el dibujo.
+     * El suavizado de RotSprite decide cada píxel por mayoría, y sobre una
+     * marca eso la muerde por los bordes: al girar cuarenta y cinco grados,
+     * parte de lo girado acababa fuera de su propia selección. La marca se gira
+     * en crudo.
+     *
+     * Sin selección se trata la capa entera como si lo estuviera, y el
+     * resultado se recoloca centrado — que es lo que se espera al girar algo
+     * suelto, y lo que hace que no haga falta un camino aparte.
      */
-    function transforma(nombre, fn) {
+    function _haz(fn, fnMarca) {
         const b = _buf()
         if (!b) return
-        if (!S.Seleccion.activa || !S.Seleccion.limites) { _reemplaza(nombre, fn(b)); return }
+        const hay = S.Seleccion.activa && S.Seleccion.limites
+        const l = hay ? S.Seleccion.limites
+                      : { x: 0, y: 0, w: S.Documento.ancho, h: S.Documento.alto }
 
-        const l = S.Seleccion.limites
         const trozo = P.recorte(b, l.x, l.y, l.w, l.h)
         const marca = P.nuevo(l.w, l.h)
         for (let y = 0; y < l.h; y++) for (let x = 0; x < l.w; x++) {
-            if (S.Seleccion.contiene(l.x + x, l.y + y)) marca.d[(y * l.w + x) * 4 + 3] = 255
+            const dentro = !hay || S.Seleccion.contiene(l.x + x, l.y + y)
+            if (dentro) marca.d[(y * l.w + x) * 4 + 3] = 255
             else P.pon(trozo, x, y, [0, 0, 0, 0])
         }
 
-        const nuevo = fn(trozo)
-        const nuevaMarca = fn(marca)
-        // centrado en el mismo sitio: girar algo alargado no debe mandarlo lejos
-        const nx = Math.round(l.x + l.w / 2 - nuevo.w / 2)
-        const ny = Math.round(l.y + l.h / 2 - nuevo.h / 2)
+        const nuevoTrozo = fn(trozo)
+        const nuevaMarca = (fnMarca || fn)(marca)
+        // centrado donde estaba: girar algo alargado no debe mandarlo lejos
+        const nx = Math.round(l.x + l.w / 2 - nuevoTrozo.w / 2)
+        const ny = Math.round(l.y + l.h / 2 - nuevoTrozo.h / 2)
 
-        _conHistorial(nombre, (buf) => {
-            for (let y = l.y; y < l.y + l.h; y++) for (let x = l.x; x < l.x + l.w; x++)
-                if (S.Seleccion.contiene(x, y)) P.pon(buf, x, y, [0, 0, 0, 0])
-            P.estampa(buf, nuevo, nx, ny)
-        })
+        for (let y = l.y; y < l.y + l.h; y++) for (let x = l.x; x < l.x + l.w; x++)
+            if (!hay || S.Seleccion.contiene(x, y)) P.pon(b, x, y, [0, 0, 0, 0])
+        P.estampa(b, nuevoTrozo, nx, ny)
 
+        if (!hay) return
+
+        //  La marca nueva es la marca girada MÁS todo lo que se ve del dibujo
+        //  girado. Sólo con la marca girada no basta: girar exactamente
+        //  cuarenta y cinco grados deja las puntas del rombo entre muestras, y
+        //  el dibujo y la marca acababan discrepando en un píxel — uno que
+        //  veías y no podías volver a mover. Como el trozo se recortó a la
+        //  selección antes de girar, todo lo opaco que hay en él vino de ella.
         const m = new Uint8Array(S.Documento.ancho * S.Documento.alto)
-        for (let y = 0; y < nuevaMarca.h; y++) for (let x = 0; x < nuevaMarca.w; x++) {
-            if (nuevaMarca.d[(y * nuevaMarca.w + x) * 4 + 3] < 128) continue
+        function marcaEn(x, y) {
             const gx = nx + x, gy = ny + y
-            if (gx < 0 || gy < 0 || gx >= S.Documento.ancho || gy >= S.Documento.alto) continue
+            if (gx < 0 || gy < 0 || gx >= S.Documento.ancho || gy >= S.Documento.alto) return
             m[gy * S.Documento.ancho + gx] = 1
         }
+        for (let y = 0; y < nuevaMarca.h; y++) for (let x = 0; x < nuevaMarca.w; x++)
+            if (nuevaMarca.d[(y * nuevaMarca.w + x) * 4 + 3] >= 128) marcaEn(x, y)
+        for (let y = 0; y < nuevoTrozo.h; y++) for (let x = 0; x < nuevoTrozo.w; x++)
+            if (nuevoTrozo.d[(y * nuevoTrozo.w + x) * 4 + 3] > 0) marcaEn(x, y)
         S.Seleccion.pon(m, S.Documento.ancho, S.Documento.alto, "nueva")
+    }
+
+    function transforma(nombre, fn, fnMarca) {
+        const c = _capa(), b = _buf()
+        if (!c || !b) return
+        S.Historial.abre(S.Documento.clave(c.id, S.Documento.fotograma, S.Documento.orientacion), b)
+        _haz(fn, fnMarca)
+        S.Historial.cierra(nombre, b)
+        S.Documento.cambiaPixeles(null)
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // transformar a ojo
+    // ═══════════════════════════════════════════════════════════
+    //
+    //  Girar cinco grados cinco veces NO es girar veinticinco: cada giro
+    //  vuelve a muestrear lo ya muestreado y el dibujo se deshace. Así que
+    //  mientras estás moviendo el mando, cada cambio se aplica SIEMPRE sobre
+    //  el estado de partida, que se guarda al abrir. Sólo al aceptar se apunta
+    //  una entrada en el historial, y sólo una.
+
+    property var _partida: null
+
+    function empiezaTransformacion() {
+        const b = _buf()
+        if (!b) return false
+        _partida = {
+            celda: P.clonar(b),
+            mascara: S.Seleccion.mascara ? new Uint8Array(S.Seleccion.mascara) : null,
+            ancho: S.Seleccion.ancho, alto: S.Seleccion.alto
+        }
+        return true
+    }
+
+    function _vuelveAlaPartida() {
+        const b = _buf()
+        if (!_partida || !b) return
+        for (let i = 0; i < b.d.length; i++) b.d[i] = _partida.celda.d[i]
+        if (_partida.mascara) S.Seleccion.pon(_partida.mascara, _partida.ancho, _partida.alto, "nueva")
+        else S.Seleccion.nada()
+    }
+
+    /** Prueba una transformación sin tocar el historial. */
+    function ensaya(fn, fnMarca) {
+        if (!_partida) return
+        _vuelveAlaPartida()
+        _haz(fn, fnMarca)
+        S.Documento.cambiaPixeles(null)
+    }
+
+    /** La deja puesta, con UNA entrada de historial desde el estado de partida. */
+    function aceptaTransformacion(nombre, fn, fnMarca) {
+        if (!_partida) { transforma(nombre, fn, fnMarca); return }
+        _vuelveAlaPartida()
+        transforma(nombre, fn, fnMarca)
+        _partida = null
+    }
+
+    function cancelaTransformacion() {
+        if (!_partida) return
+        _vuelveAlaPartida()
+        _partida = null
+        S.Documento.cambiaPixeles(null)
     }
 
     /** Sustituye la celda activa por otro búfer, del tamaño que sea. */
@@ -243,6 +327,9 @@ Singleton {
           cuando: () => ord.hayDoc,
           hacer: () => transforma(ord.haySel ? "girar la selección" : "girar",
                                   (b) => P.gira90(b, 2)) },
+        { id: "girarLibre", titulo: "Girar y escalar a ojo…", grupo: "transformar", icono: "girar",
+          atajo: "Ctrl+T", cuando: () => ord.hayDoc,
+          hacer: () => ord.pideHoja("transformar") },
         { id: "desplazar", titulo: "Desplazar envolviendo…", grupo: "transformar",
           cuando: () => ord.hayDoc, hacer: () => ord.pideHoja("desplazar") },
         { id: "redimensionar", titulo: "Tamaño del lienzo…", grupo: "transformar", icono: "escalar",

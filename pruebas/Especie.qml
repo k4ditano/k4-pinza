@@ -44,11 +44,13 @@ ShellRoot {
     function prepara() {
         const casa = (Quickshell.env("HOME") || "") + "/Proyectos/crabh"
         S.Forja.creaCarpeta(base, () => {
-            S.Forja.pide("existe", { ruta: base + "/public" }, (r) => {
-                if (r.bien && r.existe) { paso1(); return }
-                S.Forja.pide("comprobar", { raiz: base,
-                    guiones: [["ln", "-sfn", casa + "/public", base + "/public"]] }, () => paso1())
-            })
+            //  Se borra lo de la vez anterior. Sin esto la prueba de "no
+            //  machaca la primera" iba contando -2, -3, -4 según cuántas veces
+            //  la hubieras corrido, que es lo contrario de reproducible.
+            S.Forja.pide("comprobar", { raiz: base, guiones: [
+                ["sh", "-c", "rm -rf '" + base + "'/*.especie '" + base + "'/assets"],
+                ["ln", "-sfn", casa + "/public", base + "/public"]
+            ] }, () => paso1())
         })
     }
     Connections {
@@ -124,7 +126,8 @@ ShellRoot {
     function paso2b() {
         S.Especie.importa(10, "Orugon", base + "/Orugon.especie", (bien) => {
             ck("importar dos veces con el mismo nombre no machaca la primera",
-               S.Especie.ruta.indexOf("Orugon-2.especie") > 0, S.Especie.ruta)
+               S.Especie.ruta !== base + "/Orugon.especie"
+               && S.Especie.ruta.indexOf("Orugon-") > 0, S.Especie.ruta)
             // y volver a la primera para seguir
             S.Especie.abre(base + "/Orugon.especie", () => paso3())
         })

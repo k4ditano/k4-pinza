@@ -66,12 +66,23 @@ al exportar. Enseña ×1, ×2 y ×3 —los que quepan— y se anima con la tira.
 medidas que el juego saca de los píxeles. Lo que importa no es cómo se ve al
 800 % de zoom.
 
-**Lo marcado se transforma solo.** Voltear y girar respetan la selección: si hay
-algo marcado tocan sólo eso y dejan el resto del dibujo donde estaba, y la marca
-gira con el dibujo para poder encadenar sin volver a seleccionar. Es la mitad del
-trabajo de animar — marcas un brazo, lo volteas; copias una pata, la pegas en el
-fotograma siguiente y la mueves. Lo pegado queda seleccionado y con la
-herramienta de mover ya puesta.
+**Lo marcado se transforma solo.** Voltear, girar y escalar respetan la
+selección: si hay algo marcado tocan sólo eso y dejan el resto del dibujo donde
+estaba, y la marca se transforma con el dibujo para poder encadenar sin volver a
+seleccionar. Es la mitad del trabajo de animar — marcas un brazo, lo volteas;
+copias una pata, la pegas en el fotograma siguiente y la mueves. Lo pegado queda
+seleccionado y con la herramienta de mover ya puesta.
+
+**Girar y escalar a ojo** (`Ctrl+T`), con el resultado a la vista mientras mueves
+el mando. Cada cambio se rehace **desde el estado de partida**, nunca sobre el
+anterior: girar cinco grados cinco veces no es girar veinticinco, es deshacer el
+dibujo remuestreando lo ya remuestreado. Y probar veinte ángulos deja **una** sola
+entrada en el historial, la del que aceptaste.
+
+El giro y el escalado pasan por RotSprite: agrandar ×8 limpiando las escaleras,
+transformar, y volver a encoger quedándose con el color que más se repite en cada
+bloque. Promediar sería lo fácil y es justo lo que estropea un giro en pixel art,
+porque mete colores que no están en la paleta.
 
 **Modo baldosa de verdad.** El lienzo envuelve: dibujas cruzando la costura y el
 trazo sale por el otro lado, con las ocho repeticiones alrededor.

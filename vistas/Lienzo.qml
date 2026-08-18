@@ -676,7 +676,10 @@ Item {
         if (!capaActual) return
 
         const todas = S.Pinceles.todasLasCapas
-        const porTodo = S.Pinceles.alcanceColor === "todo"
+        //  «y las demás acciones» incluye «y las 8 caras»: recolorear la
+        //  criatura entera y dejarte una cara sin tocar no lo pide nadie.
+        const porAcciones = S.Pinceles.alcanceColor === "acciones"
+        const porTodo = porAcciones || S.Pinceles.alcanceColor === "todo"
         const hayFiltro = S.Seleccion.activa
 
         S.Historial.abreCompleto()
@@ -708,6 +711,18 @@ Item {
             "sustituir color en " + tocadas + " celdas")
         S.Documento.cambiaPixeles(null)
         raiz.colorSustituido(tocadas)
+
+        //  Y las otras acciones, que son otros documentos. Se guarda antes la
+        //  que tienes delante para que la criatura quede entera de una pieza:
+        //  el disco con un color y la pantalla con otro es justo el lío que
+        //  esto viene a quitar.
+        //  La selección no viaja: en otra acción el dibujo es otro y el mismo
+        //  recuadro caería en cualquier sitio. Allí el cambio va entero.
+        if (porAcciones && S.Especie.abierta) {
+            S.Proyecto.guarda(null, (bien) => {
+                if (bien) S.Especie.sustituyeColorEnTodas(viejo, nuevoColor, tolerancia, null)
+            })
+        }
     }
 
     signal colorSustituido(int celdas)

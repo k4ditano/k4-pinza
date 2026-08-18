@@ -135,11 +135,28 @@ Rectangle {
             visible: S.Pinceles.herramienta === "sustituye"
             anchors.verticalCenter: parent.verticalCenter
             etiqueta: "cambia en"; anchoEtiqueta: 62
-            opciones: [{ id: "celda", titulo: "esta celda" },
-                       { id: "fotogramas", titulo: "los fotogramas" },
-                       { id: "todo", titulo: "y las 8 caras" }]
+            //  Títulos en escalera y cortos: cada uno abarca al anterior, y la
+            //  barra va apretada. El detalle va en el rótulo de cada botón.
+            opciones: S.Especie.abierta
+                      ? [{ id: "celda", titulo: "celda" },
+                         { id: "fotogramas", titulo: "fotogramas" },
+                         { id: "todo", titulo: "8 caras" },
+                         { id: "acciones", titulo: "criatura" }]
+                      : [{ id: "celda", titulo: "celda" },
+                         { id: "fotogramas", titulo: "fotogramas" },
+                         { id: "todo", titulo: "8 caras" }]
             valor: S.Pinceles.alcanceColor
             onCambiado: (v) => S.Pinceles.alcanceColor = v
+            pistas: S.Especie.abierta
+                    ? ["sólo el fotograma y la cara que miras",
+                       "todos los fotogramas de esta cara",
+                       "todos los fotogramas de las ocho caras",
+                       "y además las otras acciones de la criatura, EN EL DISCO: "
+                       + "allí va entera —la selección no viaja— y Ctrl+Z no la "
+                       + "devuelve, porque esas celdas no están en ningún historial"]
+                    : ["sólo el fotograma y la cara que miras",
+                       "todos los fotogramas de esta cara",
+                       "todos los fotogramas de las ocho caras"]
         }
         C.Boton {
             visible: S.Pinceles.herramienta === "sustituye" && S.Pinceles.alcanceColor !== "celda"

@@ -349,6 +349,97 @@ Singleton {
     }
 
     // ═══════════════════════════════════════════════════════════
+    // un color en TODAS las acciones
+    // ═══════════════════════════════════════════════════════════
+
+    /**
+     * Cambia un color en las acciones que NO tienes delante.
+     *
+     * Recolorear un bicho es cambiarlo en las ocho, y cada acción es un
+     * documento aparte: el alcance de la herramienta llega hasta las ocho caras
+     * y todos los fotogramas, pero eso sigue siendo Idle. Sin esto tocaba
+     * repetir el mismo cambio ocho veces, y basta fallar una para que la
+     * criatura cambie de color al echar a andar.
+     *
+     * Las otras acciones se leen, se tocan y se vuelven a escribir SIN abrirlas.
+     * Abrirlas significaría sustituir el documento ocho veces, con el lienzo, la
+     * muestra y la previa parpadeando de acción en acción — que es exactamente
+     * lo que se arregló al importar una criatura.
+     *
+     * Como pasan por el disco y no por el documento, esto NO se deshace con
+     * Ctrl+Z: el historial es de un documento y estas celdas no están en
+     * ninguno. Quien lo llama tiene que decirlo.
+     */
+    function sustituyeColorEnTodas(viejo, nuevo, tolerancia, cb) {
+        if (!memoria.d || !memoria.d.ruta) { if (cb) cb(0, 0); return }
+        const cola = Object.keys(memoria.d.acciones)
+                           .filter((id) => id !== memoria.accionActiva)
+        let celdas = 0, acciones = 0
+        estado = "recoloreando"
+        progreso = 0
+        const total = cola.length
+
+        function siguiente() {
+            if (!cola.length) {
+                estado = ""
+                progreso = 1
+                if (celdas) hecho("recolorear", celdas + " celdas en " + acciones + " acciones")
+                if (cb) cb(celdas, acciones)
+                return
+            }
+            const id = cola.shift()
+            progreso = 1 - cola.length / Math.max(1, total)
+            const carpeta = carpetaDe(id)
+            S.Forja.leeTexto(carpeta + "/proyecto.json", (r) => {
+                //  Una acción que todavía no has dibujado no tiene carpeta, y
+                //  eso no es un fallo: no hay nada que recolorear.
+                if (!r.bien || !r.texto) { Qt.callLater(siguiente); return }
+                let meta = null
+                try { meta = JSON.parse(r.texto) } catch (e) {}
+                if (!S.Documento.esDocumento(meta)) { Qt.callLater(siguiente); return }
+                _recoloreaUna(carpeta, meta, viejo, nuevo, tolerancia, (n) => {
+                    if (n) { celdas += n; acciones++ }
+                    Qt.callLater(siguiente)
+                })
+            })
+        }
+        siguiente()
+    }
+
+    function _recoloreaUna(carpeta, meta, viejo, nuevo, tolerancia, cb) {
+        //  Las claves propias, las que tienen PNG: las enlazadas comparten
+        //  celda con otra y tocarlas dos veces sería tocarla dos veces.
+        const enlaces = meta.enlaces || {}
+        const claves = []
+        for (let i = 0; i < meta.capas.length; i++)
+            for (let f = 0; f < meta.fotogramas.length; f++)
+                for (let dr = 0; dr < meta.orientaciones.length; dr++) {
+                    const k = meta.capas[i].id + ":" + f + ":" + dr
+                    if (!enlaces[k]) claves.push(k)
+                }
+        const rutas = claves.map((k) => carpeta + "/celdas/" + k.split(":").join(".") + ".png")
+        exportador.deVarios(rutas, (mapa) => {
+            const celdas = {}
+            let tocadas = 0
+            for (let i = 0; i < claves.length; i++) {
+                const b = mapa[rutas[i]]
+                if (!b) continue
+                let cambio = false
+                for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) {
+                    const c = P.lee(b, x, y)
+                    if (P.distancia(c, viejo) > tolerancia) continue
+                    P.pon(b, x, y, [nuevo[0], nuevo[1], nuevo[2], c[3]])
+                    cambio = true
+                }
+                celdas[claves[i]] = b
+                if (cambio) tocadas++
+            }
+            if (!tocadas) { cb(0); return }
+            S.Proyecto.guardaCrudo(carpeta, meta, celdas, () => cb(tocadas))
+        })
+    }
+
+    // ═══════════════════════════════════════════════════════════
     // traerse una del juego
     // ═══════════════════════════════════════════════════════════
 

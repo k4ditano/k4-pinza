@@ -80,10 +80,11 @@ y se anima con la tira.
 | **Previa en juego.** El sprite sobre un suelo, con su sombra, y las medidas que un juego saca de los píxeles: dónde apoyan los pies, cuánto ocupa la silueta. Catorce filas vacías bajo la figura son catorce píxeles de aire donde debería pisar, y en el lienzo eso no se ve. | **Rampas, no una rejilla.** La unidad de trabajo es sombra → cuerpo → brillo, que es como se piensa dibujando. La tinta de sombreado mueve cada píxel un paso por *su* rampa en vez de aplastarlo con un color plano. La rueda va dentro del panel: elegir un color no debería taparte el dibujo. |
 
 **Cambiar un color en todo el personaje.** Sustituir color pregunta hasta dónde
-llega: esta celda, todos los fotogramas de esta cara, o los de las ocho. Hacerlo
-a mano en una hoja de once fotogramas por ocho filas son ochenta y ocho clics, y
-basta fallar uno para que la animación parpadee. Todo el cambio es **un** paso
-del historial.
+llega: esta celda, todos los fotogramas de esta cara, los de las ocho, o —si es
+un personaje de varias acciones— **toda la criatura**, incluidas las acciones
+que no tienes delante. Hacerlo a mano en una hoja de once fotogramas por ocho
+filas son ochenta y ocho clics, y eso una sola acción; basta fallar uno para que
+cambie de color al echar a andar.
 
 **Modo baldosa de verdad y mapa de prueba.** El lienzo envuelve: dibujas
 cruzando la costura y el trazo sale por el otro lado. Y un tileset no se juzga

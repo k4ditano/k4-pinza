@@ -12,6 +12,10 @@ Item {
     property var opciones: []          // [{id, titulo}] o ["a","b"]
     property string valor: ""
     property int anchoEtiqueta: 76
+    //  Un rótulo por opción: el título de un botón tiene que caber en la barra
+    //  y la letra pequeña va aquí. Si se da como lista, uno por opción y en su
+    //  orden; si se da como texto, el mismo para todas.
+    property var pistas: null
     signal cambiado(string v)
 
     readonly property var _lista: opciones.map((o) => typeof o === "string" ? { id: o, titulo: o } : o)
@@ -51,6 +55,9 @@ Item {
                 activo: modelData.id === raiz.valor
                 relleno: 7
                 implicitHeight: 22
+                pista: !raiz.pistas ? ""
+                     : (typeof raiz.pistas === "string" ? raiz.pistas
+                                                        : (raiz.pistas[index] || ""))
                 onPulsado: raiz.cambiado(modelData.id)
             }
         }

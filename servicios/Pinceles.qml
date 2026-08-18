@@ -55,7 +55,7 @@ Singleton {
     //  cambiarlo en sus ocho caras y en todos sus fotogramas. Hacerlo celda a
     //  celda en una hoja de once fotogramas por ocho filas son ochenta y ocho
     //  clics, y basta con fallar uno para que la animación parpadee.
-    property string alcanceColor: "celda"     // celda · fotogramas · todo
+    property string alcanceColor: "celda"     // celda · fotogramas · todo · acciones
     property bool todasLasCapas: false
 
     // ── pinceles de retoque ──────────────────────────────────────

@@ -81,10 +81,11 @@ and animates along with the strip.
 | **In-game preview.** The sprite on a floor, with its shadow, and the measurements a game reads out of the pixels: where the feet land, how much the silhouette takes up. Fourteen empty rows under the figure are fourteen pixels of air where it should be standing, and on the canvas that does not show. | **Ramps, not a grid.** The working unit is shadow → body → highlight, which is how you think while drawing. The shading ink moves each pixel one step along *its* ramp instead of flattening it with a solid colour. The wheel lives inside the panel: picking a colour should not cover your drawing. |
 
 **Change one colour across the whole character.** Replace colour asks how far it
-reaches: this cel, every frame of this facing, or all eight. Doing it by hand
-across an eleven-frame, eight-row sheet is eighty-eight clicks, and missing one
-is enough to make the animation flicker. The whole change is **one** history
-step.
+reaches: this cel, every frame of this facing, all eight, or — for a character
+with several actions — **the whole creature**, including the actions you do not
+have in front of you. Doing it by hand across an eleven-frame, eight-row sheet
+is eighty-eight clicks, and that is one action; missing one is enough for it to
+change colour when it starts walking.
 
 **Real tile mode and a test map.** The canvas wraps: you draw across the seam
 and the stroke comes out the other side. And a tileset is not judged by looking

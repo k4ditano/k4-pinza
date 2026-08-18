@@ -12,6 +12,14 @@
 //  sin quejarse. La forma de siete argumentos —putImageData(img, x, y, 0, 0,
 //  w, h)— sí funciona. Todo el motor de pintado usa esa y sólo esa.
 //
+//  HALLAZGO 1b · Y en la de siete, el ORIGEN SUCIO TIENE QUE SER (0,0).
+//  Pasarle el lienzo entero con un rectángulo sucio en (10,10) tampoco pinta
+//  nada, otra vez sin quejarse. Lo único que vale es recortar un ImageData del
+//  tamaño de la zona sucia y colocarlo con dx,dy. Esto costó caro: el lienzo
+//  repintaba por zona sucia, así que un trazo no se veía nunca y aparecía de
+//  golpe y desplazado cuando algo forzaba un repintado entero. "Dibujo y sale
+//  al lado".
+//
 //  HALLAZGO 2 · Canvas.save(ruta) devuelve false y no escribe nada, con
 //  cualquier estrategia y cualquier forma de ruta. toDataURL() sí funciona,
 //  así que exportar es toDataURL -> base64 -> la forja escribe el fichero.
@@ -25,7 +33,7 @@ ShellRoot {
 
     property int hechas: 0
     property int rotas: 0
-    readonly property int total: 9
+    readonly property int total: 11
 
     function ck(que, bien, detalle) {
         if (!bien) rotas++
@@ -109,7 +117,30 @@ ShellRoot {
                 raiz.ck("6 · un parche pequeño cae donde se le dice (el caso de un trazo)",
                         q[0] === 118 && q[1] === 193 && q[2] === 56, "en (17,17)")
 
-                raiz.ck("7 · Canvas.save() sigue sin escribir nada (hallazgo 2)",
+                // Lo de arriba, comprobado al revés: la forma que NO vale.
+                ctx.clearRect(0, 0, 24, 24)
+                const entero = ctx.createImageData(24, 24)
+                const k = (10 * 24 + 10) * 4
+                entero.data[k] = 255; entero.data[k+3] = 255
+                ctx.putImageData(entero, 0, 0, 10, 10, 1, 1)
+                raiz.ck("7 · el origen sucio distinto de (0,0) sigue sin pintar (hallazgo 1b)",
+                        ctx.getImageData(10, 10, 1, 1).data[3] === 0,
+                        ctx.getImageData(10, 10, 1, 1).data[3] === 0
+                            ? "confirmado, hay que recortar la zona sucia"
+                            : "¡lo han arreglado! el lienzo se puede simplificar")
+
+                // y la que sí: un recorte pequeño colocado en su sitio
+                ctx.clearRect(0, 0, 24, 24)
+                const trozo = ctx.createImageData(2, 2)
+                for (let i = 0; i < 4; i++) { trozo.data[i*4+1] = 255; trozo.data[i*4+3] = 255 }
+                ctx.putImageData(trozo, 9, 13, 0, 0, 2, 2)
+                const puesto = ctx.getImageData(9, 13, 1, 1).data
+                const alLado = ctx.getImageData(8, 13, 1, 1).data
+                raiz.ck("8 · un recorte colocado con dx,dy sí cae donde se le dice",
+                        puesto[1] === 255 && alLado[3] === 0,
+                        "en (9,13) alfa " + puesto[3] + ", en (8,13) alfa " + alLado[3])
+
+                raiz.ck("9 · Canvas.save() sigue sin escribir nada (hallazgo 2)",
                         save("/tmp/pinza-cata-save.png") === false,
                         "si esto falla, save() ya vale y exportar se simplifica")
 
@@ -124,7 +155,7 @@ ShellRoot {
             sourceItem: lienzo
             live: true; smooth: false; hideSource: true
             width: 24; height: 24
-            Component.onCompleted: raiz.ck("8 · ShaderEffectSource escala sin suavizar",
+            Component.onCompleted: raiz.ck("10 · ShaderEffectSource escala sin suavizar",
                                            !smooth && sourceItem === lienzo)
         }
     }
@@ -142,7 +173,7 @@ ShellRoot {
         stdout: StdioCollector {
             onStreamFinished: {
                 const t = text.trim().split(" ")
-                raiz.ck("9 · toDataURL da un PNG RGBA del tamaño exacto (así se exporta)",
+                raiz.ck("11 · toDataURL da un PNG RGBA del tamaño exacto (así se exporta)",
                         t[0] === "24" && t[1] === "24" && t[2] === "6",
                         t[0] + "x" + t[1] + " tipo de color " + t[2])
             }

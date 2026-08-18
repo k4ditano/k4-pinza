@@ -4,9 +4,15 @@
 //  antes de tocar nada de este fichero:
 //
 //   · putImageData de tres argumentos NO HACE NADA en este Qt. Se traga los
-//     píxeles sin quejarse. Todo lo que pinta usa la forma de siete
-//     —putImageData(img, 0, 0, x, y, w, h)— y ese rectángulo es además el que
-//     limita el trabajo: un trazo de tres píxeles no recompone el lienzo.
+//     píxeles sin quejarse. Hay que usar la forma de siete.
+//
+//   · Y en la de siete, el ORIGEN SUCIO TIENE QUE SER (0,0). Pasarle un
+//     ImageData del tamaño del lienzo y un rectángulo sucio en (10,10) tampoco
+//     hace nada — otra vez sin quejarse. Lo que sí funciona es recortar un
+//     ImageData del tamaño de la zona sucia y colocarlo con dx,dy. Así está
+//     escrito aquí, y esto era el fallo de "dibujo y sale al lado": el trazo
+//     no se pintaba nunca, y aparecía de golpe y desplazado cuando algo
+//     forzaba un repintado entero.
 //
 //   · Canvas.save() devuelve false y no escribe. Exportar es toDataURL y la
 //     forja escribe el fichero. Eso vive en servicios/Proyecto.qml.
@@ -41,7 +47,6 @@ Item {
     // ═══════════════════════════════════════════════════════════
 
     property var _local: null          // búfer compuesto, tamaño del documento
-    property var _img: null            // el ImageData del Canvas, reutilizado
     property var _ctx: null
     property var _pendiente: null      // rectángulo sucio esperando repintado
 
@@ -49,18 +54,18 @@ Item {
         if (!hayDoc || !_ctx) return false
         if (!_local || _local.w !== aw || _local.h !== ah) {
             _local = P.nuevo(aw, ah)
-            _img = _ctx.createImageData(aw, ah)
             _pendiente = { x: 0, y: 0, w: aw, h: ah }
         }
         return true
     }
 
-    /** Recompone SÓLO el rectángulo pedido, capa a capa. */
+    /** Recompone SÓLO el rectángulo pedido y devuelve el recortado al lienzo. */
     function _recompon(r) {
         const d = S.Documento.d
-        if (!d) return
+        if (!d) return null
         const x0 = Math.max(0, r.x), y0 = Math.max(0, r.y)
         const x1 = Math.min(aw, r.x + r.w), y1 = Math.min(ah, r.y + r.h)
+        if (x1 <= x0 || y1 <= y0) return null
         for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
             const i = (y * aw + x) * 4
             _local.d[i] = 0; _local.d[i+1] = 0; _local.d[i+2] = 0; _local.d[i+3] = 0
@@ -70,11 +75,20 @@ Item {
         //  que sale no tuviera por qué parecerse a lo que ves.
         S.Documento.componEn(_local, S.Documento.fotograma, S.Documento.orientacion,
                              { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, true)
-        for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
-            const i = (y * aw + x) * 4
-            _img.data[i] = _local.d[i]; _img.data[i+1] = _local.d[i+1]
-            _img.data[i+2] = _local.d[i+2]; _img.data[i+3] = _local.d[i+3]
-        }
+        return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }
+    }
+
+    /**
+     * El color que se está enseñando en pantalla en ese píxel.
+     *
+     * No es lo mismo que lo que hay en la capa: entre el búfer y la pantalla
+     * está el repintado, y ahí es donde vivía el fallo de "dibujo y sale al
+     * lado". Sin poder mirar esto, ninguna prueba lo habría cazado.
+     */
+    function pixelEnPantalla(x, y) {
+        if (!_ctx) return null
+        const d = _ctx.getImageData(x, y, 1, 1).data
+        return [d[0], d[1], d[2], d[3]]
     }
 
     function ensucia(r) {
@@ -241,14 +255,26 @@ Item {
             onPaint: {
                 raiz._ctx = getContext("2d")
                 if (!raiz._preparar()) return
-                const r = raiz._pendiente
-                if (!r) return
+                const pend = raiz._pendiente
+                if (!pend) return
                 raiz._pendiente = null
-                raiz._recompon(r)
-                // LA FORMA DE SIETE. La de tres no hace nada — ver cata/cata.qml.
-                raiz._ctx.putImageData(raiz._img, 0, 0,
-                                       Math.max(0, r.x), Math.max(0, r.y),
-                                       Math.min(raiz.aw, r.w), Math.min(raiz.ah, r.h))
+                const r = raiz._recompon(pend)
+                if (!r) return
+
+                //  Un ImageData del tamaño de la ZONA SUCIA, colocado en su
+                //  sitio con dx,dy. No se puede pasar el lienzo entero con un
+                //  rectángulo sucio desplazado: en este Qt eso no pinta nada y
+                //  no da ningún error (comprobado en cata/cata.qml).
+                const img = raiz._ctx.createImageData(r.w, r.h)
+                for (let y = 0; y < r.h; y++) for (let x = 0; x < r.w; x++) {
+                    const s = ((r.y + y) * raiz.aw + (r.x + x)) * 4
+                    const d = (y * r.w + x) * 4
+                    img.data[d] = raiz._local.d[s]
+                    img.data[d + 1] = raiz._local.d[s + 1]
+                    img.data[d + 2] = raiz._local.d[s + 2]
+                    img.data[d + 3] = raiz._local.d[s + 3]
+                }
+                raiz._ctx.putImageData(img, r.x, r.y, 0, 0, r.w, r.h)
             }
             onAvailableChanged: if (available) requestPaint()
             Component.onCompleted: requestPaint()
@@ -514,6 +540,89 @@ Item {
     property bool _mays: false
     property bool _ctrl: false
 
+    // ═══════════════════════════════════════════════════════════
+    // el gesto, aparte del ratón
+    // ═══════════════════════════════════════════════════════════
+    //
+    //  Pulsar, arrastrar y soltar son funciones normales que reciben
+    //  coordenadas de ESTE item. El MouseArea de abajo sólo las llama. Así se
+    //  puede comprobar en seco que pinchar en un sitio pinta ese píxel y no
+    //  otro, que es justo la clase de fallo que no se ve mirando la pantalla —
+    //  se ve pintando, y para entonces ya te has vuelto loco.
+
+    function pulsa(mx, my, boton, mods) {
+        raiz.forceActiveFocus()
+        raiz._mays = !!(mods & Qt.ShiftModifier)
+        raiz._ctrl = !!(mods & Qt.ControlModifier)
+
+        if (boton === Qt.MiddleButton || raiz._espacio || S.Pinceles.herramienta === "mano") {
+            raiz._paneando = true
+            raiz._panDesdeX = mx - S.Ajustes.panX
+            raiz._panDesdeY = my - S.Ajustes.panY
+            return
+        }
+        if (!raiz.hayDoc) return
+        const capa = S.Documento.capa(S.Documento.capaActiva)
+        if (!capa) return
+        if (capa.bloqueada && !S.Pinceles.esSeleccion) return
+
+        // Alt sobre cualquier herramienta = cuentagotas, sin cambiar de
+        // herramienta. Es el gesto que más se repite dibujando.
+        const nombre = (mods & Qt.AltModifier) ? "cuentagotas" : S.Pinceles.herramienta
+        const buf = S.Documento.celdaActiva(true)
+        if (!buf) return
+
+        raiz._herramienta = H.crea(nombre, raiz._contexto(buf))
+        if (!S.Pinceles.esSeleccion && nombre !== "cuentagotas")
+            S.Historial.abre(S.Documento.clave(capa.id, S.Documento.fotograma,
+                                               S.Documento.orientacion), buf)
+        raiz._herramienta.abajo(raiz.aPixelX(mx), raiz.aPixelY(my),
+                                boton === Qt.RightButton ? 2 : 1)
+        raiz._tras()
+    }
+
+    function arrastra(mx, my, botones, mods) {
+        raiz.cursorX = raiz.aPixelX(mx)
+        raiz.cursorY = raiz.aPixelY(my)
+        raiz.dentro = raiz.cursorX >= 0 && raiz.cursorY >= 0
+                   && raiz.cursorX < raiz.aw && raiz.cursorY < raiz.ah
+        if (raiz._paneando) {
+            S.Ajustes.panX = mx - raiz._panDesdeX
+            S.Ajustes.panY = my - raiz._panDesdeY
+            return
+        }
+        if (!raiz._herramienta) return
+        raiz._mays = !!(mods & Qt.ShiftModifier)
+        raiz._herramienta.mueve(raiz.cursorX, raiz.cursorY,
+                                (botones & Qt.RightButton) ? 2 : 1)
+        raiz._tras()
+    }
+
+    function suelta(mx, my) {
+        if (raiz._paneando) { raiz._paneando = false; return }
+        if (!raiz._herramienta) return
+        const r = raiz._herramienta.arriba(raiz.aPixelX(mx), raiz.aPixelY(my))
+        previa.puntos = []
+        const capa = S.Documento.capa(S.Documento.capaActiva)
+        if (r && capa) {
+            S.Historial.cierra(S.Pinceles.herramienta, S.Documento.celdaActiva(false))
+            S.Documento.cambiaPixeles(r)
+        }
+        raiz._herramienta = null
+    }
+
+    /** Acercar o alejar anclando al cursor, para no perder de vista el detalle. */
+    function acerca(mx, my, haciaDentro) {
+        const antes = zoom
+        const z = Math.max(0.25, Math.min(64, antes * (haciaDentro ? 1.25 : 0.8)))
+        const zz = z >= 1 ? Math.max(1, Math.round(z)) : z
+        const px = (mx - S.Ajustes.panX) / antes
+        const py = (my - S.Ajustes.panY) / antes
+        S.Ajustes.zoom = zz
+        S.Ajustes.panX = mx - px * zz
+        S.Ajustes.panY = my - py * zz
+    }
+
     MouseArea {
         id: raton
         anchors.fill: parent
@@ -523,93 +632,14 @@ Item {
                    : S.Pinceles.herramienta === "mano" ? Qt.OpenHandCursor
                    : Qt.CrossCursor
 
-        onPressed: (m) => {
-            raiz.forceActiveFocus()
-            raiz._mays = (m.modifiers & Qt.ShiftModifier) !== 0
-            raiz._ctrl = (m.modifiers & Qt.ControlModifier) !== 0
-            if (m.button === Qt.MiddleButton || raiz._espacio || S.Pinceles.herramienta === "mano") {
-                raiz._paneando = true
-                raiz._panDesdeX = m.x - S.Ajustes.panX
-                raiz._panDesdeY = m.y - S.Ajustes.panY
-                return
-            }
-            if (!raiz.hayDoc) return
-            const capa = S.Documento.capa(S.Documento.capaActiva)
-            if (!capa) return
-            if (capa.bloqueada && !S.Pinceles.esSeleccion) return
-
-            // Alt sobre cualquier herramienta = cuentagotas, sin cambiar de
-            // herramienta. Es el gesto que más se repite dibujando.
-            const nombre = (m.modifiers & Qt.AltModifier) ? "cuentagotas" : S.Pinceles.herramienta
-            const buf = S.Documento.celdaActiva(true)
-            if (!buf) return
-
-            raiz._herramienta = H.crea(nombre, raiz._contexto(buf))
-            if (!S.Pinceles.esSeleccion && nombre !== "cuentagotas")
-                S.Historial.abre(S.Documento.clave(capa.id, S.Documento.fotograma,
-                                                   S.Documento.orientacion), buf)
-            raiz._herramienta.abajo(raiz.aPixelX(m.x), raiz.aPixelY(m.y),
-                                    m.button === Qt.RightButton ? 2 : 1)
-            raiz._tras()
-        }
-
-        onPositionChanged: (m) => {
-            raiz.cursorX = raiz.aPixelX(m.x)
-            raiz.cursorY = raiz.aPixelY(m.y)
-            raiz.dentro = raiz.cursorX >= 0 && raiz.cursorY >= 0
-                       && raiz.cursorX < raiz.aw && raiz.cursorY < raiz.ah
-            if (raiz._paneando) {
-                S.Ajustes.panX = m.x - raiz._panDesdeX
-                S.Ajustes.panY = m.y - raiz._panDesdeY
-                return
-            }
-            if (!raiz._herramienta) return
-            raiz._mays = (m.modifiers & Qt.ShiftModifier) !== 0
-            raiz._herramienta.mueve(raiz.cursorX, raiz.cursorY,
-                                    (m.buttons & Qt.RightButton) ? 2 : 1)
-            raiz._tras()
-        }
-
-        onReleased: (m) => {
-            if (raiz._paneando) { raiz._paneando = false; return }
-            if (!raiz._herramienta) return
-            const r = raiz._herramienta.arriba(raiz.aPixelX(m.x), raiz.aPixelY(m.y))
-            previa.puntos = []
-            const capa = S.Documento.capa(S.Documento.capaActiva)
-            if (r && capa) {
-                S.Historial.cierra(S.Pinceles.herramienta, S.Documento.celdaActiva(false))
-                S.Documento.cambiaPixeles(r)
-            }
-            raiz._herramienta = null
-        }
-
+        onPressed: (m) => raiz.pulsa(m.x, m.y, m.button, m.modifiers)
+        onPositionChanged: (m) => raiz.arrastra(m.x, m.y, m.buttons, m.modifiers)
+        onReleased: (m) => raiz.suelta(m.x, m.y)
         onExited: { raiz.dentro = false; raiz.cursorX = -1 }
 
         onWheel: (w) => {
-            if (w.modifiers & Qt.ControlModifier || !raiz.hayDoc) {
-                // el zoom se ancla al cursor, que es lo que hace que puedas
-                // acercarte a un detalle sin perderlo de vista
-                const antes = raiz.zoom
-                const paso = w.angleDelta.y > 0 ? 1.25 : 0.8
-                const z = Math.max(0.25, Math.min(64, antes * paso))
-                const zz = z >= 1 ? Math.max(1, Math.round(z)) : z
-                const px = (w.x - S.Ajustes.panX) / antes
-                const py = (w.y - S.Ajustes.panY) / antes
-                S.Ajustes.zoom = zz
-                S.Ajustes.panX = w.x - px * zz
-                S.Ajustes.panY = w.y - py * zz
-            } else if (w.modifiers & Qt.ShiftModifier) {
-                S.Ajustes.panX += w.angleDelta.y > 0 ? 40 : -40
-            } else {
-                const antes = raiz.zoom
-                const z = Math.max(0.25, Math.min(64, antes * (w.angleDelta.y > 0 ? 1.25 : 0.8)))
-                const zz = z >= 1 ? Math.max(1, Math.round(z)) : z
-                const px = (w.x - S.Ajustes.panX) / antes
-                const py = (w.y - S.Ajustes.panY) / antes
-                S.Ajustes.zoom = zz
-                S.Ajustes.panX = w.x - px * zz
-                S.Ajustes.panY = w.y - py * zz
-            }
+            if (w.modifiers & Qt.ShiftModifier) S.Ajustes.panX += w.angleDelta.y > 0 ? 40 : -40
+            else raiz.acerca(w.x, w.y, w.angleDelta.y > 0)
         }
     }
 

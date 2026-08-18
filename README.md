@@ -141,6 +141,12 @@ pruebas para que nos enteremos el día que dejen de ser verdad.
 - **`putImageData` de tres argumentos no hace nada.** Se traga los píxeles sin
   quejarse. La forma de siete —`putImageData(img, 0, 0, x, y, w, h)`— sí
   funciona, y es la única que se usa en todo el programa.
+- **En la de siete, el origen sucio tiene que ser `(0,0)`.** Pasarle el lienzo
+  entero con un rectángulo sucio en `(10,10)` tampoco pinta nada, otra vez sin
+  quejarse. Hay que recortar un `ImageData` del tamaño de la zona sucia y
+  colocarlo con `dx,dy`. Esto costó caro: el lienzo repinta por zona sucia, así
+  que un trazo no llegaba nunca a la pantalla y aparecía de golpe cuando algo
+  forzaba un repintado entero — «dibujo y sale al lado».
 - **`Canvas.save()` devuelve `false` y no escribe.** Exportar es `toDataURL` y
   que la forja escriba el fichero. Leer va al revés y **no** por el Canvas:
   cargar una imagen y leerla con `getImageData` depende de que esté lista justo
@@ -202,6 +208,12 @@ de git. El motor de píxeles y las herramientas son JavaScript puro y se
 comprueban sin abrir nada; la ida y la vuelta entera —dibujar, guardar, cerrar,
 abrir, exportar— se comprueba con Pillow leyendo los PNG desde fuera, que es la
 única forma de saber que lo que se ve es lo que sale.
+
+Pulsar, arrastrar y soltar son funciones normales del lienzo y el ratón sólo las
+llama, así que `pruebas/Puntero.qml` puede pinchar en coordenadas de la vista y
+comprobar dos cosas distintas: que el píxel entra en la capa correcta, y que
+además **se ve** en pantalla. No es lo mismo, y el día que dejaron de serlo el
+programa parecía dibujar «al lado».
 
 ## Instalar
 

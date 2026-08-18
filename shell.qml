@@ -175,23 +175,41 @@ ShellRoot {
                 function di(t) { avisoTexto.text = t; opacity = 1; relojAviso.restart() }
             }
 
-            // ── la barra de estado, en el borde del lienzo ───────
+            // ── la barra de estado ───────────────────────────────
+            //
+            //  Abajo a la IZQUIERDA, y siempre. Estaba a la derecha y escondida
+            //  cuando había compás — o sea, escondida justo al dibujar un
+            //  sprite con orientaciones, que es cuando más falta hace saber en
+            //  qué píxel estás.
             Row {
-                anchors.right: lienzo.right
+                anchors.left: lienzo.left
                 anchors.bottom: lienzo.bottom
-                anchors.margins: 6
-                spacing: 10
+                anchors.margins: 8
+                spacing: 12
                 z: 600
-                visible: S.Documento.abierto && !S.Ajustes.compas
+                visible: S.Documento.abierto
+                parent: lienzo
 
                 Text {
                     text: lienzo.dentro ? lienzo.cursorX + ", " + lienzo.cursorY : "—"
-                    font.family: C.Tema.tipoMono; font.pixelSize: 10; color: C.Tema.tenue
+                    font.family: C.Tema.tipoMono
+                    font.pixelSize: 11
+                    color: lienzo.dentro ? C.Tema.tinta : C.Tema.apagado
                 }
                 Text {
                     text: "×" + (S.Ajustes.zoom >= 1 ? S.Ajustes.zoom.toFixed(0)
                                                      : S.Ajustes.zoom.toFixed(2))
-                    font.family: C.Tema.tipoMono; font.pixelSize: 10; color: C.Tema.tenue
+                    font.family: C.Tema.tipoMono
+                    font.pixelSize: 11
+                    color: C.Tema.tenue
+                }
+                Text {
+                    visible: S.Seleccion.activa && S.Seleccion.limites !== null
+                    text: S.Seleccion.limites
+                          ? "sel " + S.Seleccion.limites.w + "×" + S.Seleccion.limites.h : ""
+                    font.family: C.Tema.tipoMono
+                    font.pixelSize: 11
+                    color: C.Tema.acento
                 }
             }
         }

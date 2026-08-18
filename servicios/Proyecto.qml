@@ -35,10 +35,35 @@ Singleton {
     // guardar
     // ═══════════════════════════════════════════════════════════
 
+    readonly property bool ocupado: estado !== ""
+
+    /**
+     * Guardar y abrir no pueden solaparse.
+     *
+     * Guardar recorre las celdas del documento y las va mandando por tandas;
+     * si mientras tanto se abre otro proyecto, el documento se cambia debajo y
+     * lo que se escribe deja de tener que ver con lo que se pidió. Pasaba de
+     * verdad: dos cambios de acción seguidos y el programa se caía sin dejar
+     * ni un error en el registro.
+     *
+     * Se guarda la última petición y se atiende al terminar la de ahora, que
+     * es lo que espera quien pulsa dos veces: acabar donde pulsó la última.
+     */
+    property var _enCola: null
+
+    function _despacha() {
+        const p = _enCola
+        _enCola = null
+        if (!p) return
+        if (p.que === "abrir") abre(p.ruta, p.cb)
+        else guarda(p.ruta, p.cb)
+    }
+
     function guarda(ruta, cb) {
         if (!S.Documento.abierto) return
         const destino = ruta || S.Documento.ruta
         if (!destino) { falla("guardar", "no hay ruta"); return }
+        if (ocupado) { _enCola = { que: "guardar", ruta: destino, cb: cb }; return }
 
         estado = "guardando"
         progreso = 0
@@ -47,11 +72,16 @@ Singleton {
 
         //  Todas las celdas en un viaje. El nombre de fichero ES la clave: capa,
         //  fotograma y orientación se leen de un vistazo en el explorador.
+        //
+        //  Se COPIAN, no se referencian: el guardado va por tandas y entre
+        //  tanda y tanda puede pasar cualquier cosa —un trazo, abrir otra
+        //  cosa—. Copiar ochenta celdas de 32×32 son trescientos kilobytes y
+        //  compra que lo que se escribe sea lo que había cuando lo pediste.
         const lista = []
         for (let i = 0; i < claves.length; i++) {
             const k = claves[i]
             lista.push({ ruta: destino + "/celdas/" + k.split(":").join(".") + ".png",
-                         buf: S.Documento.d.celdas[k] })
+                         buf: P.clonar(S.Documento.d.celdas[k]) })
         }
 
         S.Forja.creaCarpeta(destino + "/celdas", () => {
@@ -66,6 +96,7 @@ Singleton {
                     ultimoMensaje = "guardado en " + destino
                     hecho("guardar", destino)
                     if (cb) cb(bien)
+                    _despacha()
                 })
             })
         })
@@ -103,24 +134,28 @@ Singleton {
     // ═══════════════════════════════════════════════════════════
 
     function abre(ruta, cb) {
+        if (ocupado) { _enCola = { que: "abrir", ruta: ruta, cb: cb }; return }
         estado = "abriendo"
         S.Forja.leeTexto(ruta + "/proyecto.json", (r) => {
             if (!r.bien || !r.texto) {
                 estado = ""
                 falla("abrir", "no hay proyecto.json en " + ruta)
                 if (cb) cb(false)
+                _despacha()
                 return
             }
             let meta
             try { meta = JSON.parse(r.texto) }
-            catch (e) { estado = ""; falla("abrir", "el proyecto.json está roto"); if (cb) cb(false); return }
+            catch (e) { estado = ""; falla("abrir", "el proyecto.json está roto")
+                        if (cb) cb(false); _despacha(); return }
 
             S.Documento.desdeMeta(meta, ruta)
             if (meta.pack) S.Packs.elige(meta.pack)
             _aplicaRejilla()
 
             const claves = S.Documento.clavesPropias()
-            if (!claves.length) { estado = ""; hecho("abrir", ruta); if (cb) cb(true); return }
+            if (!claves.length) { estado = ""; hecho("abrir", ruta)
+                                  if (cb) cb(true); _despacha(); return }
 
             const rutas = claves.map((k) => ruta + "/celdas/" + k.split(":").join(".") + ".png")
             exportador.deVarios(rutas, (mapa) => {
@@ -136,6 +171,7 @@ Singleton {
                 ultimoMensaje = "abierto " + ruta
                 hecho("abrir", ruta)
                 if (cb) cb(true)
+                _despacha()
             })
         })
     }

@@ -171,6 +171,10 @@ Singleton {
         if (!info) { falla("acción", "esta especie no tiene «" + id + "»"); return }
         if (!memoria.d.ruta) { falla("acción", "guarda la especie antes de dibujarla"); return }
         if (id === memoria.accionActiva && S.Documento.abierto) { if (cb) cb(true); return }
+        //  Si hay un guardado o una apertura en marcha, se anota y ya. Sin
+        //  esto, pulsar dos acciones seguidas dejaba dos operaciones pisándose
+        //  el documento y el programa se caía sin dejar ni un error.
+        if (S.Proyecto.ocupado) { _pendiente = id; return }
 
         //  Antes de irse, guardar la que estabas dibujando. Cambiar de acción
         //  no puede costarte el trabajo de la anterior: no hay ningún aviso ni
@@ -184,6 +188,8 @@ Singleton {
         _abreAccion(id, cb)
     }
 
+    property string _pendiente: ""
+
     function _abreAccion(id, cb) {
         const info = memoria.d.acciones[id]
         memoria.d.ultima = id
@@ -194,6 +200,7 @@ Singleton {
                     if (bien) memoria.accionActiva = id
                     _avisa()
                     if (cb) cb(bien)
+                    _atiendePendiente()
                 })
                 return
             }
@@ -202,6 +209,7 @@ Singleton {
                 memoria.accionActiva = id
                 _avisa()
                 if (cb) cb(bien)
+                _atiendePendiente()
             })
         })
     }
@@ -222,6 +230,14 @@ Singleton {
         S.Documento.ponCampo("returnFrame", info.returnFrame || 0)
         S.Documento.ponCampo("shadowSize", memoria.d.shadowSize)
         S.Historial.limpia()
+    }
+
+    /** La acción que quedó esperando mientras había otra en marcha. */
+    function _atiendePendiente() {
+        if (!_pendiente) return
+        const id = _pendiente
+        _pendiente = ""
+        if (id !== memoria.accionActiva) Qt.callLater(() => editaAccion(id, null))
     }
 
     /** Lo que el documento abierto tenga ahora, de vuelta a la ficha. */

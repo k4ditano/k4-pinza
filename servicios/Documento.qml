@@ -60,6 +60,22 @@ Singleton {
         else pixelesCambiados(0, 0, ancho, alto)
     }
 
+    /**
+     * Repinta sin marcar nada. Para lo que sólo cambia lo que MIRAS.
+     *
+     * Pasar de una orientación a otra, o de un fotograma a otro, no modifica el
+     * documento: sólo cambia qué celda estás viendo. Marcarlo sucio por eso
+     * tiene consecuencias de verdad — el autoguardado se dispara sin que hayas
+     * tocado nada, cambiar de acción de una criatura guarda ocho proyectos que
+     * nadie ha editado, y reproducir la animación ensucia el documento sesenta
+     * veces por segundo.
+     */
+    function refresca(r) {
+        revPixeles++
+        if (r) pixelesCambiados(r.x, r.y, r.w, r.h)
+        else pixelesCambiados(0, 0, ancho, alto)
+    }
+
     // ── acceso cómodo ────────────────────────────────────────────
     readonly property var d: memoria.d
     readonly property bool abierto: memoria.d !== null
@@ -76,9 +92,10 @@ Singleton {
     property alias fotograma: memoria.fotograma
     property alias orientacion: memoria.orientacion
 
-    onCapaActivaChanged: cambia()
-    onFotogramaChanged: cambiaPixeles(null)
-    onOrientacionChanged: cambiaPixeles(null)
+    //  Los tres cambian lo que ves, no lo que hay: refrescan sin ensuciar.
+    onCapaActivaChanged: { rev++ }
+    onFotogramaChanged: refresca(null)
+    onOrientacionChanged: refresca(null)
 
     // ═══════════════════════════════════════════════════════════
     // crear

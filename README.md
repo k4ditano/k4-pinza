@@ -10,6 +10,20 @@ El programa se llama **K4 Pinza**. El comando es `pinza` a secas, y también lo
 son la extensión de los ficheros y la carpeta de ajustes: eso no es el nombre,
 es lo que se teclea.
 
+*(In English: [README.en.md](README.en.md))*
+
+![El editor](capturas/editor.png)
+
+| | |
+|---|---|
+| ![La previa en juego](capturas/previa.png) | ![El color](capturas/color.png) |
+| **La previa en juego.** El sprite sobre el suelo a ×1, ×2 y ×3, con su sombra y las medidas que el juego saca de los píxeles — y el aviso de que catorce filas vacías bajo la figura son catorce píxeles de aire donde debería apoyar. | **El color.** Rampas de nueve tonos, no de tres, y la rueda dentro del panel: elegir un color no debería taparte el dibujo que estás mirando para decidirlo. |
+
+![La paleta de comandos](capturas/comandos.png)
+
+Sin menús: `Ctrl+K` y se busca por trozos sueltos. Sólo sale lo que se puede
+hacer ahora mismo.
+
 ## La idea
 
 LibreSprite y Aseprite dibujan píxeles muy bien. Lo que ninguno de los dos sabe
@@ -182,10 +196,11 @@ lo agranda es la GPU, sin suavizar. Por eso da igual dibujar al 100 % o al
 3200 %, el trabajo de la CPU es el mismo. Y lo que se repinta es sólo el
 rectángulo que ensució el trazo.
 
-### Dos cosas de Qt que conviene saber antes de tocar el lienzo
+### Lo que este Qt hace mal, y hay que saber antes de tocar el lienzo
 
 Están comprobadas en `cata/cata.qml`, que se sigue ejecutando con las demás
-pruebas para que nos enteremos el día que dejen de ser verdad.
+pruebas para que nos enteremos el día que dejen de ser verdad. Ninguna da error:
+todas fallan en silencio, que es lo que las hace caras.
 
 - **`putImageData` de tres argumentos no hace nada.** Se traga los píxeles sin
   quejarse. La forma de siete —`putImageData(img, 0, 0, x, y, w, h)`— sí
@@ -209,6 +224,19 @@ pruebas para que nos enteremos el día que dejen de ser verdad.
   cargar una imagen y leerla con `getImageData` depende de que esté lista justo
   cuando toca pintar, y al arrancar no lo está — devolvía capas vacías sin dar
   ningún error. Las imágenes entran por la forja, con Pillow.
+- **`createImageData` envenena el motor.** Cada llamada engorda algo que la
+  recogida de basura no suelta, y a partir de unas cuarenta el motor entra en
+  marcado continuo: **cualquier** reserva de memoria —un objeto, un texto, un
+  búfer— pasa de ser gratis a costar medio milisegundo. No se cura con `gc()`,
+  ni cerrando el documento, ni soltando las referencias; sólo recargando el
+  motor entero. El síntoma era cambiar de acción tres veces en una criatura y
+  que a partir de ahí **todo** el programa fuera lento, para siempre. Por eso
+  cada lienzo tiene **un** `ImageData` que sólo crece (`P.lienzoImg`): uno más
+  grande que la zona vale igual si cada fila se escribe con su paso.
+- **`String.fromCharCode.apply` con un array de tipado devuelve caracteres
+  nulos.** Sin error y con la longitud correcta: el texto sale entero y todo a
+  cero. Codificar a base64 con un `Uint16Array` de códigos guardaba ficheros en
+  blanco sin que nada se quejara.
 
 ## El formato de proyecto
 
@@ -353,6 +381,7 @@ Desinstalar no toca tus proyectos, tus packs ni tus guiones: eso vive en
     pinza dibujo.png         importarlo como capa
     pinza --nuevo            la hoja de documento nuevo
     pinza --estado           qué hay abierto ahora mismo
+    pinza --mostrar          devolver la ventana si la cerraste
 
 Si ya hay una ventana abierta, **se le habla en vez de arrancar otra**. Dos
 instancias no se llevan mal —cada una tiene su documento— pero se pisarían los

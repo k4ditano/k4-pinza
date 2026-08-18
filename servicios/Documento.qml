@@ -35,6 +35,31 @@ Singleton {
         property int orientacion: 0
     }
 
+    /**
+     * ¿Esto es un documento, o son restos de algo?
+     *
+     * Lo usa `desdeMeta` con lo que venga de un proyecto.json, y también el
+     * arranque con lo que sobreviva a la recarga. Lo segundo hace falta porque
+     * una recarga que FALLA a medias —un .qml con un error de sintaxis, o
+     * pillado mientras se escribía— deja la memoria persistente a medio
+     * restaurar: un objeto que existe pero no tiene ni capas ni fotogramas. Y
+     * `abierto` decía que sí, con lo que el programa entero se comportaba como
+     * si hubiera un dibujo de 0×0 delante: los paneles activos, las
+     * herramientas listas y, lo peligroso, un guardado que escribiría esa nada
+     * encima de las celdas buenas.
+     */
+    function esDocumento(m) {
+        return !!m && Array.isArray(m.capas) && m.capas.length > 0
+               && Array.isArray(m.fotogramas) && m.fotogramas.length > 0
+               && Array.isArray(m.orientaciones) && m.orientaciones.length > 0
+               && m.ancho > 0 && m.alto > 0
+    }
+
+    Component.onCompleted: if (memoria.d && !esDocumento(memoria.d)) {
+        console.log("documento a medias tras la recarga: lo suelto en vez de arrastrarlo")
+        memoria.d = null
+    }
+
     // ── los contadores a los que se enganchan las vistas ─────────
     property int rev: 0            // estructura: capas, fotogramas, tamaño
     property int revPixeles: 0     // sólo píxeles
@@ -797,10 +822,7 @@ Singleton {
         //  `abierto` decía que sí. Y eso es lo peligroso, porque el siguiente
         //  guardado escribe ese fantasma encima de las celdas buenas, que sí
         //  estaban en la carpeta. Mejor no abrir y decirlo.
-        if (!m || !Array.isArray(m.capas) || !m.capas.length
-            || !Array.isArray(m.fotogramas) || !m.fotogramas.length
-            || !Array.isArray(m.orientaciones) || !m.orientaciones.length
-            || !(m.ancho > 0) || !(m.alto > 0)) return null
+        if (!esDocumento(m)) return null
 
         const nuevoDoc = {
             nombre: m.nombre, ruta: ruta || "",

@@ -152,10 +152,23 @@ def orden_borrar(p):
     return {"borrado": False}
 
 
+PNG_FIRMA = b"\x89PNG\r\n\x1a\n"
+
+
 def orden_png_info(p):
+    """El tamaño de un PNG leyendo su cabecera, sin descodificarlo.
+
+    Comprueba la firma antes de creerse los bytes. No lo hacía: desempaquetaba
+    las posiciones 16 a 24 de cualquier fichero y devolvía «bien» con lo que
+    saliera — de un JPEG contestó 65536×4292542531 tan tranquilo. Un dato
+    inventado que viene marcado como correcto es peor que un error, porque
+    quien pregunta se lo cree.
+    """
     ruta = expande(p["ruta"])
     with open(ruta, "rb") as f:
         b = f.read(32)
+    if not b.startswith(PNG_FIRMA):
+        raise RuntimeError("%s no es un PNG" % ruta)
     import struct
     w, h = struct.unpack(">II", b[16:24])
     return {"ancho": w, "alto": h, "tipoColor": b[25]}
@@ -199,9 +212,23 @@ def orden_escribir_pixeles(p):
         if len(crudo) < esperado:
             crudo = crudo + b"\x00" * (esperado - len(crudo))
         im = Image.frombytes("RGBA", (int(f["ancho"]), int(f["alto"])), crudo[:esperado])
-        # el temporal conserva la extensión: Pillow decide el formato por ella
-        tmp = ruta + ".pinza-tmp.png"
-        im.save(tmp)
+        #  El temporal lleva la extensión del DESTINO, no siempre .png.
+        #
+        #  Pillow decide el formato por la extensión del fichero que le das, así
+        #  que con un temporal siempre .png un destino «dibujo.jpg» acababa
+        #  siendo un PNG con nombre de JPEG: no falla al escribir y falla al
+        #  abrirlo en otro programa, que es la peor forma de fallar.
+        #
+        #  Y sin alfa donde el formato no lo admite: JPEG con RGBA revienta al
+        #  guardar, y decirlo aquí es más útil que un traceback.
+        ext = os.path.splitext(ruta)[1].lower() or ".png"
+        salida = im
+        if ext in (".jpg", ".jpeg", ".bmp"):
+            fondo = Image.new("RGB", im.size, (255, 255, 255))
+            fondo.paste(im, mask=im.split()[3])
+            salida = fondo
+        tmp = ruta + ".pinza-tmp" + ext
+        salida.save(tmp)
         os.replace(tmp, ruta)
         escritos.append(ruta)
     return {"escritos": escritos, "cuantos": len(escritos)}

@@ -90,6 +90,46 @@ ShellRoot {
                 const p = b ? P.lee(b, 1, 1) : null
                 ck("y el cambio está en el PNG del disco",
                    !!p && P.distancia(p, [20, 220, 120, 255]) < 6, p ? p.join(",") : "no se lee")
+                paso2b()
+            })
+        })
+    }
+
+    // ── 2b · guardar como imagen, con su nombre ─────────────────
+    //  «Guardar como» era siempre un selector de CARPETA y siempre escribía un
+    //  proyecto. Para una imagen suelta eso no es guardar como: es convertirla
+    //  en otra cosa.
+    function paso2b() {
+        const otra = raiz.base + "/copia.png"
+        S.Proyecto.guardaImagenEn(otra, (bien) => {
+            ck("una imagen se guarda con el nombre que le pongas", bien)
+            ck("y el documento pasa a apuntar al fichero nuevo",
+               S.Documento.imagen === otra, S.Documento.imagen)
+            ex.dePng(otra, (b) => {
+                ck("el fichero nuevo tiene el dibujo",
+                   !!b && !P.vacio(b) && b.w === 20 && b.h === 28,
+                   b ? b.w + "x" + b.h : "no se lee")
+                //  Y el original no se toca: seguir escribiendo encima de él
+                //  después de un «guardar como» es el fallo clásico.
+                ex.dePng(raiz.png, (o) => {
+                    ck("y el original sigue donde estaba", !!o && !P.vacio(o))
+                    paso2c()
+                })
+            })
+        })
+    }
+
+    //  La forja decide el formato por la extensión del destino: un temporal
+    //  siempre .png dejaba un PNG con nombre de JPEG, que no falla al escribir
+    //  y falla al abrirlo en otro programa.
+    function paso2c() {
+        const jpg = raiz.base + "/copia.jpg"
+        S.Proyecto.guardaImagenEn(jpg, () => {
+            S.Forja.pide("pngInfo", { ruta: jpg }, (r) => {
+                ck("un destino .jpg no sale siendo un PNG con nombre falso",
+                   !r.bien, r.bien ? "salió PNG de " + r.ancho + "x" + r.alto : "no es PNG, bien")
+                //  y se vuelve a apuntar al PNG para lo que viene
+                S.Documento.ponImagen(raiz.png)
                 paso3()
             })
         })

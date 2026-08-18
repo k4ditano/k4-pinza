@@ -24,6 +24,8 @@ Singleton {
     signal pideHoja(string nombre)
     /** Elegir un PNG del disco para abrirlo como documento. */
     signal pideAbrirImagen()
+    /** Elegir dónde y con qué nombre se escribe la imagen. */
+    signal pideGuardarImagen()
     signal pideAviso(string texto)
     signal pideAjuste()
 
@@ -234,8 +236,29 @@ Singleton {
         //  con las setenta y pico órdenes, y hacerlo depender de la especie las
         //  reconstruiría todas en cada cambio de acción. Lo que hace falta
         //  saber —criatura entera o sólo este dibujo— lo dice el diálogo.
+        //  Dos «guardar como», porque son dos cosas distintas y mezclarlas es
+        //  lo que hacía que guardar una imagen suelta te pidiera una carpeta de
+        //  proyecto. Un proyecto guarda capas, fotogramas y caras; una imagen es
+        //  un fichero. El genérico de abajo elige el que encaja con lo que
+        //  tengas, y estos dos están para cuando quieres el otro.
+        { id: "guardarImagenComo", titulo: "Guardar como imagen…", grupo: "fichero",
+          icono: "guardar", cuando: () => ord.hayDoc,
+          hacer: () => ord.pideGuardarImagen() },
         { id: "guardarComo", titulo: "Guardar como…", grupo: "fichero", icono: "guardar",
-          atajo: "Ctrl+Shift+S", cuando: () => ord.hayDoc, hacer: () => ord.pideHoja("guardarComo") },
+          atajo: "Ctrl+Shift+S", cuando: () => ord.hayDoc,
+          hacer: () => {
+              //  Lo que encaja con lo que tengas. Si esto salió de una imagen
+              //  suelta, «guardar como» es guardar una imagen con su nombre;
+              //  pedirle una carpeta de proyecto a quien abrió un PNG para
+              //  retocarlo es convertirle el dibujo en otra cosa.
+              //
+              //  Sólo cuando salió de una imagen, a propósito: un documento con
+              //  capas, fotogramas y caras es un proyecto aunque hoy tenga un
+              //  solo fotograma, y aplanarlo por deducción sería tirar trabajo.
+              //  Para eso está «Guardar como imagen…», que es explícito.
+              if (!S.Especie.abierta && S.Documento.imagen) { ord.pideGuardarImagen(); return }
+              ord.pideHoja("guardarComo")
+          } },
         { id: "exportar", titulo: "Exportar según el contrato", grupo: "fichero", icono: "exportar",
           atajo: "Ctrl+E", cuando: () => ord.hayDoc, hacer: () => ord.pideHoja("exportar") },
         { id: "exportarGif", titulo: "Exportar GIF", grupo: "fichero", icono: "gif",

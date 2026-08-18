@@ -484,6 +484,26 @@ Singleton {
     }
 
     /**
+     * La imagen, a un fichero que eliges tú, con su nombre.
+     *
+     * «Guardar como» era siempre un selector de CARPETA y siempre escribía un
+     * proyecto: una carpeta con su json y un PNG por celda. Para lo que es una
+     * imagen suelta eso no es guardar como, es convertirla en otra cosa. Aquí
+     * se guarda como en cualquier editor de imágenes — eliges dónde, le pones
+     * nombre, y sale un fichero.
+     *
+     * Y a partir de ahí el documento apunta ahí: el siguiente Ctrl+S va al
+     * fichero nuevo y no al de antes, que es lo que hace cualquier programa y
+     * lo que evita seguir escribiendo encima del original sin querer.
+     */
+    function guardaImagenEn(ruta, cb) {
+        if (!S.Documento.abierto) { if (cb) cb(false); return }
+        if (!ruta) { if (cb) cb(false); return }
+        S.Documento.ponImagen(ruta)
+        guardaImagen(cb)
+    }
+
+    /**
      * La imagen, de vuelta al fichero del que salió.
      *
      * Aplana lo que haya —capas, fotograma y cara actuales— porque un PNG no

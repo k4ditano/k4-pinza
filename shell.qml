@@ -326,6 +326,16 @@ ShellRoot {
             hojas.abre(dos[0], dos[1])
         }
         function onPideAbrirImagen() { if (raiz.abrirImagen) raiz.abrirImagen.open() }
+        function onPideGuardarImagen() {
+            if (!raiz.guardarImagen) return
+            //  Propone el nombre que ya tiene, que es lo que espera cualquiera:
+            //  guardar como sobre «bicho.png» debe salir con «bicho.png» escrito
+            //  y el cursor listo para cambiarlo, no con el campo en blanco.
+            const ya = S.Documento.imagen
+            raiz.guardarImagen.currentFile =
+                "file://" + (ya || (S.Ajustes.taller + "/" + (S.Documento.nombre || "dibujo") + ".png"))
+            raiz.guardarImagen.open()
+        }
         function onPideAviso(texto) { aviso.di(texto) }
         function onPideAjuste() { lienzo.ajusta() }
         function onPideTema() { C.Tema.oscuro = !C.Tema.oscuro }
@@ -386,6 +396,7 @@ ShellRoot {
     //  imagen llamaba a un id que no existía en su ámbito y no pasaba nada —
     //  sin error, que es lo que la hacía difícil de ver.
     property var abrirImagen: null
+    property var guardarImagen: null
     property var abrirEspecie: null
     property var elegirTaller: null
     property var elegirRaiz: null
@@ -396,6 +407,7 @@ ShellRoot {
             Component.onCompleted: {
                 raiz.guardarComo = guardarDlg; raiz.abrir = abrirDlg
                 raiz.abrirImagen = abrirImagenDlg
+                raiz.guardarImagen = guardarImagenDlg
                 raiz.abrirEspecie = abrirEspecieDlg
                 raiz.elegirTaller = tallerDlg
                 raiz.elegirRaiz = raizDlg
@@ -421,6 +433,15 @@ ShellRoot {
             //  carpetas: un proyecto es una carpeta y una imagen es un
             //  fichero, y ningún diálogo del sistema elige las dos cosas. Por
             //  eso son dos órdenes y no una con un desplegable.
+            FileDialog {
+                id: guardarImagenDlg
+                title: "Guardar la imagen como"
+                fileMode: FileDialog.SaveFile
+                defaultSuffix: "png"
+                nameFilters: ["PNG (*.png)", "Imágenes (*.png *.jpg *.jpeg *.bmp *.webp)",
+                              "Todo (*)"]
+                onAccepted: S.Proyecto.guardaImagenEn(String(selectedFile).replace("file://", ""), null)
+            }
             FileDialog {
                 id: abrirImagenDlg
                 title: "Abrir una imagen"

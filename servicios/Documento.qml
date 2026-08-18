@@ -789,6 +789,19 @@ Singleton {
 
     /** Monta el documento desde su meta; los píxeles llegan después. */
     function desdeMeta(m, ruta) {
+        //  Lo primero: que esto SEA un documento.
+        //
+        //  Sin esta comprobación, un proyecto.json que no lo fuera —cortado,
+        //  de otra cosa, escrito por un guion con un fallo— entraba igual y
+        //  dejaba un documento fantasma: 0×0, sin capas, sin fotogramas, pero
+        //  `abierto` decía que sí. Y eso es lo peligroso, porque el siguiente
+        //  guardado escribe ese fantasma encima de las celdas buenas, que sí
+        //  estaban en la carpeta. Mejor no abrir y decirlo.
+        if (!m || !Array.isArray(m.capas) || !m.capas.length
+            || !Array.isArray(m.fotogramas) || !m.fotogramas.length
+            || !Array.isArray(m.orientaciones) || !m.orientaciones.length
+            || !(m.ancho > 0) || !(m.alto > 0)) return null
+
         const nuevoDoc = {
             nombre: m.nombre, ruta: ruta || "",
             ancho: m.ancho, alto: m.alto,

@@ -88,6 +88,7 @@ cat > "${BIN}/pinza" <<LANZADOR
 #      pinza dibujo.png             lo importa como capa
 #      pinza --estado               qué hay abierto ahora mismo
 #      pinza --nuevo                la hoja de documento nuevo
+#      pinza --mostrar              devolver la ventana si la cerraste
 #
 set -euo pipefail
 
@@ -112,6 +113,7 @@ hablar() {
 
 case "\${1:-}" in
     --estado) hablar estado || echo "pinza no está abierta"; exit 0 ;;
+    --mostrar) hablar mostrar && exit 0 || true ;;
     --nuevo)  hablar nuevo  && exit 0 || true ;;
     --ayuda|-h|--help)
         sed -n '3,10p' "\$0" | sed 's/^#\\s\\?//'; exit 0 ;;
@@ -129,6 +131,10 @@ if [ -n "\$ruta" ]; then
     fi
 fi
 
+#  Si ya hay una instancia, se le pide que enseñe la ventana en vez de
+#  arrancar otra: cerrar la ventana no mata el proceso, así que sin esto
+#  volver a escribir `pinza` no te devolvía nada.
+hablar mostrar && exit 0 || true
 exec qs -c pinza
 LANZADOR
 chmod +x "${BIN}/pinza"

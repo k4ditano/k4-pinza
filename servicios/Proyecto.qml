@@ -84,18 +84,44 @@ Singleton {
                          buf: P.clonar(S.Documento.d.celdas[k]) })
         }
 
+        //  Si algo falla, NO se marca limpio y NO se escribe el proyecto.json.
+        //
+        //  Antes se daba por bueno pasara lo que pasara: se escribía el
+        //  proyecto.json, se quitaba el punto de «sin guardar» y se decía
+        //  «guardado en …» aunque las celdas no hubieran llegado al disco. Un
+        //  guardado a medias que además te deja cerrar tranquilo es peor que
+        //  no guardar, porque el aviso que te habría salvado ya no sale.
+        function _falloAlGuardar(motivo) {
+            estado = ""
+            falla("guardar", motivo)
+            if (cb) cb(false)
+            _despacha()
+        }
+
         S.Forja.creaCarpeta(destino + "/celdas", () => {
             S.Forja.escribeTexto(destino + "/paleta.gpl", S.Paleta.aGpl(meta.nombre), null)
             exportador.escribeVarios(lista, (bien) => {
+                if (!bien) {
+                    _falloAlGuardar("no se pudieron escribir las celdas en " + destino)
+                    return
+                }
+                //  El proyecto.json va DESPUÉS de las celdas, y a propósito: es
+                //  el índice de lo demás, y un índice que promete celdas que no
+                //  están es lo único que no se puede arreglar mirando la carpeta.
                 S.Forja.escribeTexto(destino + "/proyecto.json",
-                                     JSON.stringify(meta, null, 2) + "\n", () => {
+                                     JSON.stringify(meta, null, 2) + "\n", (r) => {
+                    if (!r || !r.bien) {
+                        _falloAlGuardar("las celdas están escritas, pero el proyecto.json de "
+                                        + destino + " no: " + ((r && r.error) || "no sé por qué"))
+                        return
+                    }
                     estado = ""
                     progreso = 1
                     S.Documento.ponRuta(destino)
                     S.Documento.limpio()
                     ultimoMensaje = "guardado en " + destino
                     hecho("guardar", destino)
-                    if (cb) cb(bien)
+                    if (cb) cb(true)
                     _despacha()
                 })
             })
@@ -149,7 +175,12 @@ Singleton {
             catch (e) { estado = ""; falla("abrir", "el proyecto.json está roto")
                         if (cb) cb(false); _despacha(); return }
 
-            S.Documento.desdeMeta(meta, ruta)
+            if (!S.Documento.desdeMeta(meta, ruta)) {
+                estado = ""
+                falla("abrir", "el proyecto.json de " + ruta
+                               + " no describe un documento; no lo abro para no escribir encima")
+                if (cb) cb(false); _despacha(); return
+            }
             if (meta.pack) S.Packs.elige(meta.pack)
             _aplicaRejilla()
 

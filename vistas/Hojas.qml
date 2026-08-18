@@ -1250,11 +1250,18 @@ Item {
                     C.Boton {
                         texto: "crear"; activo: true; relleno: 12
                         onPulsado: {
-                            S.Especie.nueva({ nombre: hojaEsp.nombreNuevo, dex: parent.parent.dex,
-                                              role: parent.parent.role,
-                                              shadowSize: parent.parent.sombra })
-                            S.Especie.guarda(S.Ajustes.taller + "/"
-                                             + hojaEsp.nombreNuevo + ".especie", null)
+                            const nom = hojaEsp.nombreNuevo
+                            const dex = parent.parent.dex
+                            const rol = parent.parent.role
+                            const som = parent.parent.sombra
+                            //  Lo de antes al disco primero: crear una criatura
+                            //  nueva sustituye la ficha y el documento, y sin
+                            //  esto se llevaba por delante lo que llevaras
+                            //  dibujado de la anterior.
+                            S.Especie.guardaTodo(() => {
+                                S.Especie.nueva({ nombre: nom, dex: dex, role: rol, shadowSize: som })
+                                S.Especie.guarda(S.Ajustes.taller + "/" + nom + ".especie", null)
+                            })
                             raiz.cierra()
                         }
                     }
@@ -1356,7 +1363,7 @@ Item {
                     }
                     C.Boton {
                         texto: "guardar"
-                        onPulsado: { S.Especie.recogeDelDocumento(); S.Especie.guarda(null, null) }
+                        onPulsado: S.Especie.recogeYGuarda(null)
                     }
                 }
                 Text {
@@ -1375,7 +1382,8 @@ Item {
 
                 Item { width: 1; height: 4 }
                 C.Boton { texto: "cerrar la especie"; peligro: true
-                          onPulsado: { S.Especie.cierra(); hojaEsp.modo = "elegir" } }
+                          pista: "guarda lo que tengas antes de soltarla"
+                          onPulsado: { S.Especie.cierra(null); hojaEsp.modo = "elegir" } }
             }
         }
     }

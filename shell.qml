@@ -423,15 +423,48 @@ ShellRoot {
     //  Sólo si el proyecto YA tiene una carpeta. Autoguardar uno sin ruta
     //  significa inventarse dónde, y aparecerían carpetas donde nadie las puso.
 
+    //  Dos relojes, no uno.
+    //
+    //  El de abajo va cada dos minutos y es el que cubre estar dibujando sin
+    //  parar. Éste salta cuando PARAS: seis segundos sin tocar nada y lo que
+    //  hay se va al disco. Con sólo el periódico, cerrar la sesión o quedarse
+    //  sin luz justo antes del siguiente aviso te costaba hasta dos minutos de
+    //  trabajo, y no hay forma de enterarse desde dentro: cerrar la ventana no
+    //  avisa a nadie —ni `closed` ni `visible` se enteran en este Quickshell—
+    //  y matar el proceso, menos.
+    Timer {
+        id: reposo
+        interval: 6000
+        running: false
+        onTriggered: guardaLoQueHaya()
+    }
+    Connections {
+        target: S.Documento
+        function onRevPixelesChanged() { if (S.Ajustes.autoguardado > 0) reposo.restart() }
+        function onRevChanged() { if (S.Ajustes.autoguardado > 0) reposo.restart() }
+    }
+
+    function guardaLoQueHaya() {
+        if (S.Proyecto.estado !== "") return
+        if (!S.Documento.abierto || !S.Documento.sucio || !S.Documento.ruta) {
+            //  Aunque el dibujo esté guardado, la ficha de la criatura puede
+            //  haberse quedado atrás: cambiar duraciones o fotogramas la mueve
+            //  a ella, no al .pinza.
+            if (S.Especie.abierta) S.Especie.recogeYGuarda(null)
+            return
+        }
+        //  Y si hay criatura, la ficha detrás del dibujo: las dos cosas cuentan
+        //  como «lo que llevo hecho».
+        S.Proyecto.guarda(null, (bien) => {
+            if (bien && S.Especie.abierta) S.Especie.recogeYGuarda(null)
+        })
+    }
+
     Timer {
         interval: Math.max(30, S.Ajustes.autoguardado) * 1000
         running: S.Ajustes.autoguardado > 0
         repeat: true
-        onTriggered: {
-            if (!S.Documento.abierto || !S.Documento.sucio || !S.Documento.ruta) return
-            if (S.Proyecto.estado !== "") return
-            S.Proyecto.guarda(null, null)
-        }
+        onTriggered: guardaLoQueHaya()
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -447,6 +480,24 @@ ShellRoot {
 
     IpcHandler {
         target: "pinza"
+
+        /**
+          * Devolver la ventana.
+          *
+          * Cerrar la ventana NO mata el proceso —y este Quickshell ni siquiera
+          * se entera de que la has cerrado: ni `closed` ni `visible` cambian—.
+          * Sin esto, cerrarla y volver a escribir `pinza` no te la devolvía:
+          * arrancaba contra una instancia que ya estaba y te quedabas sin nada
+          * en pantalla. `qs -c pinza ipc call pinza mostrar`
+          */
+        function mostrar(): string {
+            //  Apagar y encender, no sólo encender: cuando cierras la ventana
+            //  desde el gestor, Quickshell sigue creyendo que está visible, así
+            //  que `visible = true` no hace nada porque ya lo era.
+            ventana.visible = false
+            ventana.visible = true
+            return "aquí estoy"
+        }
 
         function abrir(ruta: string): string {
             if (!ruta) return "hace falta una ruta"
@@ -523,6 +574,30 @@ ShellRoot {
             else if (p[0] === "acciones") ventana.mostrarAcciones = on
             else return "no sé qué es " + p[0]
             return p[0] + "=" + on
+        }
+
+        function interior(): string {
+            const d = S.Documento.d
+            if (d === null) return "d es null"
+            if (d === undefined) return "d es undefined"
+            let claves = []
+            try { claves = Object.keys(d) } catch (e) { return "no se puede mirar: " + e }
+            const cel = d.celdas ? Object.keys(d.celdas) : null
+            let primera = "sin celdas"
+            if (cel && cel.length) {
+                const b = d.celdas[cel[0]]
+                primera = cel[0] + " -> " + (b === null ? "null" : (typeof b))
+                          + (b && b.d ? " d=" + (b.d.length) + " (" + (b.d.constructor ? b.d.constructor.name : "?") + ")"
+                                      : " SIN d")
+                          + (b ? " " + b.w + "x" + b.h : "")
+            }
+            return "claves: [" + claves.join(",") + "]"
+                 + " · nombre=" + JSON.stringify(d.nombre)
+                 + " · ancho=" + d.ancho + " alto=" + d.alto
+                 + " · capas=" + (d.capas ? d.capas.length : "AUSENTE")
+                 + " · fotogramas=" + (d.fotogramas ? d.fotogramas.length : "AUSENTE")
+                 + " · celdas=" + (cel ? cel.length : "AUSENTE")
+                 + " · " + primera
         }
 
         function estado(): string {

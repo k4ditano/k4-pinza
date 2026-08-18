@@ -106,13 +106,53 @@ Singleton {
             acciones: info
         }
         memoria.accionActiva = ""
+        _ultimoEscrito = ""
         _avisa()
         return memoria.d
     }
 
-    function cierra() { memoria.d = null; memoria.accionActiva = ""; _avisa() }
+    function cierra(cb) {
+        guardaTodo(() => {
+            memoria.d = null; memoria.accionActiva = ""; _ultimoEscrito = ""; _avisa()
+            if (cb) cb(true)
+        })
+    }
+
+    /**
+     * Todo lo que hay delante, al disco: el dibujo abierto y la ficha.
+     *
+     * Es lo que hay que hacer ANTES de poner otra criatura delante. Sin esto,
+     * abrir una segunda especie tiraba lo que llevaras sin guardar de la
+     * primera —los píxeles y la ficha— sin preguntar y sin decirlo: el
+     * documento se sustituye y ya está.
+     */
+    function guardaTodo(cb) {
+        const laFicha = () => {
+            if (!memoria.d || !memoria.d.ruta) { if (cb) cb(true); return }
+            recogeYGuarda((bien) => { if (cb) cb(bien) })
+        }
+        if (S.Documento.abierto && S.Documento.sucio && S.Documento.ruta) {
+            S.Proyecto.guarda(null, (bien) => {
+                if (!bien) { if (cb) cb(false); return }
+                laFicha()
+            })
+            return
+        }
+        laFicha()
+    }
 
     function abre(ruta, cb) {
+        guardaTodo((bien) => {
+            if (!bien) {
+                falla("abrir", "no he podido guardar lo que tenías abierto, "
+                               + "así que no abro otra criatura encima")
+                if (cb) cb(false); return
+            }
+            _abre(ruta, cb)
+        })
+    }
+
+    function _abre(ruta, cb) {
         estado = "abriendo"
         S.Forja.leeTexto(ruta + "/especie.json", (r) => {
             estado = ""
@@ -123,6 +163,7 @@ Singleton {
             m.ruta = ruta
             memoria.d = m
             memoria.accionActiva = ""
+            _ultimoEscrito = ""
             _avisa()
             hecho("abrir", ruta)
 
@@ -136,20 +177,50 @@ Singleton {
         })
     }
 
+    //  Lo último que se escribió, para no volver a escribir lo mismo.
+    //
+    //  La ficha se guarda ahora en cada cambio de acción y cada vez que paras
+    //  de dibujar. Casi siempre no ha cambiado nada, y reescribirla igual
+    //  ensucia la fecha del fichero y hace ruido en el disco para nada.
+    property string _ultimoEscrito: ""
+
     function guarda(ruta, cb) {
-        if (!memoria.d) return
+        if (!memoria.d) { if (cb) cb(false); return }
         const destino = ruta || memoria.d.ruta
-        if (!destino) { falla("guardar", "no hay carpeta"); return }
+        if (!destino) { falla("guardar", "no hay carpeta"); if (cb) cb(false); return }
         memoria.d.ruta = destino
+        const texto = JSON.stringify(memoria.d, null, 2) + "\n"
+        //  Con ruta explícita se escribe siempre: es un «guardar en otro sitio»
+        //  y ahí el fichero de destino no tiene por qué existir.
+        if (!ruta && texto === _ultimoEscrito) { if (cb) cb(true); return }
         S.Forja.creaCarpeta(destino, () => {
-            S.Forja.escribeTexto(destino + "/especie.json",
-                                 JSON.stringify(memoria.d, null, 2) + "\n", (r) => {
+            S.Forja.escribeTexto(destino + "/especie.json", texto, (r) => {
                 if (!r.bien) { falla("guardar", r.error); if (cb) cb(false); return }
+                _ultimoEscrito = texto
                 _avisa()
                 hecho("guardar", destino)
                 if (cb) cb(true)
             })
         })
+    }
+
+    /**
+     * Lo que hay delante, a la ficha y al disco.
+     *
+     * La ficha se llevaba TODO en memoria: cambiabas de acción, se recogía la
+     * geometría del documento —fotogramas, duraciones, hitFrame, si está
+     * dibujada— y ahí se quedaba. El especie.json no lo escribía nadie salvo
+     * al crear la criatura, al exportarla o pulsando el botón de la hoja. Se
+     * notaba en que `ultima` no se guardaba nunca: cerrabas y al volver
+     * siempre caías en la primera acción, hubieras estado donde hubieras
+     * estado. Y lo que no se notaba era peor: si añadías un fotograma o
+     * cambiabas una duración, el .pinza tenía la verdad y la ficha se quedaba
+     * con lo de antes.
+     */
+    function recogeYGuarda(cb) {
+        if (!memoria.d || !memoria.d.ruta) { if (cb) cb(false); return }
+        recogeDelDocumento()
+        guarda(null, cb)
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -181,7 +252,19 @@ Singleton {
         //  ninguna forma de recuperarlo, y es un clic que se da todo el rato.
         if (memoria.accionActiva && S.Documento.abierto && S.Documento.sucio) {
             recogeDelDocumento()
-            S.Proyecto.guarda(carpetaDe(memoria.accionActiva), () => _abreAccion(id, cb))
+            const dejo = memoria.accionActiva
+            S.Proyecto.guarda(carpetaDe(dejo), (bien) => {
+                //  Si no se pudo guardar, NO se cambia de acción: abrir la
+                //  siguiente sustituye el documento y lo de «{dejo}» se pierde
+                //  sin que nadie lo haya decidido.
+                if (!bien) {
+                    falla("acción", "no se pudo guardar «" + dejo
+                                    + "», así que me quedo aquí")
+                    if (cb) cb(false)
+                    return
+                }
+                _abreAccion(id, cb)
+            })
             return
         }
         recogeDelDocumento()
@@ -199,8 +282,10 @@ Singleton {
                 S.Proyecto.abre(carpeta, (bien) => {
                     if (bien) memoria.accionActiva = id
                     _avisa()
-                    if (cb) cb(bien)
-                    _atiendePendiente()
+                    //  La ficha, al disco: aquí ya lleva lo que se recogió de la
+                    //  acción que dejamos Y la nueva `ultima`, así que una sola
+                    //  escritura deja las dos cosas puestas.
+                    _guardaFicha(() => { if (cb) cb(bien); _atiendePendiente() })
                 })
                 return
             }
@@ -208,10 +293,15 @@ Singleton {
             S.Proyecto.guarda(carpeta, (bien) => {
                 memoria.accionActiva = id
                 _avisa()
-                if (cb) cb(bien)
-                _atiendePendiente()
+                _guardaFicha(() => { if (cb) cb(bien); _atiendePendiente() })
             })
         })
+    }
+
+    /** Escribe el especie.json tal y como está ahora, sin tocar nada más. */
+    function _guardaFicha(cb) {
+        if (!memoria.d || !memoria.d.ruta) { if (cb) cb(false); return }
+        guarda(null, cb)
     }
 
     function _creaDocumentoDe(id, info) {
@@ -505,6 +595,25 @@ Singleton {
      */
     function exporta(cb) {
         if (!memoria.d) return
+        //  Exportar abre las ocho acciones una detrás de otra, y abrir
+        //  sustituye el documento. Si lo que tienes delante está sin guardar,
+        //  eso se lo lleva por delante sin decir nada: exportas la versión de
+        //  disco y encima pierdes la de pantalla. Así que primero al disco.
+        if (S.Documento.abierto && S.Documento.sucio && S.Documento.ruta) {
+            S.Proyecto.guarda(null, (bien) => {
+                if (!bien) {
+                    falla("exportar", "no he podido guardar lo que tenías abierto; no exporto")
+                    if (cb) cb(false); return
+                }
+                recogeDelDocumento()
+                _exporta(cb)
+            })
+            return
+        }
+        _exporta(cb)
+    }
+
+    function _exporta(cb) {
         const base = S.Proyecto.raizPack()
         if (!base) { falla("exportar", "este pack no apunta a ningún repositorio"); return }
         const carpetaRel = plantilla.carpeta.replace("{nombre}", memoria.d.nombre)

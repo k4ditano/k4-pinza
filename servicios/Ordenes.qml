@@ -204,7 +204,14 @@ Singleton {
           hacer: () => ord.pideHoja("abrir") },
         { id: "guardar", titulo: "Guardar", grupo: "fichero", icono: "guardar", atajo: "Ctrl+S",
           cuando: () => ord.hayDoc,
-          hacer: () => S.Documento.ruta ? S.Proyecto.guarda(null, null) : ord.pideHoja("guardarComo") },
+          hacer: () => S.Documento.ruta
+                       //  Con una criatura abierta, guardar es guardar las dos
+                       //  cosas: el dibujo y su ficha. La geometría de la
+                       //  acción vive en la ficha, no en el .pinza.
+                       ? S.Proyecto.guarda(null, (bien) => {
+                             if (bien && S.Especie.abierta) S.Especie.recogeYGuarda(null)
+                         })
+                       : ord.pideHoja("guardarComo") },
         { id: "guardarComo", titulo: "Guardar como…", grupo: "fichero", icono: "guardar",
           atajo: "Ctrl+Shift+S", cuando: () => ord.hayDoc, hacer: () => ord.pideHoja("guardarComo") },
         { id: "exportar", titulo: "Exportar según el contrato", grupo: "fichero", icono: "exportar",

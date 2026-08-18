@@ -90,6 +90,7 @@ C.Hoja {
 
                         Canvas {
                             id: pieza
+                            property var caja: ({ img: null })
                             width: S.Documento.ancho
                             height: S.Documento.alto
                             anchors.horizontalCenter: parent.horizontalCenter
@@ -107,8 +108,8 @@ C.Hoja {
                                 const b = S.Documento.compuesto(S.Documento.fotograma,
                                                                 S.Documento.orientacion)
                                 if (!b) return
-                                const img = g.createImageData(b.w, b.h)
-                                for (let i = 0; i < b.d.length; i++) img.data[i] = b.d[i]
+                                const img = P.lienzoImg(pieza.caja, g, b.w, b.h)
+                                P.vuelcaZona(img, b, 0, 0, b.w, b.h)
                                 g.putImageData(img, 0, 0, 0, 0, b.w, b.h)
                             }
                             Connections {

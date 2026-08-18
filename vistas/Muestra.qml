@@ -34,10 +34,18 @@ Rectangle {
      * Se quiere ×1 siempre —es el que importa— y ×2 y ×3 si sobra sitio. Un
      * tileset de 432 de ancho sólo enseña el ×1, y está bien: nadie mira una
      * hoja de baldosas al triple.
+     *
+     * NO es un enlace. Era `readonly property var` colgando de `rev`, y eso
+     * devuelve un ARRAY NUEVO cada vez que cambia cualquier cosa del documento:
+     * el Repeater veía otro modelo, destruía sus tres delegados y creaba tres
+     * Canvas nuevos — en cada trazo, en cada cambio de fotograma. Cambiar de
+     * acción pasó de 32 ms a más de tres segundos por eso. Ahora sólo se
+     * reasigna cuando el resultado es de verdad distinto.
      */
-    readonly property var escalas: {
-        S.Documento.rev
-        if (!S.Documento.abierto) return [1]
+    property var escalas: [1]
+
+    function recalculaEscalas() {
+        if (!S.Documento.abierto) { if (escalas.length !== 1 || escalas[0] !== 1) escalas = [1]; return }
         const cabeAncho = Math.max(120, (parent ? parent.width : 400) - 60)
         const cabeAlto = Math.max(90, (parent ? parent.height : 300) - 120)
         const sirve = []
@@ -48,7 +56,16 @@ Rectangle {
             usado += (sirve.length ? hueco : 0) + w
             sirve.push(e)
         }
-        return sirve
+        if (sirve.join() !== escalas.join()) escalas = sirve
+    }
+
+    onAwChanged: recalculaEscalas()
+    onAhChanged: recalculaEscalas()
+    Component.onCompleted: recalculaEscalas()
+    Connections {
+        target: raiz.parent
+        function onWidthChanged() { raiz.recalculaEscalas() }
+        function onHeightChanged() { raiz.recalculaEscalas() }
     }
 
     readonly property int anchoUtil: {
@@ -117,6 +134,7 @@ Rectangle {
 
                     Canvas {
                         id: pieza
+                        property var caja: ({ img: null })
                         width: raiz.aw
                         height: raiz.ah
                         transformOrigin: Item.TopLeft
@@ -131,8 +149,8 @@ Rectangle {
                             g.clearRect(0, 0, width, height)
                             const b = S.Documento.compuesto()
                             if (!b || b.w !== width || b.h !== height) return
-                            const img = g.createImageData(b.w, b.h)
-                            for (let i = 0; i < b.d.length; i++) img.data[i] = b.d[i]
+                            const img = P.lienzoImg(pieza.caja, g, b.w, b.h)
+                            P.vuelcaZona(img, b, 0, 0, b.w, b.h)
                             // origen sucio en (0,0), que es la única forma que pinta
                             g.putImageData(img, 0, 0, 0, 0, b.w, b.h)
                         }

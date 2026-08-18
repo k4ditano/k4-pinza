@@ -37,6 +37,8 @@ ShellRoot {
         color: C.Tema.fondo
         visible: true
 
+        property bool mostrarAcciones: true
+
         Item {
             id: escena
             anchors.fill: parent
@@ -143,7 +145,8 @@ ShellRoot {
                         //  estás.
                         V.PanelAcciones {
                             width: pila.width
-                            visible: S.Especie.abierta && S.Especie.accion !== ""
+                            visible: ventana.mostrarAcciones && S.Especie.abierta
+                                     && S.Especie.accion !== ""
                         }
                         V.PanelPaleta { width: pila.width; visible: S.Ajustes.panelPaleta }
                         V.PanelCapas  { width: pila.width; visible: S.Ajustes.panelCapas }
@@ -452,6 +455,14 @@ ShellRoot {
             return "abriendo " + ruta
         }
 
+        /** Abrir una criatura entera. `qs -c pinza ipc call pinza especie /ruta.especie` */
+        function especie(ruta: string): string {
+            if (!ruta) return "hace falta una ruta"
+            S.Especie.abre(ruta, null)
+            ventana.visible = true
+            return "abriendo " + ruta
+        }
+
         function importar(ruta: string): string {
             if (!ruta) return "hace falta una ruta"
             S.Proyecto.importaComoCapa(ruta, null)
@@ -498,6 +509,20 @@ ShellRoot {
         function herramienta(id: string): string {
             S.Pinceles.elige(id)
             return S.Herramientas.nombre(id)
+        }
+
+        /** Enseñar u ocultar un panel. `qs -c pinza ipc call pinza panel tira=0` */
+        function panel(qual: string): string {
+            const p = qual.split("=")
+            const on = p[1] === "1"
+            if (p[0] === "compas") S.Ajustes.compas = on
+            else if (p[0] === "muestra") S.Ajustes.muestra = on
+            else if (p[0] === "paleta") S.Ajustes.panelPaleta = on
+            else if (p[0] === "capas") S.Ajustes.panelCapas = on
+            else if (p[0] === "tira") S.Ajustes.tira = on
+            else if (p[0] === "acciones") ventana.mostrarAcciones = on
+            else return "no sé qué es " + p[0]
+            return p[0] + "=" + on
         }
 
         function estado(): string {

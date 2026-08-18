@@ -28,6 +28,23 @@
 //  HALLAZGO 3 · Canvas.save(ruta) devuelve false y no escribe nada, con
 //  cualquier estrategia y cualquier forma de ruta. toDataURL() sí funciona,
 //  así que exportar es toDataURL -> base64 -> la forja escribe el fichero.
+//
+//  HALLAZGO 4 · createImageData ENVENENA EL MOTOR. Cada llamada engorda algo
+//  que la recogida de basura no suelta, y a partir de unas cuarenta el motor
+//  entra en marcado continuo: cualquier reserva —un objeto, un texto, un
+//  búfer— pasa de ser gratis a costar medio milisegundo. No se arregla con
+//  gc(), ni cerrando el documento, ni soltando las referencias; sólo
+//  recargando el motor. El síntoma era cambiar de acción unas cuantas veces
+//  y que a partir de ahí TODO el programa fuera lento, para siempre. Por eso
+//  cada lienzo tiene UN ImageData que sólo crece (ver P.lienzoImg): un
+//  ImageData más grande que la zona vale igual si cada fila se escribe con
+//  su paso, y así una sesión entera hace tres o cuatro llamadas.
+//
+//  HALLAZGO 5 · String.fromCharCode.apply con un ARRAY DE TIPADO devuelve
+//  caracteres nulos. Sin error, y con la longitud correcta: el texto sale
+//  entero y todo a cero. Con un array normal va bien. Codificar a base64 con
+//  un Uint16Array de códigos guardaba ficheros en blanco sin que nada se
+//  quejara.
 
 import QtQuick
 import Quickshell
@@ -38,7 +55,7 @@ ShellRoot {
 
     property int hechas: 0
     property int rotas: 0
-    readonly property int total: 12
+    readonly property int total: 15
 
     function ck(que, bien, detalle) {
         if (!bien) rotas++
@@ -164,6 +181,57 @@ ShellRoot {
                 raiz.ck("10 · Canvas.save() sigue sin escribir nada (hallazgo 3)",
                         save("/tmp/pinza-cata-save.png") === false,
                         "si esto falla, save() ya vale y exportar se simplifica")
+
+                //  Hallazgo 4: que un ImageData MÁS GRANDE que la zona sigue
+                //  valiendo. De esto depende que sólo haya que crear uno por
+                //  lienzo; si dejara de valer, habría que crearlo del tamaño
+                //  exacto y el motor volvería a envenenarse.
+                ctx.clearRect(0, 0, 24, 24)
+                const holgado = ctx.createImageData(64, 64)
+                const pasoH = 64 * 4
+                for (let y = 0; y < 6; y++) for (let x = 0; x < 6; x++) {
+                    const i = y * pasoH + x * 4
+                    holgado.data[i] = 12; holgado.data[i+1] = 200; holgado.data[i+2] = 34
+                    holgado.data[i+3] = 255
+                }
+                ctx.putImageData(holgado, 9, 13, 0, 0, 6, 6)
+                const dentroH = ctx.getImageData(10, 14, 1, 1).data
+                const fueraH = ctx.getImageData(16, 14, 1, 1).data
+                raiz.ck("13 · un ImageData más grande que la zona vale igual (hallazgo 4)",
+                        dentroH[1] === 200 && dentroH[3] === 255 && fueraH[3] === 0,
+                        "si esto falla, cada lienzo necesita su ImageData exacto")
+
+                //  Hallazgo 4, la otra mitad: que crear ImageData sigue
+                //  saliendo caro. Se miden cien reservas antes y después de
+                //  crear cincuenta.
+                const reserva = () => {
+                    const t0 = new Date().getTime()
+                    let b = []
+                    for (let k = 0; k < 400; k++) b.push({ x: k })
+                    return new Date().getTime() - t0
+                }
+                reserva()
+                const antes = reserva()
+                let basura = []
+                for (let k = 0; k < 60; k++) basura.push(ctx.createImageData(32, 32))
+                basura = null
+                gc()
+                const despues = reserva()
+                raiz.ck("14 · createImageData sigue envenenando el motor (hallazgo 4)",
+                        despues > antes + 8,
+                        despues > antes + 8
+                          ? "confirmado, " + antes + " ms -> " + despues + " ms; hay que reutilizarlos"
+                          : "¡lo han arreglado! " + antes + " ms -> " + despues
+                            + " ms; P.lienzoImg puede dejar de existir")
+
+                //  Hallazgo 5: fromCharCode con array de tipado.
+                const conNormal = String.fromCharCode.apply(null, [72, 111, 108, 97])
+                const conTipado = String.fromCharCode.apply(null, new Uint16Array([72, 111, 108, 97]))
+                raiz.ck("15 · fromCharCode.apply sigue sin tragar arrays de tipado (hallazgo 5)",
+                        conNormal === "Hola" && conTipado !== "Hola",
+                        conTipado !== "Hola"
+                          ? "confirmado, base64 tiene que usar un array normal"
+                          : "¡lo han arreglado! aBase64 puede usar un Uint16Array")
 
                 salida.url = toDataURL("image/png")
                 escribir.running = true

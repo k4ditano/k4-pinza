@@ -99,9 +99,30 @@ Rectangle {
         }
     }
 
-    /** Lo que el contrato impone, en trozos legibles de un vistazo. */
-    readonly property var _trozos: {
-        S.Documento.rev; S.Especie.rev
+    /**
+     * Lo que el contrato impone, en trozos legibles de un vistazo.
+     *
+     * Se reasigna sólo cuando cambia de verdad, por lo mismo que en la muestra:
+     * un `property var` que devuelve un array nuevo hace que el Repeater tire
+     * y rehaga todos sus delegados en cada cambio del documento.
+     */
+    property var _trozos: []
+
+    function recalculaTrozos() {
+        const t = _calcula()
+        if (t.join("\u0001") !== _trozos.join("\u0001")) _trozos = t
+    }
+    Component.onCompleted: recalculaTrozos()
+    Connections {
+        target: S.Documento
+        function onRevChanged() { raiz.recalculaTrozos() }
+    }
+    Connections {
+        target: S.Especie
+        function onCambiada() { raiz.recalculaTrozos() }
+    }
+
+    function _calcula() {
         if (!S.Documento.abierto) return []
         const t = []
         //  Si esto es una acción de una criatura, decirlo: es lo que orienta

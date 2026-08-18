@@ -207,6 +207,8 @@ Item {
         // ── la piel de cebolla ───────────────────────────────────
         Canvas {
             id: cebolla
+            //  la caja del ImageData reutilizado; ver P.lienzoImg
+            property var caja: ({ img: null })
             width: raiz.aw; height: raiz.ah
             transformOrigin: Item.TopLeft
             scale: raiz.zoom
@@ -221,7 +223,7 @@ Item {
                 const g = getContext("2d")
                 g.clearRect(0, 0, width, height)
                 const f0 = S.Documento.fotograma
-                const img = g.createImageData(raiz.aw, raiz.ah)
+                const img = P.lienzoImg(cebolla.caja, g, raiz.aw, raiz.ah)
                 const acc = P.nuevo(raiz.aw, raiz.ah)
 
                 for (let k = -S.Ajustes.cebollaAtras; k <= S.Ajustes.cebollaDelante; k++) {
@@ -243,7 +245,7 @@ Item {
                     }
                     P.compon(acc, b, "normal", 1 / (Math.abs(k) + 0.6))
                 }
-                for (let i = 0; i < acc.d.length; i++) img.data[i] = acc.d[i]
+                P.vuelcaZona(img, acc, 0, 0, raiz.aw, raiz.ah)
                 g.putImageData(img, 0, 0, 0, 0, raiz.aw, raiz.ah)
             }
         }
@@ -251,6 +253,7 @@ Item {
         // ── EL ARTE ──────────────────────────────────────────────
         Canvas {
             id: arte
+            property var caja: ({ img: null })
             width: raiz.aw
             height: raiz.ah
             transformOrigin: Item.TopLeft
@@ -278,15 +281,12 @@ Item {
                 //  reemplazar. Ver la cabecera de este fichero.
                 raiz._ctx.clearRect(r.x, r.y, r.w, r.h)
 
-                const img = raiz._ctx.createImageData(r.w, r.h)
-                for (let y = 0; y < r.h; y++) for (let x = 0; x < r.w; x++) {
-                    const s = ((r.y + y) * raiz.aw + (r.x + x)) * 4
-                    const d = (y * r.w + x) * 4
-                    img.data[d] = raiz._local.d[s]
-                    img.data[d + 1] = raiz._local.d[s + 1]
-                    img.data[d + 2] = raiz._local.d[s + 2]
-                    img.data[d + 3] = raiz._local.d[s + 3]
-                }
+                //  Un solo ImageData del tamaño del lienzo, para siempre. La
+                //  zona sucia se escribe pegada a su esquina, fila a fila con el
+                //  paso del ImageData, y se vuelca desde ahí. Crear uno por
+                //  pintado dejaba el motor lento sin vuelta atrás; ver P.lienzoImg.
+                const img = P.lienzoImg(arte.caja, raiz._ctx, raiz.aw, raiz.ah)
+                P.vuelcaZona(img, raiz._local, r.x, r.y, r.w, r.h)
                 raiz._ctx.putImageData(img, r.x, r.y, 0, 0, r.w, r.h)
             }
             onAvailableChanged: if (available) requestPaint()

@@ -98,6 +98,7 @@ C.Hoja {
             Canvas {
                 id: campo
                 anchors.fill: parent
+                property var caja: ({ img: null })
                 renderStrategy: Canvas.Cooperative
                 renderTarget: Canvas.Image
 
@@ -108,7 +109,7 @@ C.Hoja {
 
                     const cols = Math.ceil(width / raiz.lado) + 1
                     const filas = Math.ceil(height / raiz.lado) + 1
-                    const img = g.createImageData(raiz.lado, raiz.lado)
+                    const img = P.lienzoImg(caja, g, raiz.lado, raiz.lado)
 
                     for (let y = 0; y < filas; y++) for (let x = 0; x < cols; x++) {
                         // Un hash y no un aleatorio: el mapa tiene que ser el
@@ -121,7 +122,7 @@ C.Hoja {
                         const salpica = raiz.variantes.length && (h % 11) === 0
                         const lista = salpica ? raiz.variantes : raiz.base
                         const cel = lista[h % lista.length]
-                        for (let i = 0; i < cel.d.length; i++) img.data[i] = cel.d[i]
+                        P.vuelcaZona(img, cel, 0, 0, raiz.lado, raiz.lado)
                         // la de siete, como en todas partes
                         g.putImageData(img, x * raiz.lado, y * raiz.lado,
                                        0, 0, raiz.lado, raiz.lado)

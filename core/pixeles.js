@@ -740,6 +740,7 @@ function ajusta(b, dh, ds, dv, mascara) {
 
 var _B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 var _B64INV = null
+var _B64COD = null
 
 /**
  * Un búfer RGBA a base64.
@@ -750,16 +751,36 @@ var _B64INV = null
  * parpadeando. Por aquí van todas en un par de mensajes.
  */
 function aBase64(b) {
-    if (!_B64INV) _preparaB64()
-    let s = ""
+    if (!_B64COD) _preparaB64()
     const d = b.d, n = d.length
+    //  Por códigos de carácter y en bloques, no concatenando.
+    //
+    //  La versión anterior hacía `s += a + b + c + d` dentro del bucle: ocho
+    //  objetos de texto por cada tres bytes, o sea unos once mil por celda de
+    //  32×32 y cerca de un millón al guardar una acción entera. Esa basura
+    //  disparaba la recolección del motor una y otra vez, y mientras un ciclo
+    //  está en marcha cada reserva de memoria cuesta un paso de marcado: el
+    //  programa entero se arrastraba después de unos pocos cambios de acción.
+    //  La tanda es un array NORMAL y se reaprovecha. Tiene que ser normal:
+    //  String.fromCharCode.apply con un array de tipado devuelve caracteres
+    //  nulos en este motor, sin dar ningún error —el texto sale con la
+    //  longitud correcta y todo a cero—, así que un búfer de tipado aquí
+    //  guardaría ficheros en blanco sin que nada se quejara.
+    let s = ""
+    const tanda = []
     for (let i = 0; i < n; i += 3) {
         const a = d[i], c = i + 1 < n ? d[i + 1] : 0, e = i + 2 < n ? d[i + 2] : 0
         const bits = (a << 16) | (c << 8) | e
-        s += _B64[(bits >> 18) & 63] + _B64[(bits >> 12) & 63]
-           + (i + 1 < n ? _B64[(bits >> 6) & 63] : "=")
-           + (i + 2 < n ? _B64[bits & 63] : "=")
+        tanda.push(_B64COD[(bits >> 18) & 63],
+                   _B64COD[(bits >> 12) & 63],
+                   i + 1 < n ? _B64COD[(bits >> 6) & 63] : 61,     // 61 es '='
+                   i + 2 < n ? _B64COD[bits & 63] : 61)
+        if (tanda.length >= 4096) {
+            s += String.fromCharCode.apply(null, tanda)
+            tanda.length = 0
+        }
     }
+    if (tanda.length) s += String.fromCharCode.apply(null, tanda)
     return s
 }
 
@@ -775,6 +796,8 @@ function _preparaB64() {
     _B64INV = new Int16Array(128)
     for (let i = 0; i < 128; i++) _B64INV[i] = -1
     for (let i = 0; i < 64; i++) _B64INV[_B64.charCodeAt(i)] = i
+    _B64COD = new Uint16Array(64)
+    for (let i = 0; i < 64; i++) _B64COD[i] = _B64.charCodeAt(i)
 }
 
 function deBase64(texto, w, h) {
@@ -794,4 +817,57 @@ function deBase64(texto, w, h) {
         b.d[salida++] = (acumulado >> bits) & 0xFF
     }
     return b
+}
+
+// ═══════════════════════════════════════════════════════════════
+// el volcado a un Canvas
+// ═══════════════════════════════════════════════════════════════
+
+/*
+ * Un ImageData por lienzo, que sólo crece y nunca se encoge.
+ *
+ * createImageData deja el motor de JS tocado de forma PERMANENTE. Cada
+ * llamada engorda algo que la recogida de basura no suelta, y a partir de
+ * unas cuarenta el motor entra en marcado continuo: CUALQUIER reserva
+ * —un objeto, un texto, un búfer— pasa de ser gratis a costar medio
+ * milisegundo. No se arregla con gc(), ni cerrando el documento, ni
+ * soltando las referencias; sólo recargando el motor entero.
+ *
+ * Se notaba así: cambiar de acción en una criatura unas cuantas veces y
+ * que a partir de ahí TODO el programa fuera lento, para siempre.
+ * Primero porque la previa creaba uno por pintado y por lienzo, y luego
+ * —ya con la caché puesta— porque cada acción tiene su propio tamaño y
+ * cambiar de acción la invalidaba.
+ *
+ * De ahí lo de sólo crecer: un ImageData más grande que la zona vale
+ * igual, siempre que cada fila se escriba con SU paso y la zona vaya
+ * pegada a la esquina (ver vuelcaZona). Así una sesión entera hace tres o
+ * cuatro llamadas en vez de miles.
+ *
+ * La caja es un objeto normal que la vista guarda y no reasigna nunca —
+ * reasignarlo desde un pintado sería escribir una propiedad de QML
+ * durante el pintado, que es justo lo que provocaba bucles de enlace.
+ */
+function lienzoImg(caja, ctx, w, h) {
+    if (!caja.img || caja.img.width < w || caja.img.height < h) {
+        const aw = Math.max(w, caja.img ? caja.img.width : 0)
+        const ah = Math.max(h, caja.img ? caja.img.height : 0)
+        caja.img = ctx.createImageData(aw, ah)
+    }
+    return caja.img
+}
+
+/*
+ * Vuelca una zona del búfer `b` en el ImageData `img`, que puede ser más
+ * ancho que la zona: cada fila se escribe con el paso del ImageData y la
+ * zona queda pegada a su esquina superior izquierda, que es la única
+ * posición desde la que putImageData pinta algo en este Qt.
+ */
+function vuelcaZona(img, b, x0, y0, w, h) {
+    const paso = img.width * 4
+    for (let y = 0; y < h; y++) {
+        let s = ((y0 + y) * b.w + x0) * 4
+        let d = y * paso
+        for (let i = 0; i < w * 4; i++) img.data[d + i] = b.d[s + i]
+    }
 }

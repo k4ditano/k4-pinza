@@ -50,6 +50,14 @@ Singleton {
     // ── otros ────────────────────────────────────────────────────
     property string pack: "generico"
 
+    //  Dónde van las cosas nuevas si no dices otra cosa.
+    //
+    //  Sin esto, empezar cualquier cosa abría un selector de carpetas sin
+    //  explicar por qué: pulsabas una criatura de la lista y aparecía un
+    //  diálogo de ficheros de la nada. Un sitio por defecto, a la vista y
+    //  cambiable, quita ese paso de en medio.
+    property string taller: (Quickshell.env("HOME") || "~") + "/pinza"
+
     //  Dónde está el repositorio de cada pack, si no está donde el pack dice.
     //  Un pack se comparte; la ruta a tu copia del juego no.
     property var raices: ({})
@@ -83,6 +91,7 @@ Singleton {
         onTriggered: aj.guarda()
     }
     onPackChanged: posa.restart()
+    onTallerChanged: posa.restart()
     onZoomChanged: posa.restart()
     onCebollaChanged: posa.restart()
     onMuestraChanged: posa.restart()
@@ -108,7 +117,7 @@ Singleton {
                          "ajedrez", "modoBaldosa", "medidasSilueta", "simetriaH", "simetriaV",
                          "cebolla", "cebollaAtras", "cebollaDelante", "cebollaOpacidad",
                          "cebollaTeñida", "panelCapas", "panelPaleta", "panelPrevia",
-                         "panelHistorial", "panelMapa", "tira", "compas", "muestra", "pack", "autoguardado", "avisoGuia",
+                         "panelHistorial", "panelMapa", "tira", "compas", "muestra", "pack", "taller", "autoguardado", "avisoGuia",
                          "raices"]
         for (let i = 0; i < nombres.length; i++) j[nombres[i]] = aj[nombres[i]]
         fichero.setText(JSON.stringify(j, null, 2))

@@ -243,7 +243,35 @@ Singleton {
      * hoja PMD sale mal —hay acciones de dos fotogramas y de once— y adivinar
      * las duraciones sale mal siempre.
      */
+    /**
+     * Busca un nombre de carpeta que no pise nada.
+     *
+     * Importar dos veces la misma criatura es lo normal —una para probar, otra
+     * en serio— y machacar la primera sin avisar sería la peor manera de
+     * enterarse. `cb` recibe la ruta libre.
+     */
+    function _rutaLibre(base, cb, intento) {
+        const n = intento || 1
+        const ruta = n === 1 ? base : base.replace(/\.especie$/, "-" + n + ".especie")
+        S.Forja.pide("existe", { ruta: ruta + "/especie.json" }, (r) => {
+            if (r.bien && r.existe && n < 50) _rutaLibre(base, cb, n + 1)
+            else cb(ruta)
+        })
+    }
+
+    /**
+     * Trae una criatura del juego y la deja editable.
+     *
+     * Se asegura primero de tener el catálogo: antes dependía de que alguien
+     * hubiera abierto la hoja para pedirlo, así que llamar a esto desde un
+     * guion o desde la línea de órdenes fallaba con un «no tengo esa criatura»
+     * que no era verdad — sólo es que nadie había leído la lista todavía.
+     */
     function importa(dex, nombreNuevo, destino, cb) {
+        if (!catalogoListo) {
+            cargaCatalogo(() => importa(dex, nombreNuevo, destino, cb))
+            return
+        }
         const fuente = delCatalogo(dex)
         if (!fuente) { falla("importar", "no tengo la criatura " + dex); return }
         const base = S.Proyecto.raizPack()
@@ -288,12 +316,14 @@ Singleton {
         progreso = 0
         let hechas = 0
         const total = cola.length
+        let carpeta = destino
 
         function siguiente() {
             if (!cola.length) {
                 estado = ""
-                guarda(destino, () => {
-                    hecho("importar", total + " acciones de " + fuente.name)
+                guarda(carpeta, () => {
+                    hecho("importar", total + " acciones de " + fuente.name
+                                      + " → " + carpeta.split("/").pop())
                     if (cb) cb(true)
                 })
                 return
@@ -305,7 +335,11 @@ Singleton {
                 Qt.callLater(siguiente)
             })
         }
-        siguiente()
+        _rutaLibre(destino, (libre) => {
+            carpeta = libre
+            memoria.d.ruta = libre
+            siguiente()
+        })
     }
 
     function _importaUna(t, cb) {

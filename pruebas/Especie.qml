@@ -116,7 +116,17 @@ ShellRoot {
             ck("Attack conserva el fotograma de golpe",
                a.hitFrame === (raiz.fuente.anims.Attack.hitFrame || 0),
                a.hitFrame + " vs " + raiz.fuente.anims.Attack.hitFrame)
-            paso3()
+            paso2b()
+        })
+    }
+
+    // ── 2b · importarla otra vez no machaca la primera ─────────
+    function paso2b() {
+        S.Especie.importa(10, "Orugon", base + "/Orugon.especie", (bien) => {
+            ck("importar dos veces con el mismo nombre no machaca la primera",
+               S.Especie.ruta.indexOf("Orugon-2.especie") > 0, S.Especie.ruta)
+            // y volver a la primera para seguir
+            S.Especie.abre(base + "/Orugon.especie", () => paso3())
         })
     }
 

@@ -310,19 +310,10 @@ ShellRoot {
         function onPideTema() { C.Tema.oscuro = !C.Tema.oscuro }
     }
 
-    // ── la especie: siempre acaba en elegir una carpeta ─────────
-    property int _dexAImportar: -1
-    property string _nombreAImportar: ""
-
     Connections {
         target: hojas
+        function onPideTaller() { elegirTaller.open() }
         function onPideCarpetaEspecie() { abrirEspecie.open() }
-        function onPideDondeGuardarEspecie() { guardarEspecie.open() }
-        function onPideDondeImportar(dex, nombre) {
-            raiz._dexAImportar = dex
-            raiz._nombreAImportar = nombre
-            importarEspecie.open()
-        }
     }
 
     Connections {
@@ -355,8 +346,7 @@ ShellRoot {
     property var guardarComo: null
     property var abrir: null
     property var abrirEspecie: null
-    property var guardarEspecie: null
-    property var importarEspecie: null
+    property var elegirTaller: null
 
     Loader {
         active: true
@@ -364,8 +354,7 @@ ShellRoot {
             Component.onCompleted: {
                 raiz.guardarComo = guardarDlg; raiz.abrir = abrirDlg
                 raiz.abrirEspecie = abrirEspecieDlg
-                raiz.guardarEspecie = guardarEspecieDlg
-                raiz.importarEspecie = importarEspecieDlg
+                raiz.elegirTaller = tallerDlg
             }
             SelectorCarpeta {
                 id: guardarDlg
@@ -383,17 +372,9 @@ ShellRoot {
                 onElegida: (ruta) => S.Especie.abre(ruta, null)
             }
             SelectorCarpeta {
-                id: guardarEspecieDlg
-                titulo: "Dónde guardar la especie"
-                onElegida: (ruta) => S.Especie.guarda(
-                    ruta + "/" + S.Especie.nombre + ".especie", null)
-            }
-            SelectorCarpeta {
-                id: importarEspecieDlg
-                titulo: "Dónde dejar la especie importada"
-                onElegida: (ruta) => S.Especie.importa(
-                    raiz._dexAImportar, raiz._nombreAImportar,
-                    ruta + "/" + raiz._nombreAImportar + ".especie", null)
+                id: tallerDlg
+                titulo: "Dónde dejar lo que crees"
+                onElegida: (ruta) => S.Ajustes.taller = ruta
             }
         }
     }

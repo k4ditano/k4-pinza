@@ -941,10 +941,19 @@ Item {
                     etiqueta: "se llamará"; valor: hojaEsp.nombreNuevo
                     onCambiado: (v) => hojaEsp.nombreNuevo = v
                 }
+                Destino { width: parent.width; nombre: hojaEsp.nombreNuevo }
                 Text {
                     visible: !S.Especie.catalogoListo
                     text: "leyendo lo que el juego tiene bajado…"
                     font.family: C.Tema.tipo; font.pixelSize: 10; color: C.Tema.acento
+                }
+                Text {
+                    visible: S.Especie.catalogoListo
+                    width: parent.width
+                    text: "pulsa una y se trae entera ahí. Si ya hubiera una con ese nombre, "
+                          + "la nueva se llamará -2 en vez de machacarla."
+                    wrapMode: Text.WordWrap
+                    font.family: C.Tema.tipo; font.pixelSize: 10; color: C.Tema.apagado
                 }
 
                 Rectangle {
@@ -989,7 +998,12 @@ Item {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: raiz.pideDondeImportar(modelData.dex, hojaEsp.nombreNuevo)
+                                onClicked: {
+                                    S.Especie.importa(modelData.dex, hojaEsp.nombreNuevo,
+                                                      S.Ajustes.taller + "/"
+                                                      + hojaEsp.nombreNuevo + ".especie", null)
+                                    raiz.cierra()
+                                }
                             }
                         }
                     }
@@ -1015,6 +1029,7 @@ Item {
                 }
                 C.Campo { width: parent.width; etiqueta: "nombre"; valor: hojaEsp.nombreNuevo
                           onCambiado: (v) => hojaEsp.nombreNuevo = v }
+                Destino { width: parent.width; nombre: hojaEsp.nombreNuevo }
                 C.Campo { width: parent.width; etiqueta: "dex"; numero: true; minimo: 10000
                           maximo: 19999; valor: String(parent.dex)
                           onCambiado: (v) => parent.dex = parseInt(v) || 10000 }
@@ -1040,7 +1055,9 @@ Item {
                             S.Especie.nueva({ nombre: hojaEsp.nombreNuevo, dex: parent.parent.dex,
                                               role: parent.parent.role,
                                               shadowSize: parent.parent.sombra })
-                            raiz.pideDondeGuardarEspecie()
+                            S.Especie.guarda(S.Ajustes.taller + "/"
+                                             + hojaEsp.nombreNuevo + ".especie", null)
+                            raiz.cierra()
                         }
                     }
                     C.Boton { texto: "atrás"; onPulsado: hojaEsp.modo = "elegir" }
@@ -1165,9 +1182,31 @@ Item {
         }
     }
 
+    /** Dónde va a caer lo que estás creando, y cómo cambiarlo. */
+    component Destino: Column {
+        property string nombre: ""
+        spacing: 2
+        C.Rotulo { text: "irá a" }
+        Row {
+            width: parent.width
+            spacing: 6
+            Text {
+                width: parent.width - 70
+                text: S.Ajustes.taller + "/" + nombre + ".especie"
+                elide: Text.ElideMiddle
+                font.family: C.Tema.tipoMono; font.pixelSize: 10; color: C.Tema.tinta
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            C.Boton {
+                texto: "cambiar"; relleno: 7; implicitHeight: 20
+                anchors.verticalCenter: parent.verticalCenter
+                onPulsado: raiz.pideTaller()
+            }
+        }
+    }
+
+    signal pideTaller()
     signal pideCarpetaEspecie()
-    signal pideDondeGuardarEspecie()
-    signal pideDondeImportar(int dex, string nombre)
 
     // ═══════════════════════════════════════════════════════════
     // guiones

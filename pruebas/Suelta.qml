@@ -170,9 +170,30 @@ ShellRoot {
                                       ? 2 : 2   // Right, en el orden de PMD
             ck("el espejo funciona sin pack que declare las parejas",
                S.Ordenes.parejaEspejo() >= 0, "pareja " + S.Ordenes.parejaEspejo())
-            fin.start()
+            paso7()
         })
     }
+
+    // ── 7 · cerrar cierra TODO ──────────────────────────────────
+    //  Soltaba el documento y se dejaba la criatura puesta: te quedabas
+    //  mirando un lienzo vacío con el panel de acciones al lado diciendo que
+    //  estabas dibujando un bicho, y lo siguiente que hicieras trabajaba sobre
+    //  una criatura que ya habías cerrado.
+    function paso7() {
+        ck("antes de cerrar hay documento y criatura",
+           S.Documento.abierto && S.Especie.abierta)
+        S.Ordenes.ejecuta("cerrar")
+        cierre.start()
+    }
+    Timer { id: cierre; interval: 1200; onTriggered: {
+        raiz.ck("cerrar suelta el documento", !S.Documento.abierto)
+        raiz.ck("y también la criatura", !S.Especie.abierta)
+        raiz.ck("así que no quedan acciones a la vista", S.Especie.acciones.length === 0,
+                S.Especie.acciones.length + "")
+        raiz.ck("y el historial queda vacío", S.Historial.pasos === 0,
+                S.Historial.pasos + "")
+        fin.start()
+    } }
 
     Timer { id: fin; interval: 250; onTriggered: {
         console.log(raiz.malas ? "\n" + raiz.malas + " FALLOS" : "")

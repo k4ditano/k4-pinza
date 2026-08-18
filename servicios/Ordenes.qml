@@ -247,8 +247,23 @@ Singleton {
           cuando: () => ord.hayDoc, hacer: () => ord.pideHoja("acciones") },
         { id: "importar", titulo: "Importar imagen…", grupo: "fichero", icono: "importar",
           hacer: () => ord.pideHoja("importar") },
-        { id: "cerrar", titulo: "Cerrar", grupo: "fichero", icono: "cerrar", cuando: () => ord.hayDoc,
-          hacer: () => { S.Documento.cerrar(); S.Historial.limpia() } },
+        //  Cerrar cierra TODO lo que estaba abierto, criatura incluida.
+        //
+        //  Soltaba el documento y se dejaba la criatura puesta, así que te
+        //  quedabas mirando un lienzo vacío con el panel de acciones al lado
+        //  diciendo que estabas dibujando un bicho. Y lo siguiente que hicieras
+        //  —saltar de acción, guardar— trabajaba sobre una criatura que ya
+        //  habías cerrado. `Especie.cierra` guarda antes lo que hubiera.
+        { id: "cerrar", titulo: "Cerrar", grupo: "fichero", icono: "cerrar",
+          cuando: () => ord.hayDoc || S.Especie.abierta,
+          hacer: () => {
+              if (S.Especie.abierta) {
+                  S.Especie.cierra(() => { S.Documento.cerrar(); S.Historial.limpia() })
+                  return
+              }
+              S.Documento.cerrar()
+              S.Historial.limpia()
+          } },
 
         // ── editar ──────────────────────────────────────────────
         { id: "deshacer", titulo: "Deshacer", grupo: "editar", icono: "undo", atajo: "Ctrl+Z",

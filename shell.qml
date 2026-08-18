@@ -325,7 +325,7 @@ ShellRoot {
             const dos = nombre.split(":")
             hojas.abre(dos[0], dos[1])
         }
-        function onPideAbrirImagen() { abrirImagenDlg.open() }
+        function onPideAbrirImagen() { if (raiz.abrirImagen) raiz.abrirImagen.open() }
         function onPideAviso(texto) { aviso.di(texto) }
         function onPideAjuste() { lienzo.ajusta() }
         function onPideTema() { C.Tema.oscuro = !C.Tema.oscuro }
@@ -381,6 +381,11 @@ ShellRoot {
 
     property var guardarComo: null
     property var abrir: null
+    //  Los diálogos viven dentro de un Loader, así que sus ids NO se ven desde
+    //  fuera: por eso están todos aquí. Sin esta línea, la orden de abrir una
+    //  imagen llamaba a un id que no existía en su ámbito y no pasaba nada —
+    //  sin error, que es lo que la hacía difícil de ver.
+    property var abrirImagen: null
     property var abrirEspecie: null
     property var elegirTaller: null
     property var elegirRaiz: null
@@ -390,6 +395,7 @@ ShellRoot {
         sourceComponent: Item {
             Component.onCompleted: {
                 raiz.guardarComo = guardarDlg; raiz.abrir = abrirDlg
+                raiz.abrirImagen = abrirImagenDlg
                 raiz.abrirEspecie = abrirEspecieDlg
                 raiz.elegirTaller = tallerDlg
                 raiz.elegirRaiz = raizDlg

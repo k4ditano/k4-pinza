@@ -179,6 +179,56 @@ Nada de un binario propio, y por tres razones que se notan a diario: se ve en un
 a pinza le falte una herramienta, y si mañana el programa no arranca el arte
 sigue estando ahí.
 
+## Criaturas enteras
+
+Una criatura no es una hoja: es **una por acción** —quieto, andar, atacar,
+dolerse, cargar, brincar, dormir, disparar— más el `AnimData.xml` que las ata y
+la ficha que la da de alta en el juego. Los tres tienen que estar de acuerdo, y
+ese acuerdo es justo lo que se rompe haciéndolo a mano.
+
+`Ctrl+Shift+E`, o «Especie» en la paleta de comandos. Dos formas de empezar:
+
+**Traer una del juego y retocarla.** Lee lo que crabh tiene bajado —las 158 que
+haya— y trocea sus hojas con la geometría **de verdad**: el tamaño de fotograma,
+las duraciones en tics y los fotogramas de golpe salen de `species.json`, que a
+su vez sale del `AnimData.xml` original. Adivinar la rejilla de una hoja PMD sale
+mal —hay acciones de dos fotogramas y de once— y adivinar las duraciones sale mal
+siempre. Cada acción queda como un proyecto normal, con sus capas y su deshacer.
+
+**Empezar una en blanco.** Nacen las ocho acciones vacías pero con la geometría
+**puesta**: cada una con su tamaño, sus fotogramas, sus duraciones y sus
+fotogramas de golpe, y las ocho filas en el orden que lee el juego. Si eso hay
+que teclearlo, la plantilla no sirve de nada.
+
+Un proyecto de especie es una carpeta:
+
+    Cangrejito.especie/
+      especie.json      quién es: dex, papel, sombra, y qué acción tiene qué
+      Idle.pinza/       cada una es un proyecto normal
+      Walk.pinza/
+      Attack.pinza/
+
+Y exportar escribe las tres cosas de golpe: una hoja por acción en
+`assets/species/<nombre>/`, el `AnimData.xml` con todas, y
+`assets/species/<nombre>.json` con su mitad de pokédex — tipos y habilidades como
+cadenas normales, para que una criatura tuya lea la misma tabla de tipos que una
+de verdad y no sea un caso especial en ninguna parte.
+
+## Efectos de ataque
+
+La animación que sale al usar un movimiento, con su perfil propio. Lo que importa
+ahí es el **nombre del fichero**, porque de él saca el juego la rejilla:
+
+| | |
+|---|---|
+| una orientación | `Mordisco_Feroz.8.png` — una tira de 8 fotogramas |
+| ocho orientaciones | `Rayo_Guiado.Dir8.png` — 8 filas, una por dirección |
+
+Equivocarse no da error: da un efecto que se reproduce a trozos. Aquí lo decide
+el contrato a partir de cuántas orientaciones tenga el documento, y exportar
+escribe además la entrada del manifiesto con su tipo y el movimiento al que
+pertenece.
+
 ## Guiones
 
     ~/.config/pinza/guiones/*.js

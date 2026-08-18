@@ -8,11 +8,22 @@
 cd "$(dirname "$0")/.." || exit 1
 export QT_QPA_PLATFORM=offscreen
 
+#  Cada fichero de prueba, en una casa nueva.
+#
+#  Los ajustes se guardan solos, así que una prueba que reapunta la raíz de un
+#  pack o elige otro pack se lo dejaba puesto a la SIGUIENTE — y el orden
+#  alfabético decidía si pasaban o no. Aparte de que sin aislar te cambiaría la
+#  configuración de verdad, y una prueba que apunta a /run te dejaría apuntando
+#  a una carpeta que ya no existe.
+export XDG_CONFIG_HOME="${XDG_RUNTIME_DIR:-/tmp}/pinza-pruebas"
+
 solo="$1"
 malas=0
 for f in pruebas/*.qml cata/cata.qml; do
     [ -n "$solo" ] && case "$f" in *"$solo"*) ;; *) continue ;; esac
     printf '\033[1m── %s\033[0m\n' "$f"
+    rm -rf "$XDG_CONFIG_HOME"
+    mkdir -p "$XDG_CONFIG_HOME"
     if [ "$f" = "cata/cata.qml" ]; then
         salida=$(timeout 90 qs -p cata/cata.qml 2>&1); codigo=$?
     else

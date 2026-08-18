@@ -73,6 +73,35 @@ Singleton {
         }
     }
 
+    //  Se guardan solos, un par de segundos después del último cambio.
+    //  Antes había que llamar a guarda() a mano y no lo llamaba nadie: elegías
+    //  el pack de crabh, cerrabas, y al volver estabas otra vez en el genérico.
+    //  El retardo agrupa los cambios de un arrastre en una sola escritura.
+    Timer {
+        id: posa
+        interval: 2000
+        onTriggered: aj.guarda()
+    }
+    onPackChanged: posa.restart()
+    onZoomChanged: posa.restart()
+    onCebollaChanged: posa.restart()
+    onMuestraChanged: posa.restart()
+    onRejillaPixelChanged: posa.restart()
+    onRejillaCasillaChanged: posa.restart()
+    onModoBaldosaChanged: posa.restart()
+    onSimetriaHChanged: posa.restart()
+    onSimetriaVChanged: posa.restart()
+    onMedidasSiluetaChanged: posa.restart()
+    onPanelCapasChanged: posa.restart()
+    onPanelPaletaChanged: posa.restart()
+    onPanelPreviaChanged: posa.restart()
+    onPanelHistorialChanged: posa.restart()
+    onPanelMapaChanged: posa.restart()
+    onTiraChanged: posa.restart()
+    onCompasChanged: posa.restart()
+    onAvisoGuiaChanged: posa.restart()
+    onRaicesChanged: posa.restart()
+
     function guarda() {
         const j = {}
         const nombres = ["zoom", "rejillaPixel", "rejillaCasilla", "casillaAncho", "casillaAlto",

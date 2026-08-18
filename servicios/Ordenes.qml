@@ -312,6 +312,32 @@ Singleton {
         { id: "guiones", titulo: "Guiones…", grupo: "guiones", icono: "engranaje",
           atajo: "Ctrl+J", cuando: () => ord.hayDoc, hacer: () => ord.pideHoja("guiones") },
 
+        // ── especie ─────────────────────────────────────────────
+        { id: "especie", titulo: "Especie: criatura entera…", grupo: "especie", icono: "juego",
+          atajo: "Ctrl+Shift+E",
+          cuando: () => !!(S.Packs.contrato("pmd") && S.Packs.contrato("pmd").especie),
+          hacer: () => ord.pideHoja("especie") },
+        { id: "especieTraer", titulo: "Especie: traer una del juego", grupo: "especie",
+          icono: "importar",
+          cuando: () => !!(S.Packs.contrato("pmd") && S.Packs.contrato("pmd").especie),
+          hacer: () => ord.pideHoja("especie:traer") },
+        { id: "especieBlanco", titulo: "Especie: empezar una en blanco", grupo: "especie",
+          icono: "nuevo",
+          cuando: () => !!(S.Packs.contrato("pmd") && S.Packs.contrato("pmd").especie),
+          hacer: () => ord.pideHoja("especie:blanco") },
+        { id: "especieSiguiente", titulo: "Acción siguiente de la especie", grupo: "especie",
+          cuando: () => S.Especie.abierta && S.Especie.accion !== "",
+          hacer: () => {
+              const ids = Object.keys(S.Especie.d.acciones)
+              const i = ids.indexOf(S.Especie.accion)
+              S.Especie.recogeDelDocumento()
+              S.Especie.editaAccion(ids[(i + 1) % ids.length], null)
+          } },
+        { id: "especieExportar", titulo: "Exportar la especie entera", grupo: "especie",
+          icono: "exportar", cuando: () => S.Especie.abierta,
+          hacer: () => { S.Especie.recogeDelDocumento()
+                         S.Especie.guarda(null, () => S.Especie.exporta(null)) } },
+
         // ── pack ────────────────────────────────────────────────
         { id: "pack", titulo: "Cambiar de pack…", grupo: "pack", icono: "engranaje",
           hacer: () => ord.pideHoja("pack") },

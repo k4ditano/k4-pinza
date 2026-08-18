@@ -414,9 +414,87 @@
       ]
     },
     {
+      "id": "ataque",
+      "titulo": "Efecto de ataque",
+      "resumen": "La animación que sale al usar un movimiento. Una tira de fotogramas, o ocho filas si el efecto tiene que mirar hacia donde apunta.",
+      "ancho": 48,
+      "alto": 48,
+      "tamañoLibre": true,
+      "orientaciones": [
+        {
+          "id": "u",
+          "titulo": "única",
+          "flecha": "·"
+        }
+      ],
+      "orientacionesLibres": true,
+      "fotogramas": 8,
+      "fotogramasLibres": true,
+      "duracion": 3,
+      "rejilla": null,
+      "salida": {
+        "modo": "hoja",
+        "disposicion": "fotogramas-en-columnas",
+        "carpeta": "assets/vfx",
+        "patron": "{nombre}.{fotogramas}.png",
+        "patronUnico": "{nombre}.None.png",
+        "patronOrientaciones": "{nombre}.Dir{orientaciones}.png"
+      },
+      "manifiesto": {
+        "fichero": "assets/authored.json",
+        "kind": "vfx",
+        "campos": [
+          "desc",
+          "family",
+          "movimiento"
+        ]
+      },
+      "campos": [
+        {
+          "id": "movimiento",
+          "titulo": "movimiento",
+          "tipo": "texto",
+          "ayuda": "el slug del ataque al que pertenece, tal cual lo nombra moves.json"
+        },
+        {
+          "id": "desc",
+          "titulo": "descripción",
+          "tipo": "texto"
+        },
+        {
+          "id": "family",
+          "titulo": "tipo",
+          "tipo": "opcion",
+          "opciones": [
+            "bug",
+            "dark",
+            "dragon",
+            "electric",
+            "fairy",
+            "fighting",
+            "fire",
+            "flying",
+            "ghost",
+            "grass",
+            "ground",
+            "ice",
+            "normal",
+            "poison",
+            "psychic",
+            "rock",
+            "steel",
+            "water"
+          ],
+          "defecto": "normal",
+          "ayuda": "de qué rampa de tipo tira el color"
+        }
+      ],
+      "guiaOrientaciones": "Con una sola orientación sale «Nombre.8.png» y el juego lo lee como una tira. Con ocho sale «Nombre.Dir8.png» y lo lee como ocho filas, una por dirección — que es lo que hace falta si el efecto apunta."
+    },
+    {
       "id": "pmd",
       "titulo": "Criatura",
-      "resumen": "Una hoja al estilo PMD: columnas de fotogramas por ocho filas de orientación, en un orden que no se puede equivocar. Sale con su AnimData.xml.",
+      "resumen": "Una acción de una criatura: columnas de fotogramas por ocho filas de orientación, en un orden que no se puede equivocar. Para la especie entera —las ocho acciones y su AnimData— usa la hoja de Especie.",
       "ancho": 40,
       "alto": 40,
       "tamañoLibre": true,
@@ -522,7 +600,112 @@
           "tipo": "numero",
           "defecto": 1
         }
-      ]
+      ],
+      "especie": {
+        "acciones": [
+          {
+            "id": "Idle",
+            "titulo": "quieto",
+            "lado": 32,
+            "fotogramas": 4,
+            "duraciones": [
+              14,
+              15,
+              14,
+              15
+            ]
+          },
+          {
+            "id": "Walk",
+            "titulo": "andar",
+            "lado": 32,
+            "fotogramas": 4,
+            "duraciones": [
+              9,
+              9,
+              9,
+              9
+            ]
+          },
+          {
+            "id": "Attack",
+            "titulo": "atacar",
+            "lado": 48,
+            "fotogramas": 4,
+            "duraciones": [
+              6,
+              6,
+              6,
+              6
+            ],
+            "hitFrame": 1,
+            "rushFrame": 0,
+            "returnFrame": 2
+          },
+          {
+            "id": "Hurt",
+            "titulo": "dolerse",
+            "lado": 32,
+            "fotogramas": 2,
+            "duraciones": [
+              5,
+              5
+            ]
+          },
+          {
+            "id": "Charge",
+            "titulo": "cargar",
+            "lado": 32,
+            "fotogramas": 4,
+            "duraciones": [
+              8,
+              8,
+              8,
+              8
+            ]
+          },
+          {
+            "id": "Hop",
+            "titulo": "brincar",
+            "lado": 32,
+            "fotogramas": 4,
+            "duraciones": [
+              6,
+              6,
+              6,
+              6
+            ]
+          },
+          {
+            "id": "Sleep",
+            "titulo": "dormir",
+            "lado": 32,
+            "fotogramas": 2,
+            "duraciones": [
+              30,
+              30
+            ]
+          },
+          {
+            "id": "Shoot",
+            "titulo": "disparar",
+            "lado": 48,
+            "fotogramas": 4,
+            "duraciones": [
+              6,
+              6,
+              6,
+              6
+            ],
+            "hitFrame": 2
+          }
+        ],
+        "datos": "public/data/species.json",
+        "sprites": "public/",
+        "manifiesto": "assets/species/{nombre}.json",
+        "carpeta": "assets/species/{nombre}",
+        "ayuda": "Una especie no es una hoja: es una por acción, más el AnimData.xml que las ata. Se puede empezar de una del juego o en blanco."
+      }
     },
     {
       "id": "dtef",

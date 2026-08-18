@@ -94,9 +94,13 @@ Rectangle {
 
     /** Lo que el contrato impone, en trozos legibles de un vistazo. */
     readonly property var _trozos: {
-        S.Documento.rev
+        S.Documento.rev; S.Especie.rev
         if (!S.Documento.abierto) return []
         const t = []
+        //  Si esto es una acción de una criatura, decirlo: es lo que orienta
+        //  cuando llevas ocho proyectos abiertos que se llaman todos igual.
+        if (S.Especie.abierta && S.Especie.accion)
+            t.push(S.Especie.nombre + " · " + S.Especie.accion)
         t.push((con ? con.titulo.toLowerCase() : "libre") + " · "
                + S.Documento.ancho + "×" + S.Documento.alto)
         if (S.Documento.nFotogramas > 1)

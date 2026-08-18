@@ -28,8 +28,13 @@ ShellRoot {
             const c = S.Packs.contrato("libre")
             ck("el contrato libre existe y deja elegir el tamaño", c !== null && c.tamañoLibre === true)
             S.Packs.elige("crabh")
-            ck("crabh tiene sus cinco perfiles", S.Packs.contratos.length === 5,
-               S.Packs.contratos.map((x) => x.id).join(" "))
+            //  Por nombre y no por cuenta: contar es frágil, y además lo que
+            //  importa es que estén ESTOS, no cuántos hay.
+            const hay = S.Packs.contratos.map((x) => x.id)
+            const faltan = ["item", "objeto", "vfx", "ataque", "pmd", "dtef"]
+                           .filter((x) => hay.indexOf(x) < 0)
+            ck("crabh trae sus perfiles", faltan.length === 0,
+               faltan.length ? "faltan " + faltan.join(" ") : hay.join(" "))
             ck("crabh trae guía, y es informativa",
                S.Packs.guia !== null && S.Packs.guia.modo === "informativo")
             ck("y trae la paleta de la casa", S.Paleta.rampas.length === 19, S.Paleta.rampas.length + " rampas")

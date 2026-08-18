@@ -20,10 +20,11 @@ Item {
     z: 800
 
     property string hoja: ""
+    property string modoHoja: ""     // con qué pantalla abrirla, si tiene varias
     readonly property bool abierta: hoja !== ""
     signal aviso(string texto)
 
-    function abre(nombre) { hoja = nombre }
+    function abre(nombre, modo) { modoHoja = modo || ""; hoja = nombre }
     function cierra() { hoja = "" }
 
     // el lienzo sigue clicable a la izquierda: esto no tapa nada que no ocupe
@@ -87,7 +88,8 @@ Item {
             "nuevo": cNuevo, "exportar": cExportar, "lienzo": cLienzo, "escalar": cEscalar,
             "orientaciones": cOrientaciones, "pack": cPack, "comprobar": cComprobar,
             "etiqueta": cEtiqueta, "cuantizar": cCuantizar, "desplazar": cDesplazar,
-            "importar": cImportar, "exportarAnim": cAnim, "guiones": cGuiones
+            "importar": cImportar, "exportarAnim": cAnim, "guiones": cGuiones,
+            "especie": cEspecie
         })
 
         Flickable {
@@ -864,6 +866,308 @@ Item {
             }
         }
     }
+
+    // ═══════════════════════════════════════════════════════════
+    // especie
+    // ═══════════════════════════════════════════════════════════
+
+    Component {
+        id: cEspecie
+        Column {
+            id: hojaEsp
+            spacing: 9
+            property string modo: S.Especie.abierta ? "ficha"
+                                 : (raiz.modoHoja || "elegir")
+            property string busca: ""
+            property string nombreNuevo: "MiBicho"
+
+            //  Siempre, no sólo desde el botón: se puede entrar directo a la
+            //  pantalla de traer desde la paleta de comandos, y entonces nadie
+            //  pedía el catálogo — la lista se quedaba en "leyendo…" para
+            //  siempre.
+            Component.onCompleted: S.Especie.cargaCatalogo(null)
+
+            // ── nada abierto: de dónde partir ────────────────────
+            Column {
+                visible: hojaEsp.modo === "elegir"
+                width: parent.width
+                spacing: 8
+
+                Text {
+                    width: parent.width
+                    text: S.Especie.plantilla ? S.Especie.plantilla.ayuda : ""
+                    wrapMode: Text.WordWrap
+                    font.family: C.Tema.tipo; font.pixelSize: 10; color: C.Tema.tenue
+                }
+
+                C.Boton {
+                    width: parent.width
+                    texto: "traer una del juego y retocarla"
+                    activo: true
+                    onPulsado: { S.Especie.cargaCatalogo(null); hojaEsp.modo = "traer" }
+                }
+                C.Boton {
+                    width: parent.width
+                    texto: "empezar una en blanco"
+                    onPulsado: hojaEsp.modo = "blanco"
+                }
+                C.Boton {
+                    width: parent.width
+                    texto: "abrir una que ya tengas…"
+                    onPulsado: raiz.pideCarpetaEspecie()
+                }
+            }
+
+            // ── traer una del juego ──────────────────────────────
+            Column {
+                visible: hojaEsp.modo === "traer"
+                width: parent.width
+                spacing: 7
+
+                Text {
+                    width: parent.width
+                    text: "se trocean sus hojas con la geometría BAJADA —no adivinada— y quedan "
+                          + "editables acción por acción, con sus duraciones en tics"
+                    wrapMode: Text.WordWrap
+                    font.family: C.Tema.tipo; font.pixelSize: 10; color: C.Tema.tenue
+                }
+                C.Campo {
+                    width: parent.width
+                    etiqueta: "buscar"; valor: hojaEsp.busca
+                    onCambiado: (v) => hojaEsp.busca = v
+                }
+                C.Campo {
+                    width: parent.width
+                    etiqueta: "se llamará"; valor: hojaEsp.nombreNuevo
+                    onCambiado: (v) => hojaEsp.nombreNuevo = v
+                }
+                Text {
+                    visible: !S.Especie.catalogoListo
+                    text: "leyendo lo que el juego tiene bajado…"
+                    font.family: C.Tema.tipo; font.pixelSize: 10; color: C.Tema.acento
+                }
+
+                Rectangle {
+                    width: parent.width
+                    height: 260
+                    radius: 3
+                    color: C.Tema.fondo
+                    border.width: 1; border.color: C.Tema.bordeSuave
+                    clip: true
+
+                    ListView {
+                        anchors.fill: parent
+                        anchors.margins: 4
+                        clip: true
+                        model: {
+                            const q = hojaEsp.busca.toLowerCase().trim()
+                            if (!q) return S.Especie.catalogo
+                            return S.Especie.catalogo.filter(
+                                (x) => x.name.indexOf(q) >= 0 || String(x.dex) === q)
+                        }
+                        delegate: Rectangle {
+                            width: ListView.view.width
+                            height: 24
+                            radius: 2
+                            color: filaRaton.containsMouse ? C.Tema.alta : "transparent"
+                            Text {
+                                anchors.left: parent.left; anchors.leftMargin: 6
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: ("000" + modelData.dex).slice(-4) + "  " + modelData.name
+                                font.family: C.Tema.tipoMono; font.pixelSize: 11
+                                color: C.Tema.tinta
+                            }
+                            Text {
+                                anchors.right: parent.right; anchors.rightMargin: 6
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: Object.keys(modelData.sheets || {}).length + " acciones"
+                                font.family: C.Tema.tipoMono; font.pixelSize: 9
+                                color: C.Tema.apagado
+                            }
+                            MouseArea {
+                                id: filaRaton
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: raiz.pideDondeImportar(modelData.dex, hojaEsp.nombreNuevo)
+                            }
+                        }
+                    }
+                }
+                C.Boton { texto: "atrás"; onPulsado: hojaEsp.modo = "elegir" }
+            }
+
+            // ── en blanco ────────────────────────────────────────
+            Column {
+                visible: hojaEsp.modo === "blanco"
+                width: parent.width
+                spacing: 7
+                property int dex: 10000
+                property string role: "prey"
+                property int sombra: 1
+
+                Text {
+                    width: parent.width
+                    text: "nacen las ocho acciones vacías, cada una con su tamaño, sus fotogramas "
+                          + "y sus duraciones puestas. Sólo queda dibujarlas."
+                    wrapMode: Text.WordWrap
+                    font.family: C.Tema.tipo; font.pixelSize: 10; color: C.Tema.tenue
+                }
+                C.Campo { width: parent.width; etiqueta: "nombre"; valor: hojaEsp.nombreNuevo
+                          onCambiado: (v) => hojaEsp.nombreNuevo = v }
+                C.Campo { width: parent.width; etiqueta: "dex"; numero: true; minimo: 10000
+                          maximo: 19999; valor: String(parent.dex)
+                          onCambiado: (v) => parent.dex = parseInt(v) || 10000 }
+                C.Opcion {
+                    width: parent.width; etiqueta: "papel"
+                    opciones: [{ id: "starter", titulo: "inicial" }, { id: "prey", titulo: "presa" },
+                               { id: "midgame", titulo: "media" }, { id: "predator", titulo: "depredador" },
+                               { id: "crab", titulo: "cangrejo" }, { id: "boss", titulo: "jefe" }]
+                    valor: parent.role
+                    onCambiado: (v) => parent.role = v
+                }
+                C.Desliz {
+                    width: parent.width; etiqueta: "sombra"; anchoEtiqueta: 62
+                    minimo: 0; maximo: 3; paso: 1; decimales: 0
+                    valor: parent.sombra
+                    onCambiado: (v) => parent.sombra = Math.round(v)
+                }
+                Row {
+                    spacing: 6
+                    C.Boton {
+                        texto: "crear"; activo: true; relleno: 12
+                        onPulsado: {
+                            S.Especie.nueva({ nombre: hojaEsp.nombreNuevo, dex: parent.parent.dex,
+                                              role: parent.parent.role,
+                                              shadowSize: parent.parent.sombra })
+                            raiz.pideDondeGuardarEspecie()
+                        }
+                    }
+                    C.Boton { texto: "atrás"; onPulsado: hojaEsp.modo = "elegir" }
+                }
+            }
+
+            // ── la ficha, con sus acciones ───────────────────────
+            Column {
+                visible: hojaEsp.modo === "ficha" && S.Especie.abierta
+                width: parent.width
+                spacing: 7
+
+                Row {
+                    spacing: 8
+                    Text {
+                        text: S.Especie.nombre
+                        font.family: C.Tema.tipo; font.pixelSize: 15; font.weight: Font.Bold
+                        color: C.Tema.acento
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: S.Especie.rev, S.Especie.d
+                              ? "#" + S.Especie.d.dex + " · " + S.Especie.d.role : ""
+                        font.family: C.Tema.tipoMono; font.pixelSize: 10; color: C.Tema.tenue
+                    }
+                }
+                Text {
+                    visible: S.Especie.rev, !!(S.Especie.d && S.Especie.d.venideDe)
+                    text: S.Especie.d && S.Especie.d.venideDe
+                          ? "partiendo de " + S.Especie.d.venideDe.nombre : ""
+                    font.family: C.Tema.tipo; font.pixelSize: 10; color: C.Tema.apagado
+                }
+
+                C.Rotulo { text: "acciones" }
+                Repeater {
+                    model: S.Especie.rev, S.Especie.acciones
+                    Rectangle {
+                        readonly property var info: S.Especie.d ? S.Especie.d.acciones[modelData.id] : null
+                        readonly property bool activa: S.Especie.accion === modelData.id
+                        width: parent.width
+                        height: info ? 30 : 0
+                        visible: !!info
+                        radius: 3
+                        color: activa ? C.Tema.acentoTenue
+                             : accRaton.containsMouse ? C.Tema.alta : "transparent"
+                        border.width: activa ? 1 : 0
+                        border.color: C.Tema.acento
+
+                        Column {
+                            anchors.left: parent.left; anchors.leftMargin: 8
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: 0
+                            Text {
+                                text: modelData.id + "  " + modelData.titulo
+                                font.family: C.Tema.tipo; font.pixelSize: C.Tema.letra
+                                color: parent.parent.activa ? C.Tema.acento : C.Tema.tinta
+                            }
+                            Text {
+                                text: parent.parent.info
+                                      ? parent.parent.info.ancho + "×" + parent.parent.info.alto
+                                        + " · " + parent.parent.info.fotogramas + " fot · "
+                                        + parent.parent.info.duraciones.reduce((a, b) => a + b, 0) + "t"
+                                      : ""
+                                font.family: C.Tema.tipoMono; font.pixelSize: 9
+                                color: C.Tema.apagado
+                            }
+                        }
+                        Rectangle {
+                            anchors.right: parent.right; anchors.rightMargin: 8
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 8; height: 8; radius: 4
+                            color: parent.info && parent.info.hecha ? C.Tema.bien : C.Tema.borde
+                        }
+                        MouseArea {
+                            id: accRaton
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                S.Especie.recogeDelDocumento()
+                                S.Especie.editaAccion(modelData.id, null)
+                                raiz.cierra()
+                            }
+                        }
+                    }
+                }
+
+                Item { width: 1; height: 4 }
+                Row {
+                    spacing: 6
+                    C.Boton {
+                        texto: "exportar la especie"; activo: true; relleno: 12
+                        onPulsado: {
+                            S.Especie.recogeDelDocumento()
+                            S.Especie.guarda(null, () => S.Especie.exporta(null))
+                            raiz.cierra()
+                        }
+                    }
+                    C.Boton {
+                        texto: "guardar"
+                        onPulsado: { S.Especie.recogeDelDocumento(); S.Especie.guarda(null, null) }
+                    }
+                }
+                Text {
+                    width: parent.width
+                    text: "exportar escribe una hoja por acción, el AnimData.xml que las ata y la "
+                          + "ficha que da de alta a la criatura en el juego. Los tres tienen que "
+                          + "estar de acuerdo, y ese acuerdo es lo que se rompe haciéndolo a mano."
+                    wrapMode: Text.WordWrap
+                    font.family: C.Tema.tipo; font.pixelSize: 10; color: C.Tema.tenue
+                }
+                Text {
+                    visible: S.Especie.estado !== ""
+                    text: S.Especie.estado + "  " + Math.round(S.Especie.progreso * 100) + "%"
+                    font.family: C.Tema.tipoMono; font.pixelSize: 10; color: C.Tema.acento
+                }
+
+                Item { width: 1; height: 4 }
+                C.Boton { texto: "cerrar la especie"; peligro: true
+                          onPulsado: { S.Especie.cierra(); hojaEsp.modo = "elegir" } }
+            }
+        }
+    }
+
+    signal pideCarpetaEspecie()
+    signal pideDondeGuardarEspecie()
+    signal pideDondeImportar(int dex, string nombre)
 
     // ═══════════════════════════════════════════════════════════
     // guiones

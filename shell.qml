@@ -47,7 +47,10 @@ ShellRoot {
             //  escena no llega a pintar, y entonces exportar devuelve un
             //  lienzo en blanco sin decir nada.
             V.Exportador { id: exportador }
-            Component.onCompleted: S.Proyecto.exportador = exportador
+            Component.onCompleted: {
+                S.Proyecto.exportador = exportador
+                S.Especie.exportador = exportador
+            }
 
             // ═══════════════════════════════════════════════════
             // reparto
@@ -297,11 +300,35 @@ ShellRoot {
         function onPideHoja(nombre) {
             if (nombre === "guardarComo") { guardarComo.open(); return }
             if (nombre === "abrir") { abrir.open(); return }
-            hojas.abre(nombre)
+            //  "especie:traer" abre la hoja de especie directamente en la
+            //  pantalla de traer, que es un clic menos desde la paleta.
+            const dos = nombre.split(":")
+            hojas.abre(dos[0], dos[1])
         }
         function onPideAviso(texto) { aviso.di(texto) }
         function onPideAjuste() { lienzo.ajusta() }
         function onPideTema() { C.Tema.oscuro = !C.Tema.oscuro }
+    }
+
+    // ── la especie: siempre acaba en elegir una carpeta ─────────
+    property int _dexAImportar: -1
+    property string _nombreAImportar: ""
+
+    Connections {
+        target: hojas
+        function onPideCarpetaEspecie() { abrirEspecie.open() }
+        function onPideDondeGuardarEspecie() { guardarEspecie.open() }
+        function onPideDondeImportar(dex, nombre) {
+            raiz._dexAImportar = dex
+            raiz._nombreAImportar = nombre
+            importarEspecie.open()
+        }
+    }
+
+    Connections {
+        target: S.Especie
+        function onHecho(que, detalle) { aviso.di(que + ": " + detalle) }
+        function onFalla(que, motivo) { aviso.di(que + ": " + motivo) }
     }
 
     Connections {
@@ -327,11 +354,19 @@ ShellRoot {
 
     property var guardarComo: null
     property var abrir: null
+    property var abrirEspecie: null
+    property var guardarEspecie: null
+    property var importarEspecie: null
 
     Loader {
         active: true
         sourceComponent: Item {
-            Component.onCompleted: { raiz.guardarComo = guardarDlg; raiz.abrir = abrirDlg }
+            Component.onCompleted: {
+                raiz.guardarComo = guardarDlg; raiz.abrir = abrirDlg
+                raiz.abrirEspecie = abrirEspecieDlg
+                raiz.guardarEspecie = guardarEspecieDlg
+                raiz.importarEspecie = importarEspecieDlg
+            }
             SelectorCarpeta {
                 id: guardarDlg
                 titulo: "Guardar el proyecto en"
@@ -341,6 +376,24 @@ ShellRoot {
                 id: abrirDlg
                 titulo: "Abrir un proyecto"
                 onElegida: (ruta) => S.Proyecto.abre(ruta, null)
+            }
+            SelectorCarpeta {
+                id: abrirEspecieDlg
+                titulo: "Abrir una especie"
+                onElegida: (ruta) => S.Especie.abre(ruta, null)
+            }
+            SelectorCarpeta {
+                id: guardarEspecieDlg
+                titulo: "Dónde guardar la especie"
+                onElegida: (ruta) => S.Especie.guarda(
+                    ruta + "/" + S.Especie.nombre + ".especie", null)
+            }
+            SelectorCarpeta {
+                id: importarEspecieDlg
+                titulo: "Dónde dejar la especie importada"
+                onElegida: (ruta) => S.Especie.importa(
+                    raiz._dexAImportar, raiz._nombreAImportar,
+                    ruta + "/" + raiz._nombreAImportar + ".especie", null)
             }
         }
     }
@@ -417,6 +470,13 @@ ShellRoot {
             if (!S.Ordenes.disponible(o)) return "«" + o.titulo + "» no se puede ahora mismo"
             S.Ordenes.ejecuta(id)
             return o.titulo
+        }
+
+        /** Cambiar de pack desde fuera. `qs -c pinza ipc call pinza pack crabh` */
+        function pack(id: string): string {
+            for (let i = 0; i < S.Packs.lista.length; i++)
+                if (S.Packs.lista[i].id === id) { S.Packs.elige(id); return "pack: " + id }
+            return "no hay ningún pack «" + id + "»"
         }
 
         function estado(): string {

@@ -394,8 +394,15 @@ ShellRoot {
             }
             SelectorCarpeta {
                 id: guardarDlg
-                titulo: "Guardar el proyecto en"
-                onElegida: (ruta) => S.Proyecto.guarda(ruta + "/" + S.Documento.nombre + ".pinza", null)
+                //  Con una criatura abierta, «guardar como» es la criatura
+                //  entera. Guardar sólo la acción que miras y llamarla como al
+                //  bicho es prometer ocho animaciones y entregar una.
+                titulo: S.Especie.abierta ? "Guardar la criatura en"
+                                          : "Guardar el proyecto en"
+                onElegida: (ruta) => {
+                    if (S.Especie.abierta) S.Especie.guardaComo(ruta, null)
+                    else S.Proyecto.guarda(ruta + "/" + S.Documento.nombre + ".pinza", null)
+                }
             }
             SelectorCarpeta {
                 id: abrirDlg

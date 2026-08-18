@@ -220,6 +220,10 @@ Singleton {
                              if (bien && S.Especie.abierta) S.Especie.recogeYGuarda(null)
                          })
                        : ord.pideHoja("guardarComo") },
+        //  El título no cambia con lo que haya abierto: `lista` es un enlace
+        //  con las setenta y pico órdenes, y hacerlo depender de la especie las
+        //  reconstruiría todas en cada cambio de acción. Lo que hace falta
+        //  saber —criatura entera o sólo este dibujo— lo dice el diálogo.
         { id: "guardarComo", titulo: "Guardar como…", grupo: "fichero", icono: "guardar",
           atajo: "Ctrl+Shift+S", cuando: () => ord.hayDoc, hacer: () => ord.pideHoja("guardarComo") },
         { id: "exportar", titulo: "Exportar según el contrato", grupo: "fichero", icono: "exportar",

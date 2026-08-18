@@ -152,6 +152,52 @@ Singleton {
         })
     }
 
+    /**
+     * La criatura ENTERA a otro sitio, y seguir trabajando allí.
+     *
+     * «Guardar como» con una criatura abierta guardaba sólo la acción que
+     * estabas mirando —una de ocho— y encima le ponía el nombre de la
+     * criatura: acababas con un `Bicho.pinza` suelto que parecía el bicho
+     * entero y era su Shoot. Sin error, sin aviso, y sólo te enterabas al
+     * abrirlo en otra parte y encontrarte una sola animación.
+     *
+     * Ahora se copia la carpeta entera —la ficha y las ocho acciones— y se
+     * sigue trabajando sobre la copia, que es lo que «guardar como» significa
+     * en cualquier programa.
+     */
+    function guardaComo(carpetaPadre, cb) {
+        if (!memoria.d) { if (cb) cb(false); return }
+        if (!memoria.d.ruta) {
+            //  Una criatura que todavía no está en ningún sitio: esto no es
+            //  copiar, es guardarla por primera vez.
+            guarda(carpetaPadre + "/" + memoria.d.nombre + ".especie", cb)
+            return
+        }
+        const origen = memoria.d.ruta
+        const destino = carpetaPadre + "/" + memoria.d.nombre + ".especie"
+        if (destino === origen) { guardaTodo(cb); return }
+        estado = "guardando"
+        //  Al disco lo que haya antes de copiar, o la copia saldría con lo de
+        //  la vez pasada y tú creyendo que llevas tu trabajo encima.
+        guardaTodo((bien) => {
+            if (!bien) {
+                estado = ""
+                falla("guardar como", "no he podido guardar lo que tenías abierto")
+                if (cb) cb(false); return
+            }
+            S.Forja.pide("copiar", { origen: origen, destino: destino }, (r) => {
+                estado = ""
+                if (!r.bien) {
+                    falla("guardar como", r.error || "no se pudo copiar la criatura")
+                    if (cb) cb(false); return
+                }
+                hecho("guardar como", destino)
+                //  Y a partir de aquí se trabaja sobre la copia.
+                _abre(destino, cb)
+            })
+        })
+    }
+
     function _abre(ruta, cb) {
         estado = "abriendo"
         S.Forja.leeTexto(ruta + "/especie.json", (r) => {

@@ -125,6 +125,25 @@ def orden_escribir(p):
     return {"ruta": ruta, "bytes": len(b)}
 
 
+def orden_copiar(p):
+    """Una carpeta entera a otro sitio.
+
+    Existe para «guardar como» de una criatura: una criatura son ocho
+    proyectos y una ficha, y copiarlos uno a uno desde QML sería leer y
+    reescribir quinientas celdas para no cambiar ni un píxel.
+    """
+    import shutil
+    origen = expande(p["origen"])
+    destino = expande(p["destino"])
+    if not os.path.isdir(origen):
+        raise RuntimeError("no existe la carpeta %s" % origen)
+    if os.path.abspath(destino).startswith(os.path.abspath(origen) + os.sep):
+        raise RuntimeError("no se puede copiar una carpeta dentro de sí misma")
+    os.makedirs(os.path.dirname(destino) or ".", exist_ok=True)
+    shutil.copytree(origen, destino, dirs_exist_ok=True)
+    return {"origen": origen, "destino": destino}
+
+
 def orden_borrar(p):
     ruta = expande(p["ruta"])
     if os.path.isfile(ruta):
@@ -364,6 +383,7 @@ ORDENES = {
     "escribirTexto": orden_escribir_texto,
     "escribir": orden_escribir,
     "escribirPixeles": orden_escribir_pixeles,
+    "copiar": orden_copiar,
     "borrar": orden_borrar,
     "pngInfo": orden_png_info,
     "leerPixeles": orden_leer_pixeles,

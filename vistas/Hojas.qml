@@ -1091,10 +1091,53 @@ Item {
                 }
                 Destino { width: parent.width; nombre: hojaEsp.nombreNuevo }
                 Text {
-                    visible: !S.Especie.catalogoListo
+                    visible: S.Especie.catalogoLeyendo
                     text: "leyendo lo que el juego tiene bajado…"
                     font.family: C.Tema.tipo; font.pixelSize: 10; color: C.Tema.acento
                 }
+
+                //  Cuando no se puede, se dice POR QUÉ y se ofrece el arreglo.
+                //  Un «leyendo…» eterno parece que va lento y no va a ir nunca.
+                Rectangle {
+                    visible: S.Especie.catalogoError !== ""
+                    width: parent.width
+                    height: quejaCol.implicitHeight + 16
+                    radius: 3
+                    color: C.Tema.acentoTenue
+                    border.width: 1; border.color: C.Tema.aviso
+                    Column {
+                        id: quejaCol
+                        anchors.left: parent.left; anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.margins: 8
+                        spacing: 6
+                        Text {
+                            width: parent.width
+                            text: S.Especie.catalogoError
+                            wrapMode: Text.WrapAnywhere
+                            font.family: C.Tema.tipoMono; font.pixelSize: 10; color: C.Tema.tinta
+                        }
+                        Text {
+                            width: parent.width
+                            text: "las criaturas salen de lo que el juego ya ha horneado. "
+                                  + "Si aún no lo has hecho, en crabh: npm run assets"
+                            wrapMode: Text.WordWrap
+                            font.family: C.Tema.tipo; font.pixelSize: 10; color: C.Tema.tenue
+                        }
+                        Row {
+                            spacing: 6
+                            C.Boton {
+                                texto: "elegir la carpeta del juego"; relleno: 8; implicitHeight: 22
+                                onPulsado: raiz.pideRaizDelPack()
+                            }
+                            C.Boton {
+                                texto: "reintentar"; relleno: 8; implicitHeight: 22
+                                onPulsado: { S.Especie.olvidaCatalogo(); S.Especie.cargaCatalogo(null) }
+                            }
+                        }
+                    }
+                }
+
                 Text {
                     visible: S.Especie.catalogoListo
                     width: parent.width
@@ -1102,6 +1145,13 @@ Item {
                           + "la nueva se llamará -2 en vez de machacarla."
                     wrapMode: Text.WordWrap
                     font.family: C.Tema.tipo; font.pixelSize: 10; color: C.Tema.apagado
+                }
+                Text {
+                    visible: S.Especie.catalogoListo
+                    width: parent.width
+                    text: "de " + S.Proyecto.raizPack()
+                    elide: Text.ElideMiddle
+                    font.family: C.Tema.tipoMono; font.pixelSize: 9; color: C.Tema.apagado
                 }
 
                 Rectangle {
@@ -1354,6 +1404,7 @@ Item {
     }
 
     signal pideTaller()
+    signal pideRaizDelPack()
     signal pideCarpetaEspecie()
 
     // ═══════════════════════════════════════════════════════════

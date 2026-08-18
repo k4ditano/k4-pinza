@@ -313,7 +313,16 @@ ShellRoot {
     Connections {
         target: hojas
         function onPideTaller() { elegirTaller.open() }
+        function onPideRaizDelPack() { elegirRaiz.open() }
         function onPideCarpetaEspecie() { abrirEspecie.open() }
+    }
+
+    Connections {
+        target: S.Packs
+        function onRaizDescartada(pack, ruta) {
+            aviso.di("la carpeta apuntada de «" + pack + "» ya no existe; se usa la del pack")
+            S.Especie.olvidaCatalogo()
+        }
     }
 
     Connections {
@@ -347,6 +356,7 @@ ShellRoot {
     property var abrir: null
     property var abrirEspecie: null
     property var elegirTaller: null
+    property var elegirRaiz: null
 
     Loader {
         active: true
@@ -355,6 +365,7 @@ ShellRoot {
                 raiz.guardarComo = guardarDlg; raiz.abrir = abrirDlg
                 raiz.abrirEspecie = abrirEspecieDlg
                 raiz.elegirTaller = tallerDlg
+                raiz.elegirRaiz = raizDlg
             }
             SelectorCarpeta {
                 id: guardarDlg
@@ -370,6 +381,15 @@ ShellRoot {
                 id: abrirEspecieDlg
                 titulo: "Abrir una especie"
                 onElegida: (ruta) => S.Especie.abre(ruta, null)
+            }
+            SelectorCarpeta {
+                id: raizDlg
+                titulo: "Dónde está el repositorio del juego"
+                onElegida: (ruta) => {
+                    S.Packs.apunta(S.Packs.activoId, ruta)
+                    S.Especie.olvidaCatalogo()
+                    S.Especie.cargaCatalogo(null)
+                }
             }
             SelectorCarpeta {
                 id: tallerDlg

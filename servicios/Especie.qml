@@ -212,21 +212,56 @@ Singleton {
 
     property var catalogo: []
     property bool catalogoListo: false
+    property bool catalogoLeyendo: false
+    //  Por qué no se pudo, en cristiano. Antes fallaba en silencio y la lista
+    //  se quedaba en «leyendo…» para siempre, que es la peor forma de no
+    //  funcionar: parece que va lento y no va a ir nunca.
+    property string catalogoError: ""
 
     /** Las criaturas que el juego ya tiene bajadas, para elegir de dónde partir. */
     function cargaCatalogo(cb) {
         if (catalogoListo) { if (cb) cb(catalogo); return }
+        catalogoError = ""
         const base = S.Proyecto.raizPack()
-        if (!base || !plantilla) { if (cb) cb([]); return }
-        S.Forja.leeTexto(base + "/" + plantilla.datos, (r) => {
-            if (!r.bien || !r.texto) { falla("catálogo", "no encuentro " + plantilla.datos); if (cb) cb([]); return }
+        if (!plantilla) {
+            catalogoError = "este pack no describe criaturas"
+            if (cb) cb([]); return
+        }
+        if (!base) {
+            catalogoError = "el pack no apunta a ningún repositorio del juego"
+            if (cb) cb([]); return
+        }
+        const fichero = base + "/" + plantilla.datos
+        catalogoLeyendo = true
+        S.Forja.leeTexto(fichero, (r) => {
+            catalogoLeyendo = false
+            if (!r.bien || !r.texto) {
+                catalogoError = "no encuentro " + fichero
+                falla("catálogo", catalogoError)
+                if (cb) cb([]); return
+            }
             let lista = []
-            try { lista = JSON.parse(r.texto) } catch (e) {}
+            try { lista = JSON.parse(r.texto) }
+            catch (e) {
+                catalogoError = fichero + " no es JSON legible"
+                if (cb) cb([]); return
+            }
+            if (!lista.length) {
+                catalogoError = "no hay ninguna criatura bajada todavía"
+                if (cb) cb([]); return
+            }
             lista.sort((a, b) => a.dex - b.dex)
             catalogo = lista
             catalogoListo = true
             if (cb) cb(lista)
         })
+    }
+
+    /** Volver a intentarlo, p.ej. tras reapuntar la raíz del pack. */
+    function olvidaCatalogo() {
+        catalogo = []
+        catalogoListo = false
+        catalogoError = ""
     }
 
     function delCatalogo(dex) {

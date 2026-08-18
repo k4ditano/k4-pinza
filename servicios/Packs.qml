@@ -69,9 +69,37 @@ Singleton {
         })
     }
 
+    /**
+     * Una raíz apuntada a mano que ya no existe se tira.
+     *
+     * Apuntas un pack a una carpeta, la mueves o la borras, y el programa se
+     * queda mirando a un sitio que no está: la lista de criaturas sale vacía y
+     * nada explica por qué. Se comprueba al elegir el pack y, si no está, se
+     * vuelve a la raíz que trae el propio pack — que es lo que habría pasado
+     * si nunca la hubieras apuntado.
+     */
+    function _revisaRaiz(id) {
+        const mia = S.Ajustes.raices ? S.Ajustes.raices[id] : ""
+        if (!mia) return
+        S.Forja.pide("existe", { ruta: mia }, (r) => {
+            if (r.bien && r.existe) return
+            console.warn("pinza: la raíz apuntada de «" + id + "» ya no existe (" + mia
+                         + "); se vuelve a la del pack")
+            const m = {}
+            const k = Object.keys(S.Ajustes.raices || {})
+            for (let i = 0; i < k.length; i++) if (k[i] !== id) m[k[i]] = S.Ajustes.raices[k[i]]
+            S.Ajustes.raices = m
+            revRaiz++
+            raizDescartada(id, mia)
+        })
+    }
+
+    signal raizDescartada(string pack, string ruta)
+
     function elige(id) {
         activoId = id
         S.Ajustes.pack = id
+        _revisaRaiz(id)
         // la paleta del pack pasa a ser la de trabajo, y su guía la del medidor
         if (activo && activo.paletas && activo.paletas.length)
             S.Paleta.cargaRampas(activo.paletas[0].rampas)

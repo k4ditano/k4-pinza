@@ -113,13 +113,53 @@ Rectangle {
         return t
     }
 
-    // ── la derecha: pack, avisos y la paleta de comandos ─────────
+    // ── la derecha: deshacer, pack, avisos y los comandos ────────
     Row {
         id: derecha
         anchors.right: parent.right
         anchors.rightMargin: 8
         anchors.verticalCenter: parent.verticalCenter
         spacing: 6
+
+        //  Deshacer a la vista y no sólo en un atajo. Un editor sin un botón de
+        //  deshacer parece un editor sin deshacer, por mucho que Ctrl+Z
+        //  funcione — y además da la cuenta de por dónde vas.
+        Row {
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 1
+            C.Boton {
+                icono: C.Tema.i.undo
+                width: 26; implicitHeight: 24
+                tenue: !S.Historial.puedeDeshacer
+                pista: S.Historial.puedeDeshacer
+                       ? "deshacer «" + S.Historial.nombreDe(S.Historial.actual) + "»   Ctrl+Z"
+                       : "nada que deshacer"
+                onPulsado: S.Ordenes.ejecuta("deshacer")
+            }
+            C.Boton {
+                icono: C.Tema.i.redo
+                width: 26; implicitHeight: 24
+                tenue: !S.Historial.puedeRehacer
+                pista: S.Historial.puedeRehacer
+                       ? "rehacer «" + S.Historial.nombreDe(S.Historial.actual + 1) + "»   Ctrl+Shift+Z"
+                       : "nada que rehacer"
+                onPulsado: S.Ordenes.ejecuta("rehacer")
+            }
+            C.Boton {
+                icono: C.Tema.i.historial
+                width: 26; implicitHeight: 24
+                activo: S.Ajustes.panelHistorial
+                tenue: S.Historial.pasos === 0
+                pista: "el historial entero (" + S.Historial.pasos + " pasos)"
+                onPulsado: S.Ajustes.panelHistorial = !S.Ajustes.panelHistorial
+            }
+        }
+
+        Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
+            width: 1; height: 18
+            color: C.Tema.borde
+        }
 
         // Un aviso del contrato, si lo hay. No bloquea nada: enseña.
         Rectangle {

@@ -20,7 +20,12 @@
 //  golpe y desplazado cuando algo forzaba un repintado entero. "Dibujo y sale
 //  al lado".
 //
-//  HALLAZGO 2 · Canvas.save(ruta) devuelve false y no escribe nada, con
+//  HALLAZGO 2 · putImageData MEZCLA en vez de reemplazar, que es lo contrario
+//  de lo que dice su definición. Un píxel transparente encima de uno opaco no
+//  lo borra. Con eso la goma no borraba y deshacer no deshacía —a la vista—,
+//  aunque por dentro las dos funcionaban. Hay que limpiar la zona antes.
+//
+//  HALLAZGO 3 · Canvas.save(ruta) devuelve false y no escribe nada, con
 //  cualquier estrategia y cualquier forma de ruta. toDataURL() sí funciona,
 //  así que exportar es toDataURL -> base64 -> la forja escribe el fichero.
 
@@ -33,7 +38,7 @@ ShellRoot {
 
     property int hechas: 0
     property int rotas: 0
-    readonly property int total: 11
+    readonly property int total: 12
 
     function ck(que, bien, detalle) {
         if (!bien) rotas++
@@ -140,7 +145,23 @@ ShellRoot {
                         puesto[1] === 255 && alLado[3] === 0,
                         "en (9,13) alfa " + puesto[3] + ", en (8,13) alfa " + alLado[3])
 
-                raiz.ck("9 · Canvas.save() sigue sin escribir nada (hallazgo 2)",
+                //  Y lo peor de todo: putImageData MEZCLA en vez de
+                //  reemplazar. Un píxel transparente encima de uno opaco no lo
+                //  borra. Con eso la goma no borraba nada y deshacer no
+                //  deshacía nada — a la vista, porque por dentro iban bien.
+                ctx.clearRect(0, 0, 24, 24)
+                const opaco = ctx.createImageData(1, 1)
+                opaco.data[0] = 255; opaco.data[3] = 255
+                ctx.putImageData(opaco, 4, 4, 0, 0, 1, 1)
+                const nada = ctx.createImageData(1, 1)
+                ctx.putImageData(nada, 4, 4, 0, 0, 1, 1)
+                const mezcla = ctx.getImageData(4, 4, 1, 1).data[3]
+                raiz.ck("9 · putImageData sigue mezclando en vez de reemplazar (hallazgo 3)",
+                        mezcla !== 0,
+                        mezcla !== 0 ? "confirmado, hay que limpiar la zona antes de volcarla"
+                                     : "¡lo han arreglado! sobra el clearRect del lienzo")
+
+                raiz.ck("10 · Canvas.save() sigue sin escribir nada (hallazgo 3)",
                         save("/tmp/pinza-cata-save.png") === false,
                         "si esto falla, save() ya vale y exportar se simplifica")
 
@@ -155,7 +176,7 @@ ShellRoot {
             sourceItem: lienzo
             live: true; smooth: false; hideSource: true
             width: 24; height: 24
-            Component.onCompleted: raiz.ck("10 · ShaderEffectSource escala sin suavizar",
+            Component.onCompleted: raiz.ck("11 · ShaderEffectSource escala sin suavizar",
                                            !smooth && sourceItem === lienzo)
         }
     }
@@ -173,7 +194,7 @@ ShellRoot {
         stdout: StdioCollector {
             onStreamFinished: {
                 const t = text.trim().split(" ")
-                raiz.ck("11 · toDataURL da un PNG RGBA del tamaño exacto (así se exporta)",
+                raiz.ck("12 · toDataURL da un PNG RGBA del tamaño exacto (así se exporta)",
                         t[0] === "24" && t[1] === "24" && t[2] === "6",
                         t[0] + "x" + t[1] + " tipo de color " + t[2])
             }

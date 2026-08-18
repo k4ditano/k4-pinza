@@ -56,8 +56,15 @@ cuánto mide la silueta merece verlas mientras dibujas: tres filas vacías de m�
 cambian dónde pisa el bicho y en el lienzo eso no se nota. Van sobre el dibujo y
 en la previa.
 
-**Previa en juego.** El sprite animándose a ×1, ×2 y ×3 sobre un suelo, con su
-sombra. Lo que importa no es cómo se ve al 800 % de zoom.
+**La muestra, a tamaño real.** Flotando sobre el lienzo y arrastrable a donde
+estorbe menos. Dibujando estás siempre a ×8 o a ×16, y a ese aumento cualquier
+cosa parece bien: los contornos se leen, las sombras se separan, todo respira. A
+tamaño real la mitad de eso desaparece, y sin verlo mientras dibujas te enteras
+al exportar. Enseña ×1, ×2 y ×3 —los que quepan— y se anima con la tira.
+
+**Previa en juego.** El sprite animándose sobre un suelo, con su sombra y las
+medidas que el juego saca de los píxeles. Lo que importa no es cómo se ve al
+800 % de zoom.
 
 **Modo baldosa de verdad.** El lienzo envuelve: dibujas cruzando la costura y el
 trazo sale por el otro lado, con las ocho repeticiones alrededor.
@@ -147,6 +154,11 @@ pruebas para que nos enteremos el día que dejen de ser verdad.
   colocarlo con `dx,dy`. Esto costó caro: el lienzo repinta por zona sucia, así
   que un trazo no llegaba nunca a la pantalla y aparecía de golpe cuando algo
   forzaba un repintado entero — «dibujo y sale al lado».
+- **`putImageData` mezcla en vez de reemplazar**, que es justo lo contrario de
+  lo que dice su definición. Un píxel transparente encima de uno opaco no lo
+  borra: lo deja igual. Con eso, la goma no borraba nada y deshacer no deshacía
+  nada — a la vista, porque por dentro las dos funcionaban perfectamente. Hay
+  que limpiar la zona antes de volcarla.
 - **`Canvas.save()` devuelve `false` y no escribe.** Exportar es `toDataURL` y
   que la forja escriba el fichero. Leer va al revés y **no** por el Canvas:
   cargar una imagen y leerla con `getImageData` depende de que esté lista justo
@@ -213,7 +225,8 @@ Pulsar, arrastrar y soltar son funciones normales del lienzo y el ratón sólo l
 llama, así que `pruebas/Puntero.qml` puede pinchar en coordenadas de la vista y
 comprobar dos cosas distintas: que el píxel entra en la capa correcta, y que
 además **se ve** en pantalla. No es lo mismo, y el día que dejaron de serlo el
-programa parecía dibujar «al lado».
+programa parecía dibujar «al lado», la goma no borraba y deshacer no deshacía —
+las tres cosas con el modelo perfecto por dentro.
 
 ## Instalar
 
@@ -250,6 +263,7 @@ proyecto. Por debajo es el IPC de Quickshell, que también sirve desde un guion:
     qs -c pinza ipc call pinza estado
     qs -c pinza ipc call pinza abrir /ruta/al/proyecto.pinza
     qs -c pinza ipc call pinza exportar
+    qs -c pinza ipc call pinza orden deshacer     # cualquier orden, por su id
 
 ### El icono
 

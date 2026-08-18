@@ -189,13 +189,65 @@ ShellRoot {
             const alLado = lienzo.pixelEnPantalla(5, 4)
             ck("el píxel pintado está donde se pinchó", dentro && dentro[3] > 0, String(dentro))
             ck("y el de al lado sigue vacío", !alLado || alLado[3] === 0, String(alLado))
-            console.log(raiz.malas ? "\n" + raiz.malas + " FALLOS" : "\nel puntero cae donde debe y se ve")
-            salir.start()
+
+            //  Y que DESHACER se vea. Deshacer también repinta por zona sucia,
+            //  así que sufría el mismo mal: la capa volvía atrás y la pantalla
+            //  se quedaba con el trazo puesto. Un deshacer invisible es un
+            //  deshacer que no existe.
+            ck("hay algo que deshacer", S.Historial.puedeDeshacer, S.Historial.pasos + " pasos")
+            S.Ordenes.ejecuta("deshacer")
+            espera3.restart()
+        }
+    }
+
+    Timer {
+        id: espera3
+        interval: 90
+        onTriggered: {
+            const c = lienzo.pixelEnPantalla(4, 4)
+            ck("deshacer se VE: el píxel desaparece de la pantalla",
+               !c || c[3] === 0, String(c))
+            S.Ordenes.ejecuta("rehacer")
+            espera4.restart()
+        }
+    }
+
+    Timer {
+        id: espera4
+        interval: 90
+        onTriggered: {
+            const c = lienzo.pixelEnPantalla(4, 4)
+            ck("y rehacer lo devuelve, también a la vista", c && c[3] > 0, String(c))
+
+            //  Y la goma. Mismo mal: borraba la capa y no la pantalla, porque
+            //  putImageData mezcla en vez de reemplazar y un píxel transparente
+            //  encima de uno opaco lo dejaba igual.
+            S.Pinceles.elige("goma")
+            const z = S.Ajustes.zoom
+            const mx = S.Ajustes.panX + 4 * z + z / 2
+            const my = S.Ajustes.panY + 4 * z + z / 2
+            lienzo.pulsa(mx, my, Qt.LeftButton, 0)
+            lienzo.suelta(mx, my)
+            espera5.restart()
         }
     }
     //  El Canvas pinta cuando le toca, no cuando se lo pides: entre pinchar y
     //  poder leer la pantalla hay que dejar que pase un repintado.
     Timer { id: esperaPintado; interval: 1; repeat: false }
+    Timer {
+        id: espera5
+        interval: 90
+        onTriggered: {
+            const enCapa = P.lee(S.Documento.celdaActiva(false), 4, 4)
+            const enPantalla = lienzo.pixelEnPantalla(4, 4)
+            ck("la goma borra de la capa", enCapa[3] === 0, enCapa.join())
+            ck("y también de la PANTALLA, que no es lo mismo",
+               !enPantalla || enPantalla[3] === 0, String(enPantalla))
+            console.log(raiz.malas ? "\n" + raiz.malas + " FALLOS"
+                                   : "\nel puntero cae donde debe, se ve, y se puede deshacer")
+            salir.start()
+        }
+    }
     Timer { id: salir; interval: 150; onTriggered: Qt.exit(raiz.malas ? 1 : 0) }
     Timer { interval: 30000; running: true; onTriggered: { console.log("AGOTADO"); Qt.exit(1) } }
 }

@@ -15,6 +15,7 @@
 
 import QtQuick
 import QtQml
+import QtQuick.Window
 import Quickshell
 import Quickshell.Io
 import "core" as C
@@ -91,6 +92,14 @@ ShellRoot {
                 parent: lienzo
             }
 
+            //  Arriba a la derecha porque el compás vive abajo a la derecha.
+            //  Se puede arrastrar a donde estorbe menos, que depende del dibujo.
+            V.Muestra {
+                parent: lienzo
+                x: Math.max(0, lienzo.width - width - 14)
+                y: 14
+            }
+
             V.Tira {
                 id: tira
                 anchors.left: carril.right
@@ -144,6 +153,7 @@ ShellRoot {
 
             // ── lo que flota por encima ──────────────────────────
             V.Hojas { id: hojas }
+            V.Globo { }
             V.Comandos { id: comandos }
             V.Rueda { id: rueda }
 
@@ -218,6 +228,20 @@ ShellRoot {
         // atajos
         // ═══════════════════════════════════════════════════════
         //
+        //  Las teclas sueltas —B de lápiz, E de goma— se apagan mientras
+        //  escribes. Sin esto no se puede teclear un nombre: escribir "Bicho"
+        //  cambiaba de herramienta cuatro veces y las letras no llegaban al
+        //  campo. Un atajo de una sola letra y un campo de texto no pueden
+        //  estar encendidos a la vez.
+
+        //  Quién tiene el foco se pregunta por la propiedad adjunta Window de
+        //  un item de dentro: FloatingWindow es una envoltura de Quickshell y
+        //  no expone activeFocusItem por sí misma.
+        readonly property bool escribiendo: {
+            const it = escena.Window.activeFocusItem
+            return !!it && typeof it.selectByMouse !== "undefined"
+        }
+        //
         //  Los de ORDEN se sacan de la propia lista, así que un atajo nuevo se
         //  declara donde se declara la orden y no hay una segunda tabla que se
         //  desincronice. Las teclas sueltas de herramienta van aparte porque
@@ -228,30 +252,35 @@ ShellRoot {
         Instantiator {
             model: S.Ordenes.lista.filter((o) => !!o.atajo && o.atajo !== "Espacio")
             delegate: Shortcut {
+                //  Los de una sola letra se apagan mientras escribes, igual que
+                //  los de abajo: si no, teclear un nombre cambia de herramienta.
+                enabled: modelData.atajo.length > 1 || !ventana.escribiendo
                 sequences: [modelData.atajo.replace("Del", "Delete")]
                 onActivated: S.Ordenes.ejecuta(modelData.id)
             }
         }
 
         Shortcut { sequences: ["Ctrl+K"]; onActivated: comandos.abierta = !comandos.abierta }
+        //  Ctrl+Y además de Ctrl+Shift+Z: media humanidad usa uno y media el otro.
+        Shortcut { sequences: ["Ctrl+Y"]; onActivated: S.Ordenes.ejecuta("rehacer") }
         Shortcut { sequences: ["Space"]; onActivated: if (!comandos.abierta) S.Animacion.alterna() }
-        Shortcut { sequences: ["B"]; onActivated: S.Pinceles.elige("lapiz") }
-        Shortcut { sequences: ["E"]; onActivated: S.Pinceles.elige("goma") }
-        Shortcut { sequences: ["G"]; onActivated: S.Pinceles.elige("cubo") }
-        Shortcut { sequences: ["I"]; onActivated: S.Pinceles.elige("cuentagotas") }
-        Shortcut { sequences: ["L"]; onActivated: S.Pinceles.elige("linea") }
-        Shortcut { sequences: ["U"]; onActivated: S.Pinceles.elige("rectangulo") }
-        Shortcut { sequences: ["O"]; onActivated: S.Pinceles.elige("elipse") }
-        Shortcut { sequences: ["D"]; onActivated: S.Pinceles.elige("degradado") }
-        Shortcut { sequences: ["S"]; onActivated: S.Pinceles.elige("sombreado") }
-        Shortcut { sequences: ["R"]; onActivated: S.Pinceles.elige("sustituye") }
-        Shortcut { sequences: ["M"]; onActivated: S.Pinceles.elige("marco") }
-        Shortcut { sequences: ["Q"]; onActivated: S.Pinceles.elige("lazo") }
-        Shortcut { sequences: ["W"]; onActivated: S.Pinceles.elige("varita") }
-        Shortcut { sequences: ["V"]; onActivated: S.Pinceles.elige("mover") }
-        Shortcut { sequences: ["H"]; onActivated: S.Pinceles.elige("mano") }
-        Shortcut { sequences: ["["]; onActivated: S.Pinceles.tamaño = Math.max(1, S.Pinceles.tamaño - 1) }
-        Shortcut { sequences: ["]"]; onActivated: S.Pinceles.tamaño = Math.min(32, S.Pinceles.tamaño + 1) }
+        Shortcut { enabled: !ventana.escribiendo; sequences: ["B"]; onActivated: S.Pinceles.elige("lapiz") }
+        Shortcut { enabled: !ventana.escribiendo; sequences: ["E"]; onActivated: S.Pinceles.elige("goma") }
+        Shortcut { enabled: !ventana.escribiendo; sequences: ["G"]; onActivated: S.Pinceles.elige("cubo") }
+        Shortcut { enabled: !ventana.escribiendo; sequences: ["I"]; onActivated: S.Pinceles.elige("cuentagotas") }
+        Shortcut { enabled: !ventana.escribiendo; sequences: ["L"]; onActivated: S.Pinceles.elige("linea") }
+        Shortcut { enabled: !ventana.escribiendo; sequences: ["U"]; onActivated: S.Pinceles.elige("rectangulo") }
+        Shortcut { enabled: !ventana.escribiendo; sequences: ["O"]; onActivated: S.Pinceles.elige("elipse") }
+        Shortcut { enabled: !ventana.escribiendo; sequences: ["D"]; onActivated: S.Pinceles.elige("degradado") }
+        Shortcut { enabled: !ventana.escribiendo; sequences: ["S"]; onActivated: S.Pinceles.elige("sombreado") }
+        Shortcut { enabled: !ventana.escribiendo; sequences: ["R"]; onActivated: S.Pinceles.elige("sustituye") }
+        Shortcut { enabled: !ventana.escribiendo; sequences: ["M"]; onActivated: S.Pinceles.elige("marco") }
+        Shortcut { enabled: !ventana.escribiendo; sequences: ["Q"]; onActivated: S.Pinceles.elige("lazo") }
+        Shortcut { enabled: !ventana.escribiendo; sequences: ["W"]; onActivated: S.Pinceles.elige("varita") }
+        Shortcut { enabled: !ventana.escribiendo; sequences: ["V"]; onActivated: S.Pinceles.elige("mover") }
+        Shortcut { enabled: !ventana.escribiendo; sequences: ["H"]; onActivated: S.Pinceles.elige("mano") }
+        Shortcut { enabled: !ventana.escribiendo; sequences: ["["]; onActivated: S.Pinceles.tamaño = Math.max(1, S.Pinceles.tamaño - 1) }
+        Shortcut { enabled: !ventana.escribiendo; sequences: ["]"]; onActivated: S.Pinceles.tamaño = Math.min(32, S.Pinceles.tamaño + 1) }
         Shortcut { sequences: ["Escape"]; onActivated: {
             if (comandos.abierta) comandos.abierta = false
             else if (hojas.abierta) hojas.cierra()
@@ -379,6 +408,15 @@ ShellRoot {
             if (!S.Documento.abierto) return "no hay nada abierto"
             S.Proyecto.exporta({}, null)
             return "exportando " + S.Documento.nombre
+        }
+
+        /** Cualquier orden del programa, por su id. `qs -c pinza ipc call pinza orden deshacer` */
+        function orden(id: string): string {
+            const o = S.Ordenes.orden(id)
+            if (!o) return "no existe la orden «" + id + "»"
+            if (!S.Ordenes.disponible(o)) return "«" + o.titulo + "» no se puede ahora mismo"
+            S.Ordenes.ejecuta(id)
+            return o.titulo
         }
 
         function estado(): string {

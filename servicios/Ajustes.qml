@@ -45,6 +45,7 @@ Singleton {
     property bool panelMapa: true
     property bool tira: true
     property bool compas: true
+    property bool muestra: true      // el dibujo a tamaño real, flotando
 
     // ── otros ────────────────────────────────────────────────────
     property string pack: "generico"
@@ -78,7 +79,7 @@ Singleton {
                          "ajedrez", "modoBaldosa", "medidasSilueta", "simetriaH", "simetriaV",
                          "cebolla", "cebollaAtras", "cebollaDelante", "cebollaOpacidad",
                          "cebollaTeñida", "panelCapas", "panelPaleta", "panelPrevia",
-                         "panelHistorial", "panelMapa", "tira", "compas", "pack", "autoguardado", "avisoGuia",
+                         "panelHistorial", "panelMapa", "tira", "compas", "muestra", "pack", "autoguardado", "avisoGuia",
                          "raices"]
         for (let i = 0; i < nombres.length; i++) j[nombres[i]] = aj[nombres[i]]
         fichero.setText(JSON.stringify(j, null, 2))

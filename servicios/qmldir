@@ -11,3 +11,4 @@ singleton Proyecto 1.0 Proyecto.qml
 singleton Ordenes 1.0 Ordenes.qml
 singleton Herramientas 1.0 Herramientas.qml
 singleton Guiones 1.0 Guiones.qml
+singleton Globo 1.0 Globo.qml

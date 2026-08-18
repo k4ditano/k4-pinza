@@ -14,6 +14,13 @@
 //     no se pintaba nunca, y aparecía de golpe y desplazado cuando algo
 //     forzaba un repintado entero.
 //
+//   · Y putImageData MEZCLA en vez de reemplazar, que es justo lo contrario de
+//     lo que dice su definición. Poner un píxel transparente encima de uno
+//     opaco no lo borra: lo deja igual. Con eso, la goma no borraba nada y
+//     deshacer no deshacía nada — a la vista, porque por dentro las dos
+//     funcionaban perfectamente. Por eso aquí se limpia la zona sucia antes de
+//     volcarla, siempre.
+//
 //   · Canvas.save() devuelve false y no escribe. Exportar es toDataURL y la
 //     forja escribe el fichero. Eso vive en servicios/Proyecto.qml.
 //
@@ -265,6 +272,12 @@ Item {
                 //  sitio con dx,dy. No se puede pasar el lienzo entero con un
                 //  rectángulo sucio desplazado: en este Qt eso no pinta nada y
                 //  no da ningún error (comprobado en cata/cata.qml).
+                //  Limpiar antes de volcar. Sin esto, un píxel que pasa a
+                //  transparente —una goma, un deshacer— se queda en pantalla
+                //  para siempre, porque putImageData mezcla en vez de
+                //  reemplazar. Ver la cabecera de este fichero.
+                raiz._ctx.clearRect(r.x, r.y, r.w, r.h)
+
                 const img = raiz._ctx.createImageData(r.w, r.h)
                 for (let y = 0; y < r.h; y++) for (let x = 0; x < r.w; x++) {
                     const s = ((r.y + y) * raiz.aw + (r.x + x)) * 4

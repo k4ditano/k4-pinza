@@ -1,0 +1,579 @@
+{
+  "id": "crabh",
+  "titulo": "crabh",
+  "resumen": "Los cinco perfiles que el pipeline de crabh impone hoy. Exportar escribe el PNG y la entrada del manifiesto, que es el paso que si no se hace a mano.",
+  "raiz": "~/Proyectos/crabh",
+  "guia": {
+    "modo": "informativo",
+    "aviso": "La casa dibuja con pocos colores y valores medios. Esto te dice dónde estás; no te impide llegar a ningún sitio.",
+    "colores": 24,
+    "saturacion": 0.5,
+    "luminancia": 142,
+    "fuente": "tools/style.json"
+  },
+  "paletas": [
+    {
+      "id": "casa",
+      "nombre": "la casa",
+      "rampas": [
+        {
+          "nombre": "neutros",
+          "colores": [
+            "#2C3739",
+            "#6A797C",
+            "#A7ACB1",
+            "#DEE4E7",
+            "#F0F2ED"
+          ]
+        },
+        {
+          "nombre": "fire",
+          "colores": [
+            "#8A2B12",
+            "#D66C34",
+            "#F3C07E"
+          ]
+        },
+        {
+          "nombre": "water",
+          "colores": [
+            "#0977C7",
+            "#4FBFF1",
+            "#CAE8FB"
+          ]
+        },
+        {
+          "nombre": "electric",
+          "colores": [
+            "#B9641B",
+            "#EFD409",
+            "#F3F5BB"
+          ]
+        },
+        {
+          "nombre": "grass",
+          "colores": [
+            "#2D5219",
+            "#76C138",
+            "#B6DE8C"
+          ]
+        },
+        {
+          "nombre": "ice",
+          "colores": [
+            "#1395E0",
+            "#8ADBF7",
+            "#DCF3FE"
+          ]
+        },
+        {
+          "nombre": "fighting",
+          "colores": [
+            "#7A2718",
+            "#C66D21",
+            "#E69E4A"
+          ]
+        },
+        {
+          "nombre": "poison",
+          "colores": [
+            "#4A1F5E",
+            "#9B4FC0",
+            "#D3A6E8"
+          ]
+        },
+        {
+          "nombre": "ground",
+          "colores": [
+            "#5A3A16",
+            "#B08040",
+            "#DCC08C"
+          ]
+        },
+        {
+          "nombre": "flying",
+          "colores": [
+            "#4A4E86",
+            "#96AFF9",
+            "#D6DEFC"
+          ]
+        },
+        {
+          "nombre": "psychic",
+          "colores": [
+            "#7A1F4A",
+            "#E0508A",
+            "#F6B8D0"
+          ]
+        },
+        {
+          "nombre": "bug",
+          "colores": [
+            "#3E5410",
+            "#8ABD5B",
+            "#C8E0A0"
+          ]
+        },
+        {
+          "nombre": "rock",
+          "colores": [
+            "#4A4238",
+            "#9A8A6C",
+            "#CFC4AC"
+          ]
+        },
+        {
+          "nombre": "ghost",
+          "colores": [
+            "#2A2244",
+            "#6A5A9E",
+            "#B0A4D8"
+          ]
+        },
+        {
+          "nombre": "dragon",
+          "colores": [
+            "#2A2470",
+            "#5A4AC8",
+            "#A8A0EE"
+          ]
+        },
+        {
+          "nombre": "dark",
+          "colores": [
+            "#14161C",
+            "#424284",
+            "#7C7CA8"
+          ]
+        },
+        {
+          "nombre": "steel",
+          "colores": [
+            "#5A6068",
+            "#A7B3BD",
+            "#DCE2E8"
+          ]
+        },
+        {
+          "nombre": "fairy",
+          "colores": [
+            "#8A3A62",
+            "#E08AB0",
+            "#F6D2E2"
+          ]
+        },
+        {
+          "nombre": "normal",
+          "colores": [
+            "#6A6252",
+            "#C0B99F",
+            "#E4E9EA"
+          ]
+        }
+      ]
+    }
+  ],
+  "contratos": [
+    {
+      "id": "item",
+      "titulo": "Objeto de inventario",
+      "resumen": "Un icono centrado, sin fondo. Las herramientas son de 16.",
+      "ancho": 24,
+      "alto": 24,
+      "tamañoLibre": true,
+      "orientaciones": [
+        {
+          "id": "u",
+          "titulo": "única",
+          "flecha": "·"
+        }
+      ],
+      "fotogramas": 1,
+      "fotogramasLibres": false,
+      "rejilla": null,
+      "salida": {
+        "modo": "png",
+        "carpeta": "assets/item",
+        "patron": "{nombre}.png"
+      },
+      "manifiesto": {
+        "fichero": "assets/authored.json",
+        "kind": "item",
+        "campos": [
+          "desc",
+          "family"
+        ]
+      },
+      "campos": [
+        {
+          "id": "desc",
+          "titulo": "descripción",
+          "tipo": "texto",
+          "ayuda": "va al manifiesto, y es lo que lee quien regenere el arte"
+        },
+        {
+          "id": "family",
+          "titulo": "familia",
+          "tipo": "opcion",
+          "opciones": [
+            "bug",
+            "dark",
+            "dragon",
+            "electric",
+            "fairy",
+            "fighting",
+            "fire",
+            "flying",
+            "ghost",
+            "grass",
+            "ground",
+            "ice",
+            "normal",
+            "poison",
+            "psychic",
+            "rock",
+            "steel",
+            "water"
+          ],
+          "defecto": "normal",
+          "ayuda": "de qué rampa de tipo tira el color"
+        }
+      ]
+    },
+    {
+      "id": "objeto",
+      "titulo": "Objeto del claro",
+      "resumen": "Un mueble o un prop. La HUELLA en casillas manda sobre el dibujo: check-tiles.mjs rechaza lo que haya que deformar para que quepa.",
+      "ancho": 32,
+      "alto": 32,
+      "tamañoLibre": true,
+      "orientaciones": [
+        {
+          "id": "S",
+          "titulo": "sur",
+          "flecha": "↓"
+        },
+        {
+          "id": "E",
+          "titulo": "este",
+          "flecha": "→"
+        },
+        {
+          "id": "N",
+          "titulo": "norte",
+          "flecha": "↑"
+        },
+        {
+          "id": "W",
+          "titulo": "oeste",
+          "flecha": "←"
+        }
+      ],
+      "orientacionesLibres": true,
+      "espejo": {
+        "E": "W"
+      },
+      "fotogramas": 1,
+      "fotogramasLibres": false,
+      "rejilla": {
+        "ancho": 16,
+        "alto": 16,
+        "titulo": "casilla del claro"
+      },
+      "huella": {
+        "ancho": 1,
+        "alto": 1,
+        "editable": true,
+        "ayuda": "en casillas de 16 px. El dibujo se ajusta a ella, no al revés."
+      },
+      "salida": {
+        "modo": "png-por-orientacion",
+        "carpeta": "assets/object",
+        "patron": "{nombre}_{orientacion}.png",
+        "patronUnico": "{nombre}.png"
+      },
+      "manifiesto": {
+        "fichero": "assets/authored.json",
+        "kind": "object",
+        "campos": [
+          "desc",
+          "family"
+        ]
+      },
+      "campos": [
+        {
+          "id": "desc",
+          "titulo": "descripción",
+          "tipo": "texto"
+        },
+        {
+          "id": "family",
+          "titulo": "familia",
+          "tipo": "opcion",
+          "opciones": [
+            "bug",
+            "dark",
+            "dragon",
+            "electric",
+            "fairy",
+            "fighting",
+            "fire",
+            "flying",
+            "ghost",
+            "grass",
+            "ground",
+            "ice",
+            "normal",
+            "poison",
+            "psychic",
+            "rock",
+            "steel",
+            "water"
+          ],
+          "defecto": "ground"
+        }
+      ],
+      "avisos": [
+        {
+          "id": "huella",
+          "texto": "el dibujo se deforma más de ×1.6 o menos de ×0.4 para caber en su huella"
+        },
+        {
+          "id": "proporcion",
+          "texto": "la proporción del dibujo no casa con la de la huella"
+        }
+      ]
+    },
+    {
+      "id": "vfx",
+      "titulo": "Efecto",
+      "resumen": "Una tira de fotogramas. El nombre del fichero lleva cuántos son, que es de donde el juego saca la rejilla.",
+      "ancho": 48,
+      "alto": 48,
+      "tamañoLibre": true,
+      "orientaciones": [
+        {
+          "id": "u",
+          "titulo": "única",
+          "flecha": "·"
+        }
+      ],
+      "orientacionesLibres": true,
+      "fotogramas": 8,
+      "fotogramasLibres": true,
+      "duracion": 4,
+      "rejilla": null,
+      "salida": {
+        "modo": "hoja",
+        "disposicion": "fotogramas-en-columnas",
+        "carpeta": "assets/vfx",
+        "patron": "{nombre}.{fotogramas}.png",
+        "patronUnico": "{nombre}.None.png",
+        "patronOrientaciones": "{nombre}.Dir{orientaciones}.png"
+      },
+      "manifiesto": {
+        "fichero": "assets/authored.json",
+        "kind": "vfx",
+        "campos": [
+          "desc",
+          "family"
+        ]
+      },
+      "campos": [
+        {
+          "id": "desc",
+          "titulo": "descripción",
+          "tipo": "texto"
+        },
+        {
+          "id": "family",
+          "titulo": "familia",
+          "tipo": "opcion",
+          "opciones": [
+            "bug",
+            "dark",
+            "dragon",
+            "electric",
+            "fairy",
+            "fighting",
+            "fire",
+            "flying",
+            "ghost",
+            "grass",
+            "ground",
+            "ice",
+            "normal",
+            "poison",
+            "psychic",
+            "rock",
+            "steel",
+            "water"
+          ],
+          "defecto": "normal"
+        }
+      ]
+    },
+    {
+      "id": "pmd",
+      "titulo": "Criatura",
+      "resumen": "Una hoja al estilo PMD: columnas de fotogramas por ocho filas de orientación, en un orden que no se puede equivocar. Sale con su AnimData.xml.",
+      "ancho": 40,
+      "alto": 40,
+      "tamañoLibre": true,
+      "orientaciones": [
+        {
+          "id": "Down",
+          "titulo": "sur",
+          "flecha": "↓"
+        },
+        {
+          "id": "DownRight",
+          "titulo": "sureste",
+          "flecha": "↘"
+        },
+        {
+          "id": "Right",
+          "titulo": "este",
+          "flecha": "→"
+        },
+        {
+          "id": "UpRight",
+          "titulo": "noreste",
+          "flecha": "↗"
+        },
+        {
+          "id": "Up",
+          "titulo": "norte",
+          "flecha": "↑"
+        },
+        {
+          "id": "UpLeft",
+          "titulo": "noroeste",
+          "flecha": "↖"
+        },
+        {
+          "id": "Left",
+          "titulo": "oeste",
+          "flecha": "←"
+        },
+        {
+          "id": "DownLeft",
+          "titulo": "suroeste",
+          "flecha": "↙"
+        }
+      ],
+      "orientacionesLibres": false,
+      "espejo": {
+        "Right": "Left",
+        "UpRight": "UpLeft",
+        "DownRight": "DownLeft"
+      },
+      "fotogramas": 4,
+      "fotogramasLibres": true,
+      "duracion": 6,
+      "rejilla": null,
+      "medidas": true,
+      "salida": {
+        "modo": "hoja",
+        "disposicion": "pmd",
+        "carpeta": "assets/species/{nombre}",
+        "patron": "{accion}-Anim.png",
+        "animdata": "AnimData.xml"
+      },
+      "campos": [
+        {
+          "id": "accion",
+          "titulo": "acción",
+          "tipo": "opcion",
+          "opciones": [
+            "Idle",
+            "Walk",
+            "Attack",
+            "Hurt",
+            "Charge",
+            "Hop",
+            "Sleep",
+            "Shoot"
+          ],
+          "defecto": "Walk"
+        },
+        {
+          "id": "hitFrame",
+          "titulo": "fotograma de golpe",
+          "tipo": "numero",
+          "defecto": 0,
+          "ayuda": "en cuál cae el daño. 0 = ninguno"
+        },
+        {
+          "id": "rushFrame",
+          "titulo": "fotograma de embestida",
+          "tipo": "numero",
+          "defecto": 0
+        },
+        {
+          "id": "returnFrame",
+          "titulo": "fotograma de retorno",
+          "tipo": "numero",
+          "defecto": 0
+        },
+        {
+          "id": "shadowSize",
+          "titulo": "tamaño de sombra",
+          "tipo": "numero",
+          "defecto": 1
+        }
+      ]
+    },
+    {
+      "id": "dtef",
+      "titulo": "Tileset DTEF",
+      "resumen": "18×8 baldosas de 24, en tres bloques de seis columnas: pared, terreno secundario y variaciones de suelo.",
+      "ancho": 432,
+      "alto": 192,
+      "tamañoLibre": false,
+      "orientaciones": [
+        {
+          "id": "u",
+          "titulo": "única",
+          "flecha": "·"
+        }
+      ],
+      "fotogramas": 1,
+      "fotogramasLibres": false,
+      "rejilla": {
+        "ancho": 24,
+        "alto": 24,
+        "titulo": "baldosa"
+      },
+      "bloques": [
+        {
+          "desde": 0,
+          "hasta": 5,
+          "titulo": "pared",
+          "color": "#9A8A6C"
+        },
+        {
+          "desde": 6,
+          "hasta": 11,
+          "titulo": "secundario",
+          "color": "#4FBFF1"
+        },
+        {
+          "desde": 12,
+          "hasta": 17,
+          "titulo": "suelo",
+          "color": "#76C138"
+        }
+      ],
+      "autotile": {
+        "bloque": 0,
+        "piezas": 47
+      },
+      "salida": {
+        "modo": "png",
+        "carpeta": "assets/tiles/{nombre}",
+        "patron": "tileset_0.png"
+      }
+    }
+  ]
+}

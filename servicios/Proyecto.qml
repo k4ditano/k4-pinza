@@ -1,0 +1,438 @@
+pragma Singleton
+
+//  Guardar, abrir y exportar.
+//
+//  El formato de proyecto es UNA CARPETA con un JSON y un PNG por celda. Nada
+//  de un binario propio, y por tres razones que se notan a diario: se ve en un
+//  git diff, se puede abrir un fotograma suelto en cualquier otro editor
+//  mientras a pinza le falte una herramienta, y si mañana el programa no
+//  arranca el arte sigue estando ahí. Es la misma decisión que tomó crabh al
+//  meter assets/ en el repositorio y dejar public/assets/ como caché.
+//
+//  Exportar es otra cosa distinta de guardar: guardar conserva las capas y los
+//  ejes; exportar aplana lo que el CONTRATO diga, con el nombre que el contrato
+//  diga, donde el contrato diga, y escribe además la entrada del manifiesto.
+//  Ese último paso es el que hoy se hace a mano.
+
+import QtQuick
+import Quickshell
+import "../core/pixeles.js" as P
+import "." as S
+
+Singleton {
+    id: proy
+
+    property var exportador: null      // lo enchufa shell.qml: tiene que ser una vista
+    property string estado: ""
+    property real progreso: 0
+    property string ultimoMensaje: ""
+    signal hecho(string que, string detalle)
+    signal falla(string que, string motivo)
+
+    readonly property string carpetaBase: (Quickshell.env("HOME") || "~") + "/Proyectos"
+
+    // ═══════════════════════════════════════════════════════════
+    // guardar
+    // ═══════════════════════════════════════════════════════════
+
+    function guarda(ruta, cb) {
+        if (!S.Documento.abierto) return
+        const destino = ruta || S.Documento.ruta
+        if (!destino) { falla("guardar", "no hay ruta"); return }
+
+        estado = "guardando"
+        const meta = S.Documento.meta()
+        const claves = S.Documento.clavesPropias()
+        let quedan = claves.length + 1
+        progreso = 0
+
+        function paso() {
+            quedan--
+            progreso = 1 - quedan / (claves.length + 1)
+            if (quedan > 0) return
+            estado = ""
+            S.Documento.ponRuta(destino)
+            S.Documento.limpio()
+            ultimoMensaje = "guardado en " + destino
+            hecho("guardar", destino)
+            if (cb) cb(true)
+        }
+
+        S.Forja.creaCarpeta(destino + "/celdas", () => {
+            S.Forja.escribeTexto(destino + "/proyecto.json",
+                                 JSON.stringify(meta, null, 2) + "\n", paso)
+            S.Forja.escribeTexto(destino + "/paleta.gpl", S.Paleta.aGpl(meta.nombre), null)
+
+            for (let i = 0; i < claves.length; i++) {
+                const k = claves[i]
+                const buf = S.Documento.d.celdas[k]
+                // el nombre de fichero ES la clave: capa, fotograma y
+                // orientación se leen de un vistazo en el explorador
+                const nombre = k.split(":").join(".") + ".png"
+                exportador.aPng(buf, (url) => {
+                    S.Forja.escribePng(destino + "/celdas/" + nombre, url, paso)
+                })
+            }
+        })
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // abrir
+    // ═══════════════════════════════════════════════════════════
+
+    function abre(ruta, cb) {
+        estado = "abriendo"
+        S.Forja.leeTexto(ruta + "/proyecto.json", (r) => {
+            if (!r.bien || !r.texto) {
+                estado = ""
+                falla("abrir", "no hay proyecto.json en " + ruta)
+                if (cb) cb(false)
+                return
+            }
+            let meta
+            try { meta = JSON.parse(r.texto) }
+            catch (e) { estado = ""; falla("abrir", "el proyecto.json está roto"); if (cb) cb(false); return }
+
+            S.Documento.desdeMeta(meta, ruta)
+            if (meta.pack) S.Packs.elige(meta.pack)
+            _aplicaRejilla()
+
+            const claves = S.Documento.clavesPropias()
+            let quedan = claves.length
+            if (!quedan) { estado = ""; hecho("abrir", ruta); if (cb) cb(true); return }
+
+            for (let i = 0; i < claves.length; i++) {
+                const k = claves[i]
+                const nombre = k.split(":").join(".") + ".png"
+                exportador.dePng(ruta + "/celdas/" + nombre, (buf) => {
+                    if (buf) S.Documento.ponCelda(k, buf)
+                    quedan--
+                    progreso = 1 - quedan / claves.length
+                    if (quedan > 0) return
+                    estado = ""
+                    S.Documento.cambiaPixeles(null)
+                    S.Documento.limpio()
+                    S.Historial.limpia()
+                    ultimoMensaje = "abierto " + ruta
+                    hecho("abrir", ruta)
+                    if (cb) cb(true)
+                })
+            }
+        })
+    }
+
+    /** La rejilla de casilla la manda el contrato, si lo dice. */
+    function _aplicaRejilla() {
+        const c = S.Documento.d ? S.Documento.d.contrato : null
+        if (c && c.rejilla) {
+            S.Ajustes.casillaAncho = c.rejilla.ancho
+            S.Ajustes.casillaAlto = c.rejilla.alto
+            S.Ajustes.rejillaCasilla = true
+        }
+        S.Ajustes.modoBaldosa = !!(c && c.baldosa)
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // exportar
+    // ═══════════════════════════════════════════════════════════
+
+    /**
+     * Rellena un patrón de nombre del contrato.
+     *
+     * Los huecos son los que de verdad hacen falta para que el juego lea bien
+     * el fichero: en crabh el número de fotogramas VA EN EL NOMBRE, y de ahí
+     * saca el juego la rejilla de la tira. Equivocarlo no da error, da un
+     * efecto que se reproduce a trozos.
+     */
+    function nombraCon(patron, extra) {
+        const d = S.Documento.d
+        let s = patron
+        s = s.replace(/\{nombre\}/g, d.nombre)
+        s = s.replace(/\{fotogramas\}/g, String(S.Documento.nFotogramas))
+        s = s.replace(/\{orientaciones\}/g, String(S.Documento.nOrientaciones))
+        const campos = d.campos || {}
+        const k = Object.keys(campos)
+        for (let i = 0; i < k.length; i++)
+            s = s.replace(new RegExp("\\{" + k[i] + "\\}", "g"), String(campos[k[i]]))
+        if (extra) {
+            const e = Object.keys(extra)
+            for (let i = 0; i < e.length; i++)
+                s = s.replace(new RegExp("\\{" + e[i] + "\\}", "g"), String(extra[e[i]]))
+        }
+        return s
+    }
+
+    /** La raíz del pack, con ~ expandida y sin barra final. */
+    function raizPack() {
+        let r = S.Packs.raiz || ""
+        if (r.indexOf("~") === 0) r = (Quickshell.env("HOME") || "") + r.substring(1)
+        return r.replace(/\/+$/, "")
+    }
+
+    /**
+     * Exporta lo que diga el contrato.
+     *
+     * `opciones.carpeta` gana sobre la del contrato — se puede exportar a
+     * cualquier sitio sin tocar el pack, que es lo que hace falta cuando estás
+     * probando algo y no quieres escribir dentro del juego todavía.
+     */
+    function exporta(opciones, cb) {
+        if (!S.Documento.abierto) return
+        const d = S.Documento.d
+        const con = d.contrato
+        const salida = (con && con.salida) || { modo: "png", carpeta: "", patron: "{nombre}.png" }
+        const o = opciones || {}
+
+        let carpeta = o.carpeta
+        if (!carpeta) {
+            const base = raizPack()
+            const sub = nombraCon(salida.carpeta || "")
+            carpeta = base ? (sub ? base + "/" + sub : base) : (S.Documento.ruta || carpetaBase)
+        }
+
+        estado = "exportando"
+        const escritos = []
+
+        function acaba() {
+            estado = ""
+            ultimoMensaje = escritos.length === 1 ? "escrito " + escritos[0]
+                          : escritos.length + " ficheros escritos en " + carpeta
+            hecho("exportar", escritos.join("\n"))
+            if (o.manifiesto !== false) _manifiesto(escritos)
+            if (salida.animdata) _animdata(carpeta)
+            if (cb) cb(escritos)
+        }
+
+        S.Forja.creaCarpeta(carpeta, () => {
+            const nf = S.Documento.nFotogramas
+            const no = S.Documento.nOrientaciones
+
+            // ── un PNG por orientación ───────────────────────────
+            if (salida.modo === "png-por-orientacion" && no > 1) {
+                let quedan = no
+                for (let dr = 0; dr < no; dr++) {
+                    const etiqueta = S.Documento.etiquetaOrientacion(dr)
+                    const nombre = nombraCon(salida.patron, { orientacion: etiqueta })
+                    const buf = S.Documento.compuesto(0, dr)
+                    exportador.aPng(buf, (url) => {
+                        S.Forja.escribePng(carpeta + "/" + nombre, url, () => {
+                            escritos.push(carpeta + "/" + nombre)
+                            if (--quedan === 0) acaba()
+                        })
+                    })
+                }
+                return
+            }
+
+            // ── una hoja ─────────────────────────────────────────
+            if (salida.modo === "hoja" && (nf > 1 || no > 1)) {
+                const disp = salida.disposicion || "fotogramas-en-columnas"
+                // en PMD y en cualquier hoja con orientaciones, las columnas
+                // son fotogramas y las filas orientaciones — ese orden no es
+                // negociable, lo lee el juego
+                const cols = nf
+                const filas = no
+                const celdas = []
+                for (let dr = 0; dr < filas; dr++) for (let f = 0; f < cols; f++)
+                    celdas.push(S.Documento.compuesto(f, dr))
+                let patron = salida.patron
+                if (no > 1 && salida.patronOrientaciones) patron = salida.patronOrientaciones
+                else if (nf === 1 && salida.patronUnico) patron = salida.patronUnico
+                const nombre = nombraCon(patron, { accion: (d.campos || {}).accion || "Anim" })
+                exportador.aHoja(celdas, cols, filas, S.Documento.ancho, S.Documento.alto, (url) => {
+                    S.Forja.escribePng(carpeta + "/" + nombre, url, () => {
+                        escritos.push(carpeta + "/" + nombre)
+                        acaba()
+                    })
+                })
+                return
+            }
+
+            // ── un PNG y ya ──────────────────────────────────────
+            const patron = (nf === 1 && no === 1 && salida.patronUnico) ? salida.patronUnico : salida.patron
+            const nombre = nombraCon(patron, { orientacion: S.Documento.etiquetaOrientacion(0),
+                                               accion: (d.campos || {}).accion || "Anim" })
+            exportador.aPng(S.Documento.compuesto(0, 0), (url) => {
+                S.Forja.escribePng(carpeta + "/" + nombre, url, () => {
+                    escritos.push(carpeta + "/" + nombre)
+                    acaba()
+                })
+            })
+        })
+    }
+
+    /**
+     * La entrada del manifiesto, si el contrato la pide.
+     *
+     * Esto es el paso que hoy se teclea a mano después de exportar, y es medio
+     * motivo de que pinza exista. La ruta que se apunta es RELATIVA a la raíz
+     * del pack, porque es como está escrito el resto del fichero.
+     */
+    function _manifiesto(escritos) {
+        const d = S.Documento.d
+        const con = d.contrato
+        if (!con || !con.manifiesto || !escritos.length) return
+        const base = raizPack()
+        if (!base) return
+
+        let rel = escritos[0]
+        if (rel.indexOf(base + "/") === 0) rel = rel.substring(base.length + 1)
+        rel = rel.replace(/^assets\//, "")
+
+        const entrada = {
+            kind: con.manifiesto.kind,
+            name: d.nombre,
+            path: rel,
+            frames: S.Documento.nFotogramas,
+            side: Math.max(S.Documento.ancho, S.Documento.alto)
+        }
+        const campos = con.manifiesto.campos || []
+        for (let i = 0; i < campos.length; i++) {
+            const v = (d.campos || {})[campos[i]]
+            if (v !== undefined && v !== "") entrada[campos[i]] = v
+        }
+
+        S.Forja.pide("manifiesto",
+                     { fichero: base + "/" + con.manifiesto.fichero, entrada: entrada },
+                     (r) => {
+                         if (r.bien) ultimoMensaje += "  ·  manifiesto al día (" + r.entradas + " entradas)"
+                         else falla("manifiesto", r.error)
+                     })
+    }
+
+    /** El AnimData.xml de una hoja PMD, con las duraciones en tics tal cual. */
+    function _animdata(carpeta) {
+        const d = S.Documento.d
+        const campos = d.campos || {}
+        const dur = []
+        for (let f = 0; f < S.Documento.nFotogramas; f++) dur.push(S.Documento.duracion(f))
+        S.Forja.pide("animdata", {
+            ruta: carpeta + "/AnimData.xml",
+            shadowSize: campos.shadowSize || 1,
+            anims: [{
+                nombre: campos.accion || "Walk",
+                indice: 0,
+                ancho: S.Documento.ancho, alto: S.Documento.alto,
+                duraciones: dur,
+                hitFrame: campos.hitFrame || 0,
+                rushFrame: campos.rushFrame || 0,
+                returnFrame: campos.returnFrame || 0
+            }]
+        }, (r) => { if (!r.bien) falla("animdata", r.error) })
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // animación a fichero
+    // ═══════════════════════════════════════════════════════════
+
+    /** GIF o APNG, con las duraciones reales de cada fotograma. */
+    function exportaAnimacion(ruta, formato, cb) {
+        if (!S.Documento.abierto || S.Documento.nFotogramas < 2) {
+            falla("animación", "hacen falta al menos dos fotogramas")
+            return
+        }
+        estado = "montando " + formato
+        const tmp = (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/pinza-anim"
+        const dur = []
+        const ficheros = []
+        let quedan = S.Documento.nFotogramas
+
+        S.Forja.creaCarpeta(tmp, () => {
+            for (let f = 0; f < S.Documento.nFotogramas; f++) {
+                dur.push(S.Documento.duracion(f))
+                const fichero = tmp + "/f" + f + ".png"
+                ficheros.push(fichero)
+                exportador.aPng(S.Documento.compuesto(f, S.Documento.orientacion), (url) => {
+                    S.Forja.escribePng(fichero, url, () => {
+                        if (--quedan > 0) return
+                        S.Forja.pide("gif", { ficheros: ficheros, duraciones: dur,
+                                              ruta: ruta, formato: formato }, (r) => {
+                            estado = ""
+                            if (r.bien) { ultimoMensaje = "escrito " + ruta; hecho("animación", ruta) }
+                            else falla("animación", r.error)
+                            if (cb) cb(r.bien)
+                        })
+                    })
+                })
+            }
+        })
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // importar
+    // ═══════════════════════════════════════════════════════════
+
+    /** Un PNG suelto como capa nueva del documento actual. */
+    function importaComoCapa(ruta, cb) {
+        exportador.dePng(ruta, (buf) => {
+            if (!buf) { falla("importar", "no se puede leer " + ruta); return }
+            S.Historial.abreEstructura()
+            if (!S.Documento.abierto)
+                S.Documento.nuevo({ nombre: "importado", ancho: buf.w, alto: buf.h })
+            const capa = S.Documento.añadeCapa(ruta.split("/").pop().replace(/\.png$/, ""))
+            const celda = S.Documento.celda(capa.id, S.Documento.fotograma, S.Documento.orientacion, true)
+            P.vuelca(celda, buf, 0, 0)
+            S.Historial.cierraEstructura("importar")
+            S.Documento.cambiaPixeles(null)
+            hecho("importar", ruta)
+            if (cb) cb(true)
+        })
+    }
+
+    /**
+     * Una hoja troceada en fotogramas y orientaciones.
+     *
+     * Sirve para retocar arte que ya existe —un rip, un boceto, una hoja que
+     * hiciste en otro editor— sin volver a dibujarlo. La rejilla se dice
+     * fuera: adivinarla de la imagen sale mal más veces de las que sale bien.
+     */
+    function importaHoja(ruta, cw, ch, comoOrientaciones, cb) {
+        exportador.trocea(ruta, cw, ch, (celdas, cols, filas) => {
+            if (!celdas) { falla("importar", "no se puede trocear " + ruta); return }
+            const nombre = ruta.split("/").pop().replace(/\.png$/, "")
+            S.Documento.nuevo({
+                nombre: nombre, ancho: cw, alto: ch,
+                fotogramas: cols,
+                orientaciones: comoOrientaciones
+                    ? Array.from({ length: filas }, (_, i) => "d" + i)
+                    : ["u"]
+            })
+            const capa = S.Documento.capa(0)
+            for (let f = 0; f < filas; f++) for (let c = 0; c < cols; c++) {
+                const dr = comoOrientaciones ? f : 0
+                if (!comoOrientaciones && f > 0) continue
+                const celda = S.Documento.celda(capa.id, c, dr, true)
+                P.vuelca(celda, celdas[f * cols + c], 0, 0)
+            }
+            S.Documento.cambiaPixeles(null)
+            S.Historial.limpia()
+            hecho("importar", cols + "×" + filas + " celdas de " + ruta)
+            if (cb) cb(true)
+        })
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // comprobaciones del juego
+    // ═══════════════════════════════════════════════════════════
+
+    property var resultados: []
+
+    /**
+     * Lanza las comprobaciones que el pack declare y trae lo que digan.
+     *
+     * No se interpreta la salida: esos guiones ya están escritos para que los
+     * lea una persona, y resumirlos sería perder justo la parte útil.
+     */
+    function comprueba(guiones, cb) {
+        const base = raizPack()
+        if (!base) { falla("comprobar", "este pack no apunta a ningún repositorio"); return }
+        estado = "comprobando"
+        S.Forja.pide("comprobar", { raiz: base, guiones: guiones }, (r) => {
+            estado = ""
+            resultados = r.bien ? r.resultados : []
+            if (!r.bien) falla("comprobar", r.error)
+            else hecho("comprobar", resultados.length + " comprobaciones")
+            if (cb) cb(resultados)
+        })
+    }
+}

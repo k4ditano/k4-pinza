@@ -1,0 +1,210 @@
+//  La barra de contrato.
+//
+//  Aquí iría la barra de menús en cualquier otro editor. En su lugar va lo que
+//  estás dibujando y bajo qué reglas: el perfil, el tamaño, los ejes, la huella
+//  si la hay y a dónde va a salir el fichero. Los menús no hacen falta —para
+//  eso está Ctrl+K— pero saber que este PNG tiene que medir 32×32, llamarse
+//  Home_Bed_N.png y aparecer en el manifiesto sí hace falta, todo el rato.
+
+import QtQuick
+import "../core" as C
+import "../servicios" as S
+
+Rectangle {
+    id: raiz
+    implicitHeight: C.Tema.barra
+    color: C.Tema.superficie
+
+    readonly property var con: S.Documento.d ? S.Documento.d.contrato : null
+
+    Rectangle {
+        anchors.bottom: parent.bottom
+        width: parent.width; height: 1
+        color: C.Tema.borde
+    }
+
+    Row {
+        anchors.left: parent.left
+        anchors.leftMargin: 12
+        anchors.right: derecha.left
+        anchors.rightMargin: 10
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: 10
+        clip: true
+
+        // ── el nombre, editable en el sitio ──────────────────────
+        Item {
+            width: Math.max(70, nombre.implicitWidth + 10)
+            height: 22
+            anchors.verticalCenter: parent.verticalCenter
+            visible: S.Documento.abierto
+
+            TextInput {
+                id: nombre
+                anchors.fill: parent
+                anchors.leftMargin: 4
+                verticalAlignment: TextInput.AlignVCenter
+                text: S.Documento.nombre
+                font.family: C.Tema.tipo
+                font.pixelSize: C.Tema.letraGrande
+                font.weight: Font.DemiBold
+                color: C.Tema.acento
+                selectByMouse: true
+                selectionColor: C.Tema.acento
+                onEditingFinished: if (text) S.Documento.ponNombre(text)
+            }
+            Rectangle {
+                anchors.fill: parent
+                color: "transparent"
+                border.width: nombre.activeFocus ? 1 : 0
+                border.color: C.Tema.acento
+                radius: 3
+            }
+        }
+
+        Text {
+            text: S.Documento.sucio ? "•" : ""
+            anchors.verticalCenter: parent.verticalCenter
+            font.pixelSize: 15
+            color: C.Tema.aviso
+        }
+
+        Repeater {
+            model: raiz._trozos
+            Row {
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 10
+                Text {
+                    text: "│"
+                    font.family: C.Tema.tipoMono
+                    font.pixelSize: C.Tema.letra
+                    color: C.Tema.borde
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                Text {
+                    text: modelData
+                    font.family: C.Tema.tipoMono
+                    font.pixelSize: C.Tema.letraChica
+                    color: C.Tema.tenue
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+            }
+        }
+    }
+
+    /** Lo que el contrato impone, en trozos legibles de un vistazo. */
+    readonly property var _trozos: {
+        S.Documento.rev
+        if (!S.Documento.abierto) return []
+        const t = []
+        t.push((con ? con.titulo.toLowerCase() : "libre") + " · "
+               + S.Documento.ancho + "×" + S.Documento.alto)
+        if (S.Documento.nFotogramas > 1)
+            t.push(S.Documento.nFotogramas + " fotogramas · "
+                   + (S.Documento.duracionTotal / 60).toFixed(2) + " s")
+        if (S.Documento.nOrientaciones > 1)
+            t.push(S.Documento.nOrientaciones + " orientaciones")
+        const h = S.Documento.d.huella
+        if (h) t.push("huella " + h.ancho + "×" + h.alto + " casillas")
+        //  Resuelto, no el patrón crudo: saber que va a "assets/species/{nombre}"
+        //  no dice nada; saber que va a "assets/species/Cangrejito" sí.
+        if (con && con.salida && con.salida.carpeta)
+            t.push("→ " + S.Proyecto.nombraCon(con.salida.carpeta))
+        return t
+    }
+
+    // ── la derecha: pack, avisos y la paleta de comandos ─────────
+    Row {
+        id: derecha
+        anchors.right: parent.right
+        anchors.rightMargin: 8
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: 6
+
+        // Un aviso del contrato, si lo hay. No bloquea nada: enseña.
+        Rectangle {
+            visible: raiz._aviso !== ""
+            anchors.verticalCenter: parent.verticalCenter
+            width: avisoTexto.implicitWidth + 22
+            height: 20
+            radius: 3
+            color: C.Tema.acentoTenue
+            border.width: 1
+            border.color: C.Tema.aviso
+            Row {
+                anchors.centerIn: parent
+                spacing: 5
+                C.Icono {
+                    glifo: C.Tema.i.aviso
+                    color: C.Tema.aviso
+                    font.pixelSize: 12
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                Text {
+                    id: avisoTexto
+                    text: raiz._aviso
+                    font.family: C.Tema.tipo
+                    font.pixelSize: C.Tema.letraChica
+                    color: C.Tema.tinta
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+            }
+        }
+
+        C.Boton {
+            texto: S.Packs.activo ? S.Packs.activo.titulo : "genérico"
+            pista: "el pack manda las paletas, los perfiles y a dónde salen los ficheros"
+            implicitHeight: 22
+            relleno: 8
+            anchors.verticalCenter: parent.verticalCenter
+            onPulsado: S.Ordenes.ejecuta("pack")
+        }
+
+        Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
+            width: 52; height: 20
+            radius: 3
+            color: "transparent"
+            border.width: 1
+            border.color: C.Tema.borde
+            Text {
+                anchors.centerIn: parent
+                text: "Ctrl K"
+                font.family: C.Tema.tipoMono
+                font.pixelSize: 10
+                color: C.Tema.tenue
+            }
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: raiz.pideComandos()
+            }
+        }
+    }
+
+    signal pideComandos()
+
+    /**
+     * El aviso del contrato.
+     *
+     * crabh rechaza en check-tiles.mjs cualquier objeto que haya que deformar
+     * fuera de ×0.4–×1.6 para que quepa en su huella, y cualquiera cuya
+     * proporción de dibujo no case con la de la huella. Enseñarlo aquí, con el
+     * número, es más útil que enterarse al lanzar las comprobaciones.
+     */
+    readonly property string _aviso: {
+        S.Documento.rev
+        if (!S.Documento.abierto || !con || !con.avisos) return ""
+        const h = S.Documento.d.huella
+        if (!h || !con.rejilla) return ""
+        const casilla = con.rejilla.ancho
+        const escala = (h.ancho * casilla) / S.Documento.ancho
+        if (escala < 0.4 || escala > 1.6)
+            return "el dibujo se deformaría ×" + escala.toFixed(2) + " para caber en su huella"
+        const arte = S.Documento.ancho / S.Documento.alto
+        const pie = h.ancho / h.alto
+        if (Math.abs(Math.log(arte / pie) / Math.LN2) > 1.05)
+            return "la proporción del dibujo no casa con la de la huella"
+        return ""
+    }
+}

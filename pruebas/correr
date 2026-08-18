@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+#  Todas las pruebas, sin abrir una ventana en tu cara.
+#
+#  Se corren con QT_QPA_PLATFORM=offscreen, así que se pueden lanzar por SSH,
+#  en un gancho de git o dentro de un bucle. Las que necesitan ventana la
+#  abren igual — offscreen la da, simplemente no la enseña.
+
+cd "$(dirname "$0")/.." || exit 1
+export QT_QPA_PLATFORM=offscreen
+
+solo="$1"
+malas=0
+for f in pruebas/*.qml cata/cata.qml; do
+    [ -n "$solo" ] && case "$f" in *"$solo"*) ;; *) continue ;; esac
+    printf '\033[1m── %s\033[0m\n' "$f"
+    if [ "$f" = "cata/cata.qml" ]; then
+        salida=$(timeout 90 qs -p cata/cata.qml 2>&1); codigo=$?
+    else
+        salida=$(PINZA_PRUEBA="$f" timeout 90 qs -p prueba.qml 2>&1); codigo=$?
+    fi
+    echo "$salida" | grep -E "DEBUG qml|WARN scene|ERROR" \
+        | sed -e 's/ DEBUG qml: //' -e 's/^/   /'
+    [ $codigo -ne 0 ] && malas=$((malas + 1))
+done
+
+echo
+if [ $malas -eq 0 ]; then
+    printf '\033[32mtodo verde\033[0m\n'
+else
+    printf '\033[31m%d ficheros con fallos\033[0m\n' "$malas"
+fi
+exit $malas

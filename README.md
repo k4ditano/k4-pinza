@@ -115,6 +115,13 @@ miedo. Vienen tres de ejemplo: contornear la silueta en todas las orientaciones,
 centrar cada celda, y apoyar la figura en el suelo con el mismo hueco en todos
 los fotogramas.
 
+**Se ve cuando está trabajando.** Importar una criatura son ocho proyectos y
+quinientas celdas: sale un anillo de píxeles con lo que está haciendo y por
+dónde va. Aparece con retardo a propósito —guardar un icono tarda cincuenta
+milisegundos y un parpadeo de rueda en cada guardado cansa más que informar— y
+si algo se atasca deja de bloquear, porque una pantalla de carga que no se va es
+peor que un fallo.
+
 **Sin menús y sin diálogos modales.** `Ctrl+K` para cualquier orden, buscando por
 trozos sueltos («vol h» encuentra «Voltear en horizontal») y enseñando sólo lo
 que se puede hacer ahora. Botón derecho sostenido sobre el lienzo para la rueda

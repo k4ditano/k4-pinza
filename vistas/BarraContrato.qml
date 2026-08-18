@@ -70,10 +70,17 @@ Rectangle {
         }
 
         Repeater {
+            id: chips
             model: raiz._trozos
             Row {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 10
+                //  El último se esconde entero si no cabe, en vez de salir
+                //  cortado a mitad de palabra. Sólo el último: esconder uno de
+                //  en medio recolocaría los siguientes y podría entrar en un
+                //  baile de aparecer y desaparecer.
+                visible: index < chips.count - 1
+                         || x + implicitWidth <= (parent ? parent.width : 0)
                 Text {
                     text: "│"
                     font.family: C.Tema.tipoMono
@@ -112,8 +119,14 @@ Rectangle {
         if (h) t.push("huella " + h.ancho + "×" + h.alto + " casillas")
         //  Resuelto, no el patrón crudo: saber que va a "assets/species/{nombre}"
         //  no dice nada; saber que va a "assets/species/Cangrejito" sí.
-        if (con && con.salida && con.salida.carpeta)
-            t.push("→ " + S.Proyecto.nombraCon(con.salida.carpeta))
+        //
+        //  Y sólo los dos últimos tramos: la ruta entera no cabe en la barra y
+        //  se cortaba a mitad de palabra, que queda a medio camino entre
+        //  informar y ensuciar. Los dos últimos son los que identifican.
+        if (con && con.salida && con.salida.carpeta) {
+            const partes = S.Proyecto.nombraCon(con.salida.carpeta).split("/").filter(Boolean)
+            t.push("→ " + partes.slice(-2).join("/"))
+        }
         return t
     }
 

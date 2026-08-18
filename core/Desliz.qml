@@ -16,7 +16,9 @@ Item {
     signal cambiado(real v)
 
     implicitHeight: 22
-    implicitWidth: 180
+    //  Un mínimo con sentido: etiqueta, un carril usable y el número. Quien lo
+    //  use en una fila puede darle más, pero nunca menos de lo que necesita.
+    implicitWidth: (raiz.etiqueta ? raiz.anchoEtiqueta : 0) + 70 + 50
 
     Text {
         id: et

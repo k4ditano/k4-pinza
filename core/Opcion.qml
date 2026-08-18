@@ -18,7 +18,12 @@ Item {
     readonly property bool _desplegar: _lista.length > 4
 
     implicitHeight: 24
-    implicitWidth: 180
+    //  El ancho sale de lo que hay dentro, no de un número puesto a ojo.
+    //  Con 180 fijos, una fila de botones más ancha se salía por debajo del
+    //  siguiente elemento y los dos textos se pintaban encima — se veía
+    //  «y todas las orientacitodas las capas».
+    implicitWidth: _desplegar ? 200
+                 : (raiz.etiqueta ? raiz.anchoEtiqueta : 0) + fila.implicitWidth
 
     Text {
         id: et
@@ -34,6 +39,7 @@ Item {
     }
 
     Row {
+        id: fila
         visible: !raiz._desplegar
         anchors.left: raiz.etiqueta ? et.right : parent.left
         anchors.verticalCenter: parent.verticalCenter

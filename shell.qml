@@ -163,6 +163,7 @@ ShellRoot {
 
             // ── lo que flota por encima ──────────────────────────
             V.Hojas { id: hojas }
+            V.Cargando { }
             V.Globo { }
             V.Comandos { id: comandos }
             V.Rueda { id: rueda }
@@ -491,6 +492,12 @@ ShellRoot {
             for (let i = 0; i < S.Packs.lista.length; i++)
                 if (S.Packs.lista[i].id === id) { S.Packs.elige(id); return "pack: " + id }
             return "no hay ningún pack «" + id + "»"
+        }
+
+        /** Elegir herramienta desde fuera. `qs -c pinza ipc call pinza herramienta sustituye` */
+        function herramienta(id: string): string {
+            S.Pinceles.elige(id)
+            return S.Herramientas.nombre(id)
         }
 
         function estado(): string {

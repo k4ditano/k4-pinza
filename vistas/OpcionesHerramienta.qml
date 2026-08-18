@@ -129,21 +129,22 @@ Rectangle {
 
         //  Recolorear casi nunca es cosa de una celda: cambiar el color de un
         //  bicho es cambiarlo en sus ocho caras y en todos sus fotogramas.
+        //  Los títulos, cortos: la barra va apretada y el detalle cabe en el
+        //  rótulo que sale al pasar por encima.
         C.Opcion {
             visible: S.Pinceles.herramienta === "sustituye"
             anchors.verticalCenter: parent.verticalCenter
-            width: 330
             etiqueta: "cambia en"; anchoEtiqueta: 62
             opciones: [{ id: "celda", titulo: "esta celda" },
-                       { id: "fotogramas", titulo: "todos los fotogramas" },
-                       { id: "todo", titulo: "y todas las orientaciones" }]
+                       { id: "fotogramas", titulo: "los fotogramas" },
+                       { id: "todo", titulo: "y las 8 caras" }]
             valor: S.Pinceles.alcanceColor
             onCambiado: (v) => S.Pinceles.alcanceColor = v
         }
         C.Boton {
             visible: S.Pinceles.herramienta === "sustituye" && S.Pinceles.alcanceColor !== "celda"
             anchors.verticalCenter: parent.verticalCenter
-            texto: "todas las capas"; relleno: 7; implicitHeight: 22
+            texto: "y capas"; relleno: 7; implicitHeight: 22
             activo: S.Pinceles.todasLasCapas
             pista: "si no, sólo la capa en la que estás"
             onPulsado: S.Pinceles.todasLasCapas = !S.Pinceles.todasLasCapas
@@ -167,7 +168,6 @@ Rectangle {
         C.Opcion {
             visible: S.Pinceles.herramienta === "degradado"
             anchors.verticalCenter: parent.verticalCenter
-            width: 180
             etiqueta: "tipo"; anchoEtiqueta: 32
             opciones: [{ id: "lineal", titulo: "lineal" }, { id: "radial", titulo: "radial" }]
             valor: S.Pinceles.tipoDegradado
@@ -196,7 +196,6 @@ Rectangle {
         C.Opcion {
             visible: S.Pinceles.herramienta === "sombreado"
             anchors.verticalCenter: parent.verticalCenter
-            width: 210
             etiqueta: "paso"; anchoEtiqueta: 34
             opciones: [{ id: "1", titulo: "aclarar" }, { id: "-1", titulo: "oscurecer" }]
             valor: String(S.Pinceles.pasoSombreado)
@@ -206,7 +205,6 @@ Rectangle {
         C.Opcion {
             visible: S.Pinceles.esSeleccion
             anchors.verticalCenter: parent.verticalCenter
-            width: 290
             etiqueta: "modo"; anchoEtiqueta: 36
             opciones: [{ id: "nueva", titulo: "nueva" }, { id: "sumar", titulo: "sumar" },
                        { id: "restar", titulo: "restar" }, { id: "intersecar", titulo: "cortar" }]

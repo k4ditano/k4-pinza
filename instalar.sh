@@ -2,6 +2,9 @@
 #
 #  Instala K4 Pinza en el sistema, sin copiar nada.
 #
+#      ./instalar.sh            instalar o actualizar
+#      ./instalar.sh --quitar   deshacerlo
+#
 #  El programa se llama K4 Pinza; el comando, la carpeta de ajustes y la
 #  extensión de los ficheros siguen siendo `pinza` a secas, que es lo que se
 #  teclea y lo que ya está escrito en el disco de quien lo tenga puesto.
@@ -10,9 +13,6 @@
 #  así que seguir desarrollando aquí es seguir usando lo instalado, sin volver a
 #  instalar nada. Todo va al directorio del usuario — nada de sudo, nada fuera
 #  de $HOME.
-#
-#      ./instalar           instalar o actualizar
-#      ./instalar --quitar  deshacerlo entero
 #
 set -euo pipefail
 
@@ -78,10 +78,16 @@ ln -sfn "${RAIZ}" "${QSDIR}/pinza"
 python3 "${RAIZ}/tools/icono.py" --a "${ICONOS}" >/dev/null
 
 # ── el lanzador ──────────────────────────────────────────────────
-cat > "${BIN}/pinza" <<LANZADOR
+#
+#  Por temporal y `mv`, no escribiendo encima: si el lanzador está
+#  ejecutándose en ese momento —reinstalar desde una terminal abierta con
+#  él, por ejemplo— escribir encima da «Text file busy» y se queda a
+#  medias. Reemplazarlo entero funciona siempre y además es atómico: no
+#  hay un instante en que el fichero esté a mitad.
+cat > "${BIN}/pinza.nuevo" <<LANZADOR
 #!/usr/bin/env bash
 #
-#  Lanzador de pinza. Lo escribe ./instalar; no lo edites aquí.
+#  Lanzador de K4 Pinza. Lo escribe ./instalar.sh; no lo edites aquí.
 #
 #      pinza                        abre el editor
 #      pinza Bicho.pinza            abre ese proyecto
@@ -137,10 +143,11 @@ fi
 hablar mostrar && exit 0 || true
 exec qs -c pinza
 LANZADOR
-chmod +x "${BIN}/pinza"
+chmod +x "${BIN}/pinza.nuevo"
+mv -f "${BIN}/pinza.nuevo" "${BIN}/pinza"
 
 # ── el lanzador del escritorio ───────────────────────────────────
-cat > "${LANZADORES}/pinza.desktop" <<ESCRITORIO
+cat > "${LANZADORES}/pinza.desktop.nuevo" <<ESCRITORIO
 [Desktop Entry]
 Type=Application
 Version=1.0
@@ -164,6 +171,7 @@ Actions=nuevo;
 Name=Documento nuevo
 Exec=${BIN}/pinza --nuevo
 ESCRITORIO
+mv -f "${LANZADORES}/pinza.desktop.nuevo" "${LANZADORES}/pinza.desktop"
 
 command -v update-desktop-database >/dev/null && \
     update-desktop-database "${LANZADORES}" 2>/dev/null || true
@@ -171,7 +179,7 @@ command -v gtk-update-icon-cache >/dev/null && \
     gtk-update-icon-cache -qtf "${ICONOS}" 2>/dev/null || true
 
 # ── decir qué ha pasado ──────────────────────────────────────────
-verde "pinza instalada"
+verde "K4 Pinza instalada"
 gris  "  ${BIN}/pinza"
 gris  "  ${LANZADORES}/pinza.desktop"
 gris  "  ${QSDIR}/pinza -> ${RAIZ}"

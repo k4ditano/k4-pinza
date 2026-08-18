@@ -28,6 +28,8 @@ C.Hoja {
         medida = (S.Documento.abierto && S.Ajustes.avisoGuia)
                ? S.Paleta.mide(S.Documento.compuesto()) : null
     }
+    //  Contar los colores de un dibujo entero no es gratis, y mientras la
+    //  animación suena cambia sesenta veces por segundo sin que nadie lo mire.
     Timer {
         id: espera
         interval: 250
@@ -36,8 +38,12 @@ C.Hoja {
     Component.onCompleted: mide()
     Connections {
         target: S.Documento
-        function onRevPixelesChanged() { espera.restart() }
-        function onRevChanged() { espera.restart() }
+        function onRevPixelesChanged() { if (!S.Animacion.sonando) espera.restart() }
+        function onRevChanged() { if (!S.Animacion.sonando) espera.restart() }
+    }
+    Connections {
+        target: S.Animacion
+        function onSonandoChanged() { if (!S.Animacion.sonando) espera.restart() }
     }
 
     Column {

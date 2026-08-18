@@ -74,6 +74,11 @@ Rectangle {
             //  enlace: preguntarlo por enlace obliga a componer las ocho caras
             //  en cada repintado, y además `compuesto()` toca su caché, con lo
             //  que el enlace acababa dependiendo de sí mismo.
+            //
+            //  Y se hace con retardo y NUNCA mientras se reproduce: son ocho
+            //  composiciones completas, y hacerlas en cada cambio de fotograma
+            //  metía parones de más de un cuarto de segundo — la animación
+            //  salía a trompicones y encima lenta.
             property bool vacia: true
             function mira() {
                 const b = S.Documento.compuesto(S.Documento.fotograma, index)
@@ -81,11 +86,18 @@ Rectangle {
                 for (let i = 3; i < b.d.length; i += 4) if (b.d[i] !== 0) { vacia = false; return }
                 vacia = true
             }
+            Timer { id: posa; interval: 220; onTriggered: mira() }
             Component.onCompleted: mira()
             Connections {
                 target: S.Documento
-                function onRevPixelesChanged() { mira() }
-                function onRevChanged() { mira() }
+                function onRevPixelesChanged() { if (!S.Animacion.sonando) posa.restart() }
+                function onRevChanged() { if (!S.Animacion.sonando) posa.restart() }
+            }
+            Connections {
+                target: S.Animacion
+                //  Al parar, una pasada: durante la reproducción los puntos se
+                //  quedan como estaban, que es justo lo que se quiere.
+                function onSonandoChanged() { if (!S.Animacion.sonando) posa.restart() }
             }
 
             x: 4 + sitio[0] * 26

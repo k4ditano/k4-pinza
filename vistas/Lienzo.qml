@@ -529,6 +529,8 @@ Item {
             tipoDegradado: S.Pinceles.tipoDegradado,
             degradadoTramado: S.Pinceles.degradadoTramado,
             compuesto: S.Documento.compuesto(),
+            alcance: S.Pinceles.alcanceColor,
+            sustituyeAmplio: (viejo, nuevoColor, tol) => raiz.sustituyeEnTodo(viejo, nuevoColor, tol),
             vecinoEnRampa: (c, paso) => S.Paleta.vecinoEnRampa(c, paso),
             eligeColor: (c, secundario) => {
                 if (secundario) S.Paleta.ponSecundario(c); else S.Paleta.ponPrimario(c)
@@ -655,6 +657,60 @@ Item {
             else raiz.acerca(w.x, w.y, w.angleDelta.y > 0)
         }
     }
+
+    /**
+     * Cambia un color en más de una celda a la vez.
+     *
+     * Va por instantánea completa y no por rectángulo sucio: el cambio toca
+     * decenas de celdas y el historial de píxeles guarda una sola. Deshacerlo
+     * tiene que devolverlo todo de golpe, que es lo que espera cualquiera
+     * después de un cambio así.
+     *
+     * Respeta la selección si la hay — recolorear sólo un trozo, en todos los
+     * fotogramas, es una petición perfectamente normal.
+     */
+    function sustituyeEnTodo(viejo, nuevoColor, tolerancia) {
+        const d = S.Documento.d
+        if (!d) return
+        const capaActual = S.Documento.capa(S.Documento.capaActiva)
+        if (!capaActual) return
+
+        const todas = S.Pinceles.todasLasCapas
+        const porTodo = S.Pinceles.alcanceColor === "todo"
+        const hayFiltro = S.Seleccion.activa
+
+        S.Historial.abreCompleto()
+        let tocadas = 0
+        for (let k = 0; k < d.capas.length; k++) {
+            const c = d.capas[k]
+            if (!todas && c.id !== capaActual.id) continue
+            if (c.tipo === "grupo" || c.bloqueada) continue
+            for (let f = 0; f < S.Documento.nFotogramas; f++)
+                for (let dr = 0; dr < S.Documento.nOrientaciones; dr++) {
+                    //  Sin "todo", sólo los fotogramas de la cara que miras:
+                    //  cambiar el color de un ojo no tiene por qué tocar las
+                    //  otras siete orientaciones si no lo pides.
+                    if (!porTodo && dr !== S.Documento.orientacion) continue
+                    const b = S.Documento.celda(c.id, f, dr, false)
+                    if (!b) continue
+                    let cambio = false
+                    for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) {
+                        if (hayFiltro && !S.Seleccion.contiene(x, y)) continue
+                        const p = P.lee(b, x, y)
+                        if (P.distancia(p, viejo) > tolerancia) continue
+                        P.pon(b, x, y, [nuevoColor[0], nuevoColor[1], nuevoColor[2], p[3]])
+                        cambio = true
+                    }
+                    if (cambio) tocadas++
+                }
+        }
+        S.Historial.cierraEstructuraOCompleto(
+            "sustituir color en " + tocadas + " celdas")
+        S.Documento.cambiaPixeles(null)
+        raiz.colorSustituido(tocadas)
+    }
+
+    signal colorSustituido(int celdas)
 
     /** Después de cada gesto: repintar lo sucio y la vista previa. */
     function _tras() {

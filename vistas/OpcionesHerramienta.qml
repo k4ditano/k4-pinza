@@ -127,6 +127,28 @@ Rectangle {
             onPulsado: S.Pinceles.ochoVecinos = !S.Pinceles.ochoVecinos
         }
 
+        //  Recolorear casi nunca es cosa de una celda: cambiar el color de un
+        //  bicho es cambiarlo en sus ocho caras y en todos sus fotogramas.
+        C.Opcion {
+            visible: S.Pinceles.herramienta === "sustituye"
+            anchors.verticalCenter: parent.verticalCenter
+            width: 330
+            etiqueta: "cambia en"; anchoEtiqueta: 62
+            opciones: [{ id: "celda", titulo: "esta celda" },
+                       { id: "fotogramas", titulo: "todos los fotogramas" },
+                       { id: "todo", titulo: "y todas las orientaciones" }]
+            valor: S.Pinceles.alcanceColor
+            onCambiado: (v) => S.Pinceles.alcanceColor = v
+        }
+        C.Boton {
+            visible: S.Pinceles.herramienta === "sustituye" && S.Pinceles.alcanceColor !== "celda"
+            anchors.verticalCenter: parent.verticalCenter
+            texto: "todas las capas"; relleno: 7; implicitHeight: 22
+            activo: S.Pinceles.todasLasCapas
+            pista: "si no, sólo la capa en la que estás"
+            onPulsado: S.Pinceles.todasLasCapas = !S.Pinceles.todasLasCapas
+        }
+
         C.Boton {
             visible: raiz.esFormaCerrada
             anchors.verticalCenter: parent.verticalCenter

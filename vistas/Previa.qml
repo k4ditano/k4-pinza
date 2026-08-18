@@ -28,11 +28,14 @@ C.Hoja {
     function mide() {
         sil = S.Documento.abierto ? P.silueta(S.Documento.compuesto()) : null
     }
+    //  Con retardo: medir la silueta recorre el dibujo entero, y durante la
+    //  reproducción eso cae en cada fotograma.
+    Timer { id: posa; interval: 120; onTriggered: raiz.mide() }
     Component.onCompleted: mide()
     Connections {
         target: S.Documento
-        function onRevPixelesChanged() { raiz.mide() }
-        function onRevChanged() { raiz.mide() }
+        function onRevPixelesChanged() { posa.restart() }
+        function onRevChanged() { posa.restart() }
     }
 
     Column {

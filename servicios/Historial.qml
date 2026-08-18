@@ -43,6 +43,13 @@ Singleton {
 
     function limpia() { memoria.pila = []; memoria.indice = -1; rev++ }
 
+    //  Otro documento, otra historia. Un paso guardado para un dibujo no vale
+    //  para el siguiente: las claves de celda, el tamaño y las capas son otras.
+    Connections {
+        target: S.Documento
+        function onReiniciado() { limpia() }
+    }
+
     function _empuja(c) {
         // tirar lo que hubiera por delante: rehacer se pierde al dibujar
         if (memoria.indice < memoria.pila.length - 1)
@@ -172,6 +179,9 @@ Singleton {
         _empuja({ t: "completo", nombre: nombre, antes: antes, despues: despues })
         return true
     }
+
+    /** Alias legible para quien cierra una instantánea completa. */
+    function cierraEstructuraOCompleto(nombre) { return cierraCompleto(nombre) }
 
     /** Deshace sin dejar rastro: para cuando un guión revienta a mitad. */
     function cancelaCompleto() {

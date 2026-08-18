@@ -41,6 +41,13 @@ el compás ni se enseña.
 espejo: dibujas el este y el oeste se genera volteado. Un punto bajo las caras
 que todavía están en blanco.
 
+**Cambiar un color en toda la criatura.** Sustituir color pregunta hasta dónde
+llega: esta celda, todos los fotogramas de esta cara, o todos los fotogramas de
+las ocho — y opcionalmente todas las capas. Recolorear un bicho celda a celda en
+una hoja de once fotogramas por ocho filas son ochenta y ocho clics, y basta
+fallar uno para que la animación parpadee. Todo el cambio es **un** paso del
+historial. Respeta la selección si la hay.
+
 **La tira.** Cada fotograma **mide lo que dura**, en tics de 1/60 s, con una
 regla debajo. Arrastrando su borde derecho se retima la animación mirándola. Ver
 que el fotograma de impacto dura cuatro tics y el de recuperación doce es lo que
@@ -61,6 +68,12 @@ estorbe menos. Dibujando estás siempre a ×8 o a ×16, y a ese aumento cualquie
 cosa parece bien: los contornos se leen, las sombras se separan, todo respira. A
 tamaño real la mitad de eso desaparece, y sin verlo mientras dibujas te enteras
 al exportar. Enseña ×1, ×2 y ×3 —los que quepan— y se anima con la tira.
+
+La reproducción va **al ritmo que dice ir**: la manda el reloj de pared, no el
+temporizador. Antes cada disparo avanzaba un tic exacto, así que la animación
+iba a la velocidad a la que Qt lograra disparar — medido, un 39 % lenta. Como el
+sentido de todo esto es que lo que ves aquí sea lo que se ve en el juego, ir
+lento no es un defecto de acabado: es que la herramienta miente.
 
 **Previa en juego.** El sprite animándose sobre un suelo, con su sombra y las
 medidas que el juego saca de los píxeles. Lo que importa no es cómo se ve al

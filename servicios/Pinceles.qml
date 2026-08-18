@@ -49,6 +49,15 @@ Singleton {
     // ── selección ────────────────────────────────────────────────
     property string modoSeleccion: "nueva"   // nueva · sumar · restar · intersecar
 
+    // ── hasta dónde llega sustituir un color ─────────────────────
+    //
+    //  Cambiar un color casi nunca es cosa de una celda: recolorear un bicho es
+    //  cambiarlo en sus ocho caras y en todos sus fotogramas. Hacerlo celda a
+    //  celda en una hoja de once fotogramas por ocho filas son ochenta y ocho
+    //  clics, y basta con fallar uno para que la animación parpadee.
+    property string alcanceColor: "celda"     // celda · fotogramas · todo
+    property bool todasLasCapas: false
+
     // ── pinceles de retoque ──────────────────────────────────────
     property real fuerza: 0.5
 

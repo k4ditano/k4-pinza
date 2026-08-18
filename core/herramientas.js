@@ -360,10 +360,20 @@ Sombreado.prototype.arriba = function () { return this.brocha.rect() }
 // ── sustituir color ──────────────────────────────────────────────
 
 function Sustituye(ctx) { this.ctx = ctx; this.brocha = new Brocha(ctx) }
+
 Sustituye.prototype.abajo = function (x, y, boton) {
     const c = this.ctx
     const viejo = P.lee(c.buf, x, y)
     const nuevo = boton === 2 ? c.secundario : c.primario
+
+    //  Fuera de esta celda no manda la brocha: cambiar un color en ochenta y
+    //  ocho celdas no es una serie de trazos, es una sola operación. Lo hace
+    //  el contexto, que es quien conoce el documento y el historial.
+    if (c.alcance && c.alcance !== "celda" && c.sustituyeAmplio) {
+        c.sustituyeAmplio(viejo, nuevo, c.tolerancia)
+        this.amplio = true
+        return
+    }
     for (let j = 0; j < c.alto; j++) for (let i = 0; i < c.ancho; i++) {
         const p = P.lee(c.buf, i, j)
         if (P.distancia(p, viejo) > c.tolerancia) continue
@@ -371,7 +381,10 @@ Sustituye.prototype.abajo = function (x, y, boton) {
     }
 }
 Sustituye.prototype.mueve = function () {}
-Sustituye.prototype.arriba = function () { return this.brocha.rect() }
+Sustituye.prototype.arriba = function () {
+    // lo amplio ya se apuntó solo; devolver un rectángulo aquí duplicaría
+    return this.amplio ? null : this.brocha.rect()
+}
 
 // ── retoques locales ─────────────────────────────────────────────
 

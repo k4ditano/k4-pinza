@@ -40,6 +40,16 @@ Singleton {
     property int revPixeles: 0     // sólo píxeles
     signal pixelesCambiados(int x, int y, int w, int h)
 
+    /**
+     * Se ha puesto OTRO documento delante.
+     *
+     * El historial escucha esto y se vacía. Sin ello, crear un documento nuevo
+     * heredaba la pila del anterior y un Ctrl+Z aplicaba a este dibujo un paso
+     * que pertenecía a otro — sobre celdas con otras claves, otro tamaño y
+     * otras capas.
+     */
+    signal reiniciado()
+
     //  OJO AL ORDEN: primero se marca sucio y DESPUÉS se sube el contador.
     //
     //  Al revés no funciona, y no da error: subir el contador reevalúa el
@@ -148,11 +158,12 @@ Singleton {
         memoria.capaActiva = 0
         memoria.fotograma = 0
         memoria.orientacion = 0
+        reiniciado()
         cambia(); cambiaPixeles(null)
         return nuevoDoc
     }
 
-    function cerrar() { memoria.d = null; cambia(); cambiaPixeles(null) }
+    function cerrar() { memoria.d = null; reiniciado(); cambia(); cambiaPixeles(null) }
 
     // ═══════════════════════════════════════════════════════════
     // celdas
@@ -806,6 +817,7 @@ Singleton {
         memoria.d = nuevoDoc
         memoria.capaActiva = 0; memoria.fotograma = 0; memoria.orientacion = 0
         _cofre.buf = null
+        reiniciado()
         cambia(); cambiaPixeles(null)
         return nuevoDoc
     }

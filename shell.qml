@@ -353,6 +353,12 @@ ShellRoot {
     Connections {
         target: lienzo
         function onColorCogido() { aviso.di("color " + S.Paleta.primarioHex) }
+        //  Un cambio que toca ochenta celdas que no estás viendo necesita
+        //  decir que pasó algo; si no, parece que no ha hecho nada.
+        function onColorSustituido(celdas) {
+            if (S.Pinceles.alcanceColor !== "celda")
+                aviso.di("color cambiado en " + celdas + " celdas")
+        }
     }
 
     // ═══════════════════════════════════════════════════════════

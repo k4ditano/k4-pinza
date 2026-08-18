@@ -133,6 +133,25 @@ ShellRoot {
            S.Documento.ancho === 12 && S.Documento.alto === 6,
            S.Documento.ancho + "x" + S.Documento.alto)
 
+        //  Al final del todo, porque crea documentos nuevos y le cambiaría el
+        //  suelo a todo lo de arriba.
+        // ── el historial no cruza documentos ─────────────────────
+        //
+        //  Un paso guardado para un dibujo no vale para el siguiente: las
+        //  claves de celda, el tamaño y las capas son otras. Antes se heredaba
+        //  la pila y un Ctrl+Z aplicaba a este dibujo algo de otro.
+        S.Documento.nuevo({ nombre: "uno", ancho: 8, alto: 8 })
+        S.Historial.abre(S.Documento.clave(S.Documento.capa(0).id, 0, 0),
+                         S.Documento.celdaActiva(true))
+        P.pon(S.Documento.celdaActiva(true), 0, 0, [9, 9, 9, 255])
+        S.Historial.cierra("un trazo", S.Documento.celdaActiva(false))
+        ck("un trazo deja un paso", S.Historial.pasos === 1)
+        S.Documento.nuevo({ nombre: "otro", ancho: 16, alto: 16 })
+        ck("y abrir otro documento vacía el historial", S.Historial.pasos === 0,
+           S.Historial.pasos)
+        ck("así que no hay nada que deshacer", !S.Historial.puedeDeshacer)
+
+
         esperar.start()
     }
 

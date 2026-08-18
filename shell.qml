@@ -16,6 +16,7 @@
 import QtQuick
 import QtQml
 import Quickshell
+import Quickshell.Io
 import "core" as C
 import "servicios" as S
 import "vistas" as V
@@ -315,6 +316,62 @@ ShellRoot {
         }
     }
 
+    // ═══════════════════════════════════════════════════════════
+    // desde fuera
+    // ═══════════════════════════════════════════════════════════
+    //
+    //  Para que abrir un proyecto desde el escritorio vaya a la ventana que ya
+    //  tienes en vez de arrancar otra. Dos instancias no se llevan mal —cada
+    //  una tiene su documento— pero se pisarían los ajustes, y sobre todo no es
+    //  lo que espera nadie al hacer doble clic.
+    //
+    //      qs -c pinza ipc call pinza abrir /ruta/al/proyecto.pinza
+
+    IpcHandler {
+        target: "pinza"
+
+        function abrir(ruta: string): string {
+            if (!ruta) return "hace falta una ruta"
+            S.Proyecto.abre(ruta, null)
+            ventana.visible = true
+            return "abriendo " + ruta
+        }
+
+        function importar(ruta: string): string {
+            if (!ruta) return "hace falta una ruta"
+            S.Proyecto.importaComoCapa(ruta, null)
+            ventana.visible = true
+            return "importando " + ruta
+        }
+
+        function nuevo(): string {
+            hojas.abre("nuevo")
+            ventana.visible = true
+            return "listo"
+        }
+
+        function guardar(): string {
+            if (!S.Documento.abierto) return "no hay nada abierto"
+            if (!S.Documento.ruta) return "este documento no tiene carpeta todavía"
+            S.Proyecto.guarda(null, null)
+            return "guardando en " + S.Documento.ruta
+        }
+
+        function exportar(): string {
+            if (!S.Documento.abierto) return "no hay nada abierto"
+            S.Proyecto.exporta({}, null)
+            return "exportando " + S.Documento.nombre
+        }
+
+        function estado(): string {
+            if (!S.Documento.abierto) return "sin nada abierto"
+            return S.Documento.nombre + " · " + S.Documento.ancho + "x" + S.Documento.alto
+                 + " · " + S.Documento.nFotogramas + " fotogramas"
+                 + " · " + S.Documento.nOrientaciones + " orientaciones"
+                 + (S.Documento.sucio ? " · sin guardar" : "")
+        }
+    }
+
     //  Abrir algo al arrancar.
     //
     //  Sirve para lanzarlo desde el explorador de ficheros o desde un guion, y
@@ -326,5 +383,7 @@ ShellRoot {
         S.Ajustes.pack = S.Ajustes.pack || "generico"
         const abrirme = Quickshell.env("PINZA_ABRIR")
         if (abrirme) Qt.callLater(() => S.Proyecto.abre(abrirme, null))
+        const importame = Quickshell.env("PINZA_IMPORTAR")
+        if (importame) Qt.callLater(() => S.Proyecto.importaComoCapa(importame, null))
     }
 }

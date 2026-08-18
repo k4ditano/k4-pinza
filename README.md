@@ -3,7 +3,8 @@
 Un editor de pixel art en [Quickshell](https://quickshell.org/) que sabe qué
 estás dibujando antes de que empieces.
 
-    qs -p ~/Proyectos/pinza
+    ./instalar          # y luego, desde donde sea:
+    pinza
 
 ## La idea
 
@@ -202,7 +203,53 @@ comprueban sin abrir nada; la ida y la vuelta entera —dibujar, guardar, cerrar
 abrir, exportar— se comprueba con Pillow leyendo los PNG desde fuera, que es la
 única forma de saber que lo que se ve es lo que sale.
 
+## Instalar
+
+    ./instalar          instalar o actualizar
+    ./instalar --quitar deshacerlo
+
+No copia nada: lo que instala son **enlaces**. El código se queda donde está, así
+que seguir desarrollando aquí es seguir usando lo instalado, sin volver a
+instalar. Todo va a tu directorio — nada de `sudo`, nada fuera de `$HOME`:
+
+| | |
+|---|---|
+| `~/.local/bin/pinza` | el lanzador |
+| `~/.local/share/applications/pinza.desktop` | para que salga en el menú |
+| `~/.local/share/icons/hicolor/*/apps/pinza.png` | el icono, que lo dibuja `tools/icono.py` |
+| `~/.config/quickshell/pinza` | un enlace al repositorio, para `qs -c pinza` |
+
+Desinstalar no toca tus proyectos, tus packs ni tus guiones: eso vive en
+`~/.config/pinza/`.
+
+### El lanzador
+
+    pinza                    abrir el editor
+    pinza Bicho.pinza        abrir ese proyecto
+    pinza dibujo.png         importarlo como capa
+    pinza --nuevo            la hoja de documento nuevo
+    pinza --estado           qué hay abierto ahora mismo
+
+Si ya hay una ventana abierta, **se le habla en vez de arrancar otra**. Dos
+instancias no se llevan mal —cada una tiene su documento— pero se pisarían los
+ajustes, y sobre todo no es lo que espera nadie al hacer doble clic en un
+proyecto. Por debajo es el IPC de Quickshell, que también sirve desde un guion:
+
+    qs -c pinza ipc call pinza estado
+    qs -c pinza ipc call pinza abrir /ruta/al/proyecto.pinza
+    qs -c pinza ipc call pinza exportar
+
+### El icono
+
+Es pixel art, como debe ser: la silueta se escribe a mano en una rejilla de 32×32
+en `tools/icono.py` y el sombreado sale de una regla —contorno en el borde,
+brillo donde roza el fondo por arriba y por la izquierda, sombra por abajo y por
+la derecha— que es un foco arriba a la izquierda, como el arte del juego. Se
+escala por vecino más próximo a 32, 64, 128 y 256, todos múltiplos enteros para
+que ninguno salga con píxeles a medias.
+
 ## Hace falta
 
 Quickshell, Qt 6 (`qt6-base`, `qt6-declarative`), Python 3 con Pillow, y las
-fuentes `Adwaita Sans` y `MesloLGS Nerd Font Mono` para la interfaz.
+fuentes `Adwaita Sans` y `MesloLGS Nerd Font Mono` para la interfaz. `./instalar`
+lo comprueba y te lo dice antes de hacer nada.

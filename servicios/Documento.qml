@@ -33,6 +33,14 @@ Singleton {
         property int capaActiva: 0
         property int fotograma: 0
         property int orientacion: 0
+
+        //  Aquí y no en Component.onCompleted: la restauración llega DESPUÉS
+        //  de que el singleton esté montado, así que un guardián al arrancar
+        //  mira cuando todavía no hay nada y deja pasar lo que venga luego.
+        onDChanged: if (d && !doc.esDocumento(d)) {
+            console.log("documento a medias tras la recarga: lo suelto en vez de arrastrarlo")
+            d = null
+        }
     }
 
     /**
@@ -53,11 +61,6 @@ Singleton {
                && Array.isArray(m.fotogramas) && m.fotogramas.length > 0
                && Array.isArray(m.orientaciones) && m.orientaciones.length > 0
                && m.ancho > 0 && m.alto > 0
-    }
-
-    Component.onCompleted: if (memoria.d && !esDocumento(memoria.d)) {
-        console.log("documento a medias tras la recarga: lo suelto en vez de arrastrarlo")
-        memoria.d = null
     }
 
     // ── los contadores a los que se enganchan las vistas ─────────

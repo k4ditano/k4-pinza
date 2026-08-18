@@ -147,3 +147,11 @@ why, and the six things this Qt gets wrong that you need to know before going
 anywhere near the canvas.
 
     ./pruebas/correr            the tests, without opening a window
+
+## Licence
+
+[GPL-3.0](LICENSE). Use it, change it, sell it if you like; the only thing asked
+is that if you distribute a modified version you also distribute its source
+under the same licence. It is what GIMP, Krita and LibreSprite use, and it means
+this cannot be closed: any improvement you make and publish stays available to
+whoever comes next.

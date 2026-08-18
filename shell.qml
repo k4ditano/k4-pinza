@@ -1,4 +1,12 @@
-//  pinza — editor de pixel art.
+//  K4 Pinza — editor de pixel art.
+//
+//  Copyright (C) 2026 k4ditano
+//
+//  Este programa es software libre: puedes redistribuirlo y/o modificarlo bajo
+//  los términos de la Licencia Pública General de GNU, versión 3 o posterior,
+//  tal y como la publica la Free Software Foundation. Se distribuye con la
+//  esperanza de que sea útil, pero SIN NINGUNA GARANTÍA. El texto completo está
+//  en el fichero LICENSE, y también en <https://www.gnu.org/licenses/>.
 //
 //  Esto monta la ventana y reparte el sitio. No hay lógica de nada aquí: el
 //  documento vive en servicios/Documento.qml, lo que se puede hacer está en

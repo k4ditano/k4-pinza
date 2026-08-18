@@ -145,3 +145,11 @@ cuenta cómo está repartido, por qué, y las seis cosas que este Qt hace mal y 
 que saber antes de acercarse al lienzo.
 
     ./pruebas/correr            las pruebas, sin abrir una ventana
+
+## Licencia
+
+[GPL-3.0](LICENSE). Úsalo, tócalo y véndelo si quieres; lo único que se pide es
+que si repartes una versión cambiada, repartas también su código con la misma
+licencia. Es la de GIMP, Krita y LibreSprite, y significa que esto no se puede
+cerrar: cualquier mejora que le hagas y publiques sigue estando disponible para
+quien venga detrás.

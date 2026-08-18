@@ -89,7 +89,8 @@ Item {
             "orientaciones": cOrientaciones, "pack": cPack, "comprobar": cComprobar,
             "etiqueta": cEtiqueta, "cuantizar": cCuantizar, "desplazar": cDesplazar,
             "importar": cImportar, "exportarAnim": cAnim, "guiones": cGuiones,
-            "especie": cEspecie, "transformar": cTransformar
+            "especie": cEspecie, "transformar": cTransformar,
+            "acciones": cAcciones
         })
 
         Flickable {
@@ -114,7 +115,8 @@ Item {
         "escalar": "escalar el dibujo", "orientaciones": "orientaciones", "pack": "pack",
         "comprobar": "comprobaciones del juego", "etiqueta": "etiqueta",
         "cuantizar": "cuantizar", "desplazar": "desplazar envolviendo",
-        "importar": "importar", "exportarAnim": "exportar animación"
+        "importar": "importar", "exportarAnim": "exportar animación",
+        "acciones": "acciones de la criatura"
     })
 
     // ═══════════════════════════════════════════════════════════
@@ -679,6 +681,185 @@ Item {
     // ═══════════════════════════════════════════════════════════
     // orientaciones
     // ═══════════════════════════════════════════════════════════
+
+    /**
+     * Las acciones de una criatura hecha a mano.
+     *
+     * La hoja de «especie» empieza por la criatura y baja hasta el dibujo, que
+     * es el camino de quien hace arte para un juego que ya manda: eliges el
+     * pack, te da ocho nombres, los rellenas. Esta va al revés y es el camino
+     * de quien está dibujando: tienes algo delante, decides que va a ser un
+     * bicho, y le vas poniendo acciones con los nombres y las caras que tú
+     * digas. Sin pack y sin plantilla.
+     */
+    Component {
+        id: cAcciones
+        Column {
+            id: hojaAcc
+            spacing: 9
+            property string nueva: ""
+            property int caras: 8
+            property int fotogramas: 4
+            property string nombreNuevo: S.Documento.nombre || "MiBicho"
+            property string primera: "Idle"
+
+            // ── convertir lo que hay en una criatura ─────────────
+            Column {
+                width: parent.width
+                spacing: 7
+                visible: !S.Especie.abierta
+
+                Text {
+                    width: parent.width
+                    text: "lo que tienes delante se convierte en su primera acción, tal cual: "
+                          + "no se pierde nada y no hay que volver a dibujarlo"
+                    wrapMode: Text.WordWrap
+                    font.family: C.Tema.tipo; font.pixelSize: 10; color: C.Tema.tenue
+                }
+                C.Campo {
+                    width: parent.width
+                    etiqueta: "se llama"
+                    valor: hojaAcc.nombreNuevo
+                    onCambiado: (v) => hojaAcc.nombreNuevo = v
+                }
+                C.Campo {
+                    width: parent.width
+                    etiqueta: "su acción"
+                    valor: hojaAcc.primera
+                    onCambiado: (v) => hojaAcc.primera = v
+                }
+                C.Boton {
+                    width: parent.width
+                    activo: true
+                    texto: "hacer una criatura con esto"
+                    tenue: !S.Documento.abierto
+                    onPulsado: {
+                        S.Especie.desdeDocumento({
+                            nombre: hojaAcc.nombreNuevo,
+                            accion: hojaAcc.primera,
+                            carpeta: S.Ajustes.taller,
+                        }, null)
+                    }
+                }
+            }
+
+            // ── las que ya tiene ────────────────────────────────
+            Column {
+                width: parent.width
+                spacing: 3
+                visible: S.Especie.abierta
+
+                C.Rotulo { text: S.Especie.rev, S.Especie.nombre + " · "
+                                 + S.Especie.acciones.length + " acciones" }
+
+                Repeater {
+                    model: S.Especie.rev, S.Especie.acciones
+                    Row {
+                        id: fila
+                        width: parent.width
+                        spacing: 4
+                        //  Por `id` y no por `parent`: dentro de un Row el hijo
+                        //  ve al Row como padre, pero un enlace que sube por
+                        //  ahí se queda mudo en cuanto algo lo reevalúa antes
+                        //  de que el Row esté montado — y quedarse mudo aquí es
+                        //  quedarse sin el dato que has venido a mirar.
+                        readonly property var info: S.Especie.rev, S.Especie.d
+                                                    ? S.Especie.d.acciones[modelData.id] : null
+                        C.Boton {
+                            width: fila.width - 122
+                            texto: modelData.id
+                            activo: S.Especie.accion === modelData.id
+                            pista: "abrir esta acción para dibujarla"
+                            onPulsado: S.Especie.editaAccion(modelData.id, null)
+                        }
+                        Text {
+                            width: 78
+                            anchors.verticalCenter: parent.verticalCenter
+                            //  Abreviado porque la hoja es estrecha: «24×40 4f 8c»
+                            //  se lee de un vistazo y cabe. Con las palabras
+                            //  enteras se cortaba justo en el número de caras,
+                            //  que es el dato que has venido a mirar.
+                            //  Las caras sólo si la ficha las sabe. Poner «1c»
+                            //  cuando no consta sería inventarse el dato justo
+                            //  en la columna que has venido a leer.
+                            text: fila.info
+                                  ? fila.info.ancho + "×" + fila.info.alto + "  "
+                                    + fila.info.fotogramas + "f"
+                                    + (fila.info.orientaciones
+                                       ? "  " + fila.info.orientaciones + "c" : "")
+                                  : ""
+                            font.family: C.Tema.tipoMono; font.pixelSize: 9
+                            color: C.Tema.tenue
+                            elide: Text.ElideRight
+                        }
+                        C.Boton {
+                            width: 26
+                            icono: C.Tema.i.basura
+                            peligro: true
+                            pista: "quitarla de la ficha. El dibujo se queda en el disco."
+                            onPulsado: S.Especie.borraAccion(modelData.id, null)
+                        }
+                    }
+                }
+            }
+
+            // ── una más ─────────────────────────────────────────
+            Column {
+                width: parent.width
+                spacing: 7
+                visible: S.Especie.abierta
+
+                Item { width: 1; height: 6 }
+                C.Rotulo { text: "añadir una acción" }
+                C.Campo {
+                    width: parent.width
+                    etiqueta: "nombre"
+                    valor: hojaAcc.nueva
+                    onCambiado: (v) => hojaAcc.nueva = v
+                }
+                C.Campo {
+                    width: parent.width
+                    etiqueta: "fotogramas"; numero: true; minimo: 1; maximo: 240
+                    valor: String(hojaAcc.fotogramas)
+                    onCambiado: (v) => hojaAcc.fotogramas = parseInt(v) || 1
+                }
+                C.Opcion {
+                    width: parent.width
+                    etiqueta: "caras"; anchoEtiqueta: 62
+                    opciones: [{ id: "1", titulo: "una" }, { id: "4", titulo: "cuatro" },
+                               { id: "8", titulo: "ocho" }]
+                    valor: String(hojaAcc.caras)
+                    pistas: ["para un icono o un objeto: se ve igual desde donde lo mires",
+                             "S E N W, para algo que gira en cuatro pasos",
+                             "las ocho de PMD: un bicho que anda y hay que verlo venir"]
+                    onCambiado: (v) => hojaAcc.caras = parseInt(v)
+                }
+                C.Boton {
+                    width: parent.width
+                    activo: true
+                    texto: "añadir"
+                    tenue: hojaAcc.nueva.trim() === ""
+                    onPulsado: {
+                        const n = hojaAcc.nueva.trim()
+                        if (!n) return
+                        S.Especie.añadeAccion(n, {
+                            ancho: S.Documento.ancho, alto: S.Documento.alto,
+                            fotogramas: hojaAcc.fotogramas,
+                            orientaciones: hojaAcc.caras,
+                        }, (bien) => { if (bien) hojaAcc.nueva = "" })
+                    }
+                }
+                Text {
+                    width: parent.width
+                    text: "nace vacía y con el tamaño de lo que tienes abierto. Se dibuja "
+                          + "pulsándola arriba, y las caras que falten se pueden copiar de "
+                          + "una que ya esté hecha desde el compás."
+                    wrapMode: Text.WordWrap
+                    font.family: C.Tema.tipo; font.pixelSize: 10; color: C.Tema.tenue
+                }
+            }
+        }
+    }
 
     Component {
         id: cOrientaciones

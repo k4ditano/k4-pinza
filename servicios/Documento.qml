@@ -124,6 +124,8 @@ Singleton {
     readonly property int nOrientaciones: rev, memoria.d ? memoria.d.orientaciones.length : 1
     readonly property string nombre: rev, memoria.d ? memoria.d.nombre : ""
     readonly property string ruta: rev, memoria.d ? (memoria.d.ruta || "") : ""
+    /** El PNG del que salió, si salió de uno. Vacío para un proyecto normal. */
+    readonly property string imagen: rev, memoria.d ? (memoria.d.imagen || "") : ""
     readonly property bool sucio: rev + revPixeles, memoria.d ? !!memoria.d.sucio : false
 
     property alias capaActiva: memoria.capaActiva
@@ -174,6 +176,9 @@ Singleton {
             pack: o.pack || "generico",
             contrato: o.contrato || null,
             baldosa: o.baldosa || null,     // {ancho, alto} si es un tileset
+            //  De qué fichero salió, cuando salió de una imagen suelta y no de
+            //  un proyecto. Guardar la devuelve ahí en vez de pedir carpeta.
+            imagen: o.imagen || "",
             campos: o.campos || {},         // lo que pide el contrato (desc, family, accion...)
             huella: o.huella || null,       // en casillas, si el contrato la lleva
             sucio: false
@@ -940,5 +945,11 @@ Singleton {
         cambia()
     }
     function ponNombre(n) { if (memoria.d) { memoria.d.nombre = n; cambia() } }
+    function ponImagen(r) {
+        if (!memoria.d) return
+        memoria.d.imagen = r
+        cambia()
+    }
+
     function ponRuta(r) { if (memoria.d) { memoria.d.ruta = r; cambia() } }
 }

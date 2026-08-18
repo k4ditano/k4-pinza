@@ -24,6 +24,7 @@
 import QtQuick
 import QtQml
 import QtQuick.Window
+import QtQuick.Dialogs
 import Quickshell
 import Quickshell.Io
 import "core" as C
@@ -324,6 +325,7 @@ ShellRoot {
             const dos = nombre.split(":")
             hojas.abre(dos[0], dos[1])
         }
+        function onPideAbrirImagen() { abrirImagenDlg.open() }
         function onPideAviso(texto) { aviso.di(texto) }
         function onPideAjuste() { lienzo.ajusta() }
         function onPideTema() { C.Tema.oscuro = !C.Tema.oscuro }
@@ -408,6 +410,16 @@ ShellRoot {
                 id: abrirDlg
                 titulo: "Abrir un proyecto"
                 onElegida: (ruta) => S.Proyecto.abre(ruta, null)
+            }
+            //  Un PNG suelto se abre con un selector de FICHEROS y no de
+            //  carpetas: un proyecto es una carpeta y una imagen es un
+            //  fichero, y ningún diálogo del sistema elige las dos cosas. Por
+            //  eso son dos órdenes y no una con un desplegable.
+            FileDialog {
+                id: abrirImagenDlg
+                title: "Abrir una imagen"
+                nameFilters: ["Imágenes (*.png *.jpg *.jpeg *.gif *.bmp *.webp)", "Todo (*)"]
+                onAccepted: S.Proyecto.abreImagen(String(selectedFile).replace("file://", ""), null)
             }
             SelectorCarpeta {
                 id: abrirEspecieDlg
@@ -525,6 +537,14 @@ ShellRoot {
         function especie(ruta: string): string {
             if (!ruta) return "hace falta una ruta"
             S.Especie.abre(ruta, null)
+            ventana.visible = true
+            return "abriendo " + ruta
+        }
+
+        /** Abrir un PNG suelto para retocarlo. */
+        function imagen(ruta: string): string {
+            if (!ruta) return "hace falta una ruta"
+            S.Proyecto.abreImagen(ruta, null)
             ventana.visible = true
             return "abriendo " + ruta
         }

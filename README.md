@@ -51,6 +51,12 @@ touching anything.
     pinza Bicho.pinza        open that project
     pinza dibujo.png         import it as a layer
 
+A loose PNG also opens for editing, and saving puts it back in its own file
+rather than through a project you did not want. And if the drawing is going to
+be a character, `Ctrl+K` → "acciones" turns it into one: you add actions with
+whatever names you like, choose how many facings each has, and the missing
+facings copy from one you have already drawn. No pack needed for any of it.
+
 `Ctrl+K` opens the command palette and **everything** is in there, searchable by
 loose fragments: "fl h" finds "Flip horizontally". No menus to walk through.
 

@@ -22,6 +22,8 @@ Singleton {
     id: ord
 
     signal pideHoja(string nombre)
+    /** Elegir un PNG del disco para abrirlo como documento. */
+    signal pideAbrirImagen()
     signal pideAviso(string texto)
     signal pideAjuste()
 
@@ -212,14 +214,22 @@ Singleton {
           hacer: () => ord.pideHoja("abrir") },
         { id: "guardar", titulo: "Guardar", grupo: "fichero", icono: "guardar", atajo: "Ctrl+S",
           cuando: () => ord.hayDoc,
-          hacer: () => S.Documento.ruta
-                       //  Con una criatura abierta, guardar es guardar las dos
-                       //  cosas: el dibujo y su ficha. La geometría de la
-                       //  acción vive en la ficha, no en el .pinza.
-                       ? S.Proyecto.guarda(null, (bien) => {
-                             if (bien && S.Especie.abierta) S.Especie.recogeYGuarda(null)
-                         })
-                       : ord.pideHoja("guardarComo") },
+          hacer: () => {
+              //  Lo que abriste es lo que guardas. Un PNG suelto vuelve a su
+              //  fichero; pedirle una carpeta de proyecto a quien sólo quería
+              //  retocar una imagen es el rodeo que esto quita.
+              if (!S.Documento.ruta && S.Documento.imagen) { S.Proyecto.guardaImagen(null); return }
+              //  Con una criatura abierta, guardar es guardar las dos cosas: el
+              //  dibujo y su ficha. La geometría de la acción vive en la ficha,
+              //  no en el .pinza.
+              if (S.Documento.ruta) {
+                  S.Proyecto.guarda(null, (bien) => {
+                      if (bien && S.Especie.abierta) S.Especie.recogeYGuarda(null)
+                  })
+                  return
+              }
+              ord.pideHoja("guardarComo")
+          } },
         //  El título no cambia con lo que haya abierto: `lista` es un enlace
         //  con las setenta y pico órdenes, y hacerlo depender de la especie las
         //  reconstruiría todas en cada cambio de acción. Lo que hace falta
@@ -231,6 +241,10 @@ Singleton {
         { id: "exportarGif", titulo: "Exportar GIF", grupo: "fichero", icono: "gif",
           cuando: () => ord.hayDoc && S.Documento.nFotogramas > 1,
           hacer: () => ord.pideHoja("exportarAnim") },
+        { id: "abrirImagen", titulo: "Abrir una imagen…", grupo: "fichero", icono: "carpeta",
+          hacer: () => ord.pideAbrirImagen() },
+        { id: "acciones", titulo: "Acciones de la criatura…", grupo: "especie", icono: "juego",
+          cuando: () => ord.hayDoc, hacer: () => ord.pideHoja("acciones") },
         { id: "importar", titulo: "Importar imagen…", grupo: "fichero", icono: "importar",
           hacer: () => ord.pideHoja("importar") },
         { id: "cerrar", titulo: "Cerrar", grupo: "fichero", icono: "cerrar", cuando: () => ord.hayDoc,
@@ -438,6 +452,11 @@ Singleton {
           grupo: "orientaciones", icono: "espejo",
           cuando: () => ord.hayDoc && ord.parejaEspejo() >= 0,
           hacer: () => ord.aplicaEspejo() },
+        { id: "repartirCara",
+          titulo: "Copiar esta cara en las que están en blanco",
+          grupo: "orientaciones", icono: "duplicar",
+          cuando: () => ord.hayDoc && S.Documento.nOrientaciones > 1 && ord.carasVacias() > 0,
+          hacer: () => ord.repartirCara() },
         { id: "orientacionSiguiente", titulo: "Orientación siguiente", grupo: "orientaciones",
           atajo: "Tab", cuando: () => ord.hayDoc && S.Documento.nOrientaciones > 1,
           hacer: () => S.Documento.orientacion =
@@ -621,17 +640,72 @@ Singleton {
      * el oeste sale solo. El contrato dice qué pareja con qué; si no lo dice,
      * no hay espejo y esta orden no aparece.
      */
+    /**
+     * Las parejas de espejo cuando no hay contrato que las diga.
+     *
+     * Los nombres de PMD son los mismos siempre, así que la pareja se sabe sin
+     * que nadie la declare: la derecha es la izquierda volteada. Sin esto,
+     * generar una cara volteando la otra sólo funcionaba dentro de un pack, y
+     * es justo lo que más falta hace en una criatura que te estás haciendo tú.
+     */
+    readonly property var _espejoPmd: ({
+        Right: "Left", UpRight: "UpLeft", DownRight: "DownLeft",
+        E: "W",
+    })
+
     function parejaEspejo() {
         const d = S.Documento.d
-        if (!d || !d.contrato || !d.contrato.espejo) return -1
+        if (!d || !d.orientaciones || d.orientaciones.length < 2) return -1
         const yo = S.Documento.etiquetaOrientacion(S.Documento.orientacion)
-        const esp = d.contrato.espejo
+        const esp = (d.contrato && d.contrato.espejo) ? d.contrato.espejo : _espejoPmd
         const claves = Object.keys(esp)
         for (let i = 0; i < claves.length; i++) {
             if (esp[claves[i]] === yo) return d.orientaciones.indexOf(claves[i])
             if (claves[i] === yo) return d.orientaciones.indexOf(esp[claves[i]])
         }
         return -1
+    }
+
+    /** Cuántas caras están sin dibujar en el fotograma que miras. */
+    function carasVacias() {
+        if (!S.Documento.abierto) return 0
+        const c = _capa()
+        if (!c) return 0
+        let n = 0
+        for (let dr = 0; dr < S.Documento.nOrientaciones; dr++) {
+            if (dr === S.Documento.orientacion) continue
+            const b = S.Documento.celda(c.id, S.Documento.fotograma, dr, false)
+            if (!b || P.vacio(b)) n++
+        }
+        return n
+    }
+
+    /**
+     * Esta cara, copiada en todas las que están en blanco.
+     *
+     * Ocho caras es dibujar ocho veces, y las siete que faltan casi nunca se
+     * empiezan de cero: se parte de la que ya tienes y se corrige. Esto da el
+     * punto de partida de golpe, en un solo paso del historial, y NO toca las
+     * que ya tienen algo — repartir encima de lo que llevas dibujado sería la
+     * ayuda borrándote el trabajo.
+     */
+    function repartirCara() {
+        const c = _capa()
+        if (!c) return
+        const fuente = S.Documento.celda(c.id, S.Documento.fotograma, S.Documento.orientacion, false)
+        if (!fuente || P.vacio(fuente)) { pideAviso("esta cara está en blanco"); return }
+        let n = 0
+        _conEstructura("repartir la cara", () => {
+            for (let dr = 0; dr < S.Documento.nOrientaciones; dr++) {
+                if (dr === S.Documento.orientacion) continue
+                const b = S.Documento.celda(c.id, S.Documento.fotograma, dr, false)
+                if (b && !P.vacio(b)) continue
+                const destino = S.Documento.celda(c.id, S.Documento.fotograma, dr, true)
+                P.vuelca(destino, fuente, 0, 0)
+                n++
+            }
+        })
+        pideAviso(n + (n === 1 ? " cara copiada" : " caras copiadas"))
     }
 
     function aplicaEspejo() {

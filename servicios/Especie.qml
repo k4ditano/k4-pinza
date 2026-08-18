@@ -57,7 +57,36 @@ Singleton {
         const c = S.Packs.contrato("pmd")
         return c && c.especie ? c.especie : null
     }
-    readonly property var acciones: plantilla ? plantilla.acciones : []
+    /**
+     * Las acciones que hay, que son las de la CRIATURA y no las del pack.
+     *
+     * Salían del contrato y sólo del contrato, así que una criatura sólo podía
+     * existir dentro de un pack que trajera una plantilla: sin él no había
+     * acciones que dibujar y la mitad del programa se apagaba. Y era al revés
+     * de como se trabaja — abres un dibujo, decides que va a ser un bicho, y
+     * le vas poniendo acciones con los nombres que quieras.
+     *
+     * La plantilla se queda como lo que siempre debió ser: de dónde sales
+     * cuando empiezas una criatura para un juego que sí manda. En cuanto la
+     * criatura existe, manda ella.
+     */
+    readonly property var acciones: {
+        rev
+        if (memoria.d && memoria.d.acciones) {
+            const ids = Object.keys(memoria.d.acciones)
+            return ids.map((id) => {
+                const a = memoria.d.acciones[id]
+                return {
+                    id: id, lado: a.ancho, ancho: a.ancho, alto: a.alto,
+                    fotogramas: a.fotogramas, duraciones: a.duraciones,
+                    orientaciones: a.orientaciones,
+                    hitFrame: a.hitFrame || 0, rushFrame: a.rushFrame || 0,
+                    returnFrame: a.returnFrame || 0,
+                }
+            })
+        }
+        return plantilla ? plantilla.acciones : []
+    }
 
     /** La siguiente o la anterior, para saltar sin soltar el lápiz. */
     function saltaAccion(paso) {
@@ -87,6 +116,10 @@ Singleton {
                 indice: i,
                 ancho: a.lado, alto: a.lado,
                 fotogramas: a.fotogramas,
+                //  Las caras que pide el contrato. Sin esto la ficha no las
+                //  guardaba de nada y la hoja de acciones decía «1 cara» de una
+                //  criatura de ocho.
+                orientaciones: a.orientaciones || _carasDelContrato(),
                 duraciones: a.duraciones.slice(),
                 hitFrame: a.hitFrame || 0,
                 rushFrame: a.rushFrame || 0,
@@ -109,6 +142,102 @@ Singleton {
         _ultimoEscrito = ""
         _avisa()
         return memoria.d
+    }
+
+    /**
+     * Una criatura a partir de lo que ya tienes delante.
+     *
+     * El camino natural, y el que faltaba: abres un dibujo, decides que va a
+     * ser un bicho, y lo que ya has dibujado se convierte en su primera
+     * acción. Antes había que empezar por la criatura —eligiendo un pack que
+     * trajera plantilla— y sólo después dibujar, que es pedirle a alguien que
+     * decida el nombre de las ocho animaciones antes de haber hecho ninguna.
+     *
+     * No pide contrato: la criatura declara sus propias acciones. Si el pack
+     * trae plantilla, `nueva` sigue estando para empezar por ahí.
+     */
+    function desdeDocumento(o, cb) {
+        if (!S.Documento.abierto) { falla("criatura", "no hay nada abierto"); if (cb) cb(false); return }
+        const nom = (o && o.nombre) || S.Documento.nombre || "MiBicho"
+        const accion = (o && o.accion) || "Idle"
+        memoria.d = {
+            nombre: nom,
+            dex: (o && o.dex) || 10000,
+            role: (o && o.role) || "prey",
+            shadowSize: (o && o.shadowSize) !== undefined ? o.shadowSize : 1,
+            tipos: (o && o.tipos) || ["normal"],
+            stats: (o && o.stats) || { hp: 50, atk: 50, def: 50, spa: 50, spd: 50, spe: 50 },
+            ruta: "",
+            acciones: {},
+        }
+        memoria.accionActiva = ""
+        _ultimoEscrito = ""
+        _apunta(accion, 0)
+        //  Lo dibujado ES la primera acción, así que se guarda tal cual en su
+        //  carpeta en vez de crear un documento nuevo y perderlo.
+        const carpeta = (o && o.carpeta) || ""
+        if (!carpeta) { _avisa(); if (cb) cb(true); return }
+        memoria.d.ruta = carpeta + "/" + nom + ".especie"
+        S.Proyecto.guarda(carpetaDe(accion), (bien) => {
+            if (!bien) { falla("criatura", "no se pudo guardar la primera acción"); if (cb) cb(false); return }
+            memoria.accionActiva = accion
+            recogeDelDocumento()
+            guarda(null, (ok) => { _avisa(); if (cb) cb(ok) })
+        })
+        return memoria.d
+    }
+
+    /** Apunta una acción en la ficha con la geometría que se le diga. */
+    function _apunta(id, indice, geo) {
+        const g = geo || {}
+        memoria.d.acciones[id] = {
+            indice: indice,
+            ancho: g.ancho || S.Documento.ancho || 32,
+            alto: g.alto || S.Documento.alto || 32,
+            fotogramas: g.fotogramas || S.Documento.nFotogramas || 1,
+            duraciones: g.duraciones
+                        || (function () {
+                               const d = []
+                               const n = g.fotogramas || S.Documento.nFotogramas || 1
+                               for (let i = 0; i < n; i++) d.push(g.duracion || 6)
+                               return d
+                           })(),
+            orientaciones: g.orientaciones || S.Documento.nOrientaciones || 1,
+            hitFrame: 0, rushFrame: 0, returnFrame: 0,
+            hecha: false,
+        }
+    }
+
+    /**
+     * Una acción más, con el nombre y la forma que le digas.
+     *
+     * `orientaciones` es el número de caras: una para un icono, ocho para un
+     * bicho que anda. Se pregunta y no se adivina — el mismo dibujo vale para
+     * las dos cosas y sólo tú sabes cuál de ellas estás haciendo.
+     */
+    function añadeAccion(id, geo, cb) {
+        if (!memoria.d) { falla("acción", "no hay criatura abierta"); if (cb) cb(false); return }
+        const nombre = String(id || "").trim()
+        if (!nombre) { falla("acción", "hace falta un nombre"); if (cb) cb(false); return }
+        if (memoria.d.acciones[nombre]) { falla("acción", "ya hay una que se llama «" + nombre + "»"); if (cb) cb(false); return }
+        _apunta(nombre, Object.keys(memoria.d.acciones).length, geo)
+        _avisa()
+        if (!memoria.d.ruta) { if (cb) cb(true); return }
+        guarda(null, cb)
+    }
+
+    /** Fuera una acción. Su carpeta se queda en el disco: borrar dibujos no. */
+    function borraAccion(id, cb) {
+        if (!memoria.d || !memoria.d.acciones[id]) { if (cb) cb(false); return }
+        if (Object.keys(memoria.d.acciones).length <= 1) {
+            falla("acción", "una criatura sin acciones no es nada")
+            if (cb) cb(false); return
+        }
+        delete memoria.d.acciones[id]
+        if (memoria.accionActiva === id) memoria.accionActiva = ""
+        _avisa()
+        if (!memoria.d.ruta) { if (cb) cb(true); return }
+        guarda(null, cb)
     }
 
     function cierra(cb) {
@@ -350,13 +479,37 @@ Singleton {
         guarda(null, cb)
     }
 
+    /** Cuántas caras pide el pack. Ocho si no dice nada: es lo que usa PMD. */
+    function _carasDelContrato() {
+        const c = S.Packs.contrato("pmd")
+        return (c && c.orientaciones && c.orientaciones.length) || 8
+    }
+
+    //  Las ocho caras de PMD, por si la criatura no dice otra cosa.
+    readonly property var _ochoCaras: ["Down", "DownRight", "Right", "UpRight",
+                                       "Up", "UpLeft", "Left", "DownLeft"]
+
     function _creaDocumentoDe(id, info) {
         const con = S.Packs.contrato("pmd")
-        const o = S.Packs.paraDocumento(con, {
-            nombre: memoria.d.nombre,
-            ancho: info.ancho, alto: info.alto,
-            fotogramas: info.fotogramas
-        })
+        //  Con contrato sale de él, que es quien manda cuando el arte va a un
+        //  juego concreto. Sin contrato —una criatura que te has hecho tú— sale
+        //  de la propia acción, que para eso guarda cuántas caras tiene. Antes
+        //  esto era sólo la primera rama y una criatura sin pack nacía con las
+        //  ocho caras quisiera o no.
+        const o = con
+            ? S.Packs.paraDocumento(con, {
+                  nombre: memoria.d.nombre,
+                  ancho: info.ancho, alto: info.alto,
+                  fotogramas: info.fotogramas
+              })
+            : {
+                  nombre: memoria.d.nombre,
+                  ancho: info.ancho, alto: info.alto,
+                  fotogramas: info.fotogramas,
+                  orientaciones: (info.orientaciones || 1) >= 8
+                      ? _ochoCaras
+                      : (info.orientaciones === 4 ? ["S", "E", "N", "W"] : ["u"]),
+              }
         S.Documento.nuevo(o)
         for (let f = 0; f < info.fotogramas; f++)
             S.Documento.ponDuracion(f, info.duraciones[f] || 6)
@@ -384,6 +537,9 @@ Singleton {
         info.ancho = S.Documento.ancho
         info.alto = S.Documento.alto
         info.fotogramas = S.Documento.nFotogramas
+        //  Las caras de verdad, las del documento. Así una criatura hecha antes
+        //  de que la ficha las guardara se arregla sola en cuanto la visitas.
+        info.orientaciones = S.Documento.nOrientaciones
         info.duraciones = []
         for (let f = 0; f < S.Documento.nFotogramas; f++) info.duraciones.push(S.Documento.duracion(f))
         const c = S.Documento.d.campos || {}

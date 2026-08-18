@@ -56,6 +56,8 @@ Singleton {
         _enCola = null
         if (!p) return
         if (p.que === "abrir") abre(p.ruta, p.cb)
+        else if (p.que === "abrirImagen") abreImagen(p.ruta, p.cb)
+        else if (p.que === "guardarImagen") guardaImagen(p.cb)
         else guarda(p.ruta, p.cb)
     }
 
@@ -443,6 +445,67 @@ Singleton {
     // ═══════════════════════════════════════════════════════════
 
     /** Un PNG suelto como capa nueva del documento actual. */
+    /**
+     * Un PNG suelto, abierto para tocarlo.
+     *
+     * Se podía meter una imagen, pero sólo como CAPA del documento que
+     * tuvieras delante: con una criatura abierta, tu dibujo aterrizaba dentro
+     * de la criatura. Y estaba en «importar», que es donde se busca cuando
+     * quieres traer algo a un trabajo que ya existe, no cuando el trabajo ES
+     * la imagen.
+     *
+     * Esto abre la imagen y ya: un documento de su tamaño, con ella dentro, y
+     * apuntando de dónde salió para que guardar la devuelva a su sitio en vez
+     * de pedirte una carpeta. Abrir un PNG, cambiar tres píxeles y guardar
+     * tiene que ser eso y no un rodeo por un proyecto que no querías.
+     */
+    function abreImagen(ruta, cb) {
+        if (ocupado) { _enCola = { que: "abrirImagen", ruta: ruta, cb: cb }; return }
+        estado = "abriendo"
+        exportador.dePng(ruta, (buf) => {
+            estado = ""
+            if (!buf) {
+                falla("abrir", "no se puede leer " + ruta)
+                if (cb) cb(false); _despacha(); return
+            }
+            const nombre = ruta.split("/").pop().replace(/\.[^.]+$/, "")
+            S.Documento.nuevo({ nombre: nombre, ancho: buf.w, alto: buf.h })
+            const celda = S.Documento.celdaActiva(true)
+            P.vuelca(celda, buf, 0, 0)
+            S.Documento.ponImagen(ruta)
+            S.Documento.cambiaPixeles(null)
+            S.Documento.limpio()
+            S.Historial.limpia()
+            ultimoMensaje = "abierta " + ruta
+            hecho("abrir", ruta)
+            if (cb) cb(true)
+            _despacha()
+        })
+    }
+
+    /**
+     * La imagen, de vuelta al fichero del que salió.
+     *
+     * Aplana lo que haya —capas, fotograma y cara actuales— porque un PNG no
+     * sabe de capas: lo que se escribe es lo que ves.
+     */
+    function guardaImagen(cb) {
+        const ruta = S.Documento.imagen
+        if (!ruta) { falla("guardar", "esto no salió de una imagen"); if (cb) cb(false); return }
+        if (ocupado) { _enCola = { que: "guardarImagen", cb: cb }; return }
+        estado = "guardando"
+        const buf = P.clonar(S.Documento.compuesto())
+        exportador.escribe(ruta, buf, (bien) => {
+            estado = ""
+            if (!bien) { falla("guardar", "no se pudo escribir " + ruta); if (cb) cb(false); _despacha(); return }
+            S.Documento.limpio()
+            ultimoMensaje = "guardada " + ruta
+            hecho("guardar", ruta)
+            if (cb) cb(true)
+            _despacha()
+        })
+    }
+
     function importaComoCapa(ruta, cb) {
         exportador.dePng(ruta, (buf) => {
             if (!buf) { falla("importar", "no se puede leer " + ruta); return }

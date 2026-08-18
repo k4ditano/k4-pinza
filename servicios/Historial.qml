@@ -224,12 +224,31 @@ Singleton {
     }
 
     /** Copia superficial del mapa: las claves sí, los búferes por referencia. */
+    /**
+     * Las celdas de ahora, COPIADAS.
+     *
+     * Guardaba referencias, y una foto que apunta a lo que sigue cambiando no
+     * es una foto. Funcionaba de milagro: casi todo lo que abre un paso de
+     * estructura —redimensionar, recortar, girar— SUSTITUYE los búferes por
+     * otros nuevos, así que las referencias viejas seguían valiendo. En cuanto
+     * una operación escribe DENTRO de una celda que ya existía, el «antes» se
+     * convierte en el «después» y deshacer no deshace nada.
+     *
+     * Se vio al repartir una cara en las demás: las celdas ya existían —un
+     * documento nace con todas—, así que rellenarlas era escribir encima de la
+     * propia foto. Copiar ochenta celdas de 32×32 son trescientos kilobytes, y
+     * un paso de estructura no es un trazo: pasa cuando cambias la forma del
+     * documento, no sesenta veces por segundo.
+     */
     function _copiaMapa() {
         const d = S.Documento.d
         if (!d) return {}
         const out = {}
         const k = Object.keys(d.celdas)
-        for (let i = 0; i < k.length; i++) out[k[i]] = d.celdas[k[i]]
+        for (let i = 0; i < k.length; i++) {
+            const v = d.celdas[k[i]]
+            out[k[i]] = (v && v.enlace) ? { enlace: v.enlace } : P.clonar(v)
+        }
         return out
     }
 

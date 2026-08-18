@@ -50,6 +50,12 @@ tocar nada.
     pinza Bicho.pinza        abrir ese proyecto
     pinza dibujo.png         importarlo como capa
 
+Un PNG suelto también se abre para retocarlo y guardar lo devuelve a su fichero,
+sin pasar por un proyecto que no querías. Y si el dibujo va a ser un personaje,
+`Ctrl+K` → «acciones» lo convierte en uno: le pones acciones con los nombres que
+quieras, eliges cuántas caras lleva cada una, y las que falten se copian de la
+que ya tengas hecha. No hace falta ningún pack para eso.
+
 `Ctrl+K` abre la paleta de comandos y ahí está **todo**, buscando por trozos
 sueltos: «vol h» encuentra «Voltear en horizontal». No hay menús que recorrer.
 

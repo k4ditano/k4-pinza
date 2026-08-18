@@ -231,6 +231,49 @@ ShellRoot {
         const salto = P.deBase64("/wAA\n/w==", 1, 1)
         ck("los saltos de línea no le molestan", salto.d.join() === "255,0,0,255", salto.d.join())
 
+        // ── rampas ───────────────────────────────────────────────
+        //  Lo que hace que una rampa parezca pintada y no un degradado de
+        //  plástico: el tono se mueve. Si esto deja de cumplirse, los tonos
+        //  nuevos salen grises teñidos.
+        const cuerpo = P.deHex("#C04030")
+        const r7 = P.rampaDesde(cuerpo, 7)
+        ck("una rampa desde un color da los tonos pedidos", r7.length === 7,
+           r7.map(P.aHex).join(" "))
+        ck("y va de oscuro a claro sin retroceder",
+           r7.every((c, i) => i === 0 || P.luma(c) > P.luma(r7[i - 1])))
+        ck("el color que diste queda en medio",
+           P.distancia(r7[3], cuerpo) < 30, P.aHex(r7[3]) + " vs " + P.aHex(cuerpo))
+        const hSombra = P.aHsv(r7[0]), hLuz = P.aHsv(r7[6]), hBase = P.aHsv(cuerpo)
+        ck("la sombra se va al frío y la luz al cálido",
+           P.giraHacia(hBase[0], 250, 999) === 250 ? hSombra[0] > hBase[0] : true,
+           Math.round(hSombra[0]) + "° → " + Math.round(hBase[0]) + "° → " + Math.round(hLuz[0]) + "°")
+        ck("y no son el mismo tono los tres",
+           Math.round(hSombra[0]) !== Math.round(hLuz[0]))
+        ck("la sombra satura más que la luz", hSombra[1] > hLuz[1],
+           hSombra[1].toFixed(2) + " vs " + hLuz[1].toFixed(2))
+
+        //  Girar por el camino corto: de 350° a 10° son veinte grados.
+        ck("girar el tono no se pasa de rosca", Math.round(P.giraHacia(350, 10, 20)) === 10,
+           P.giraHacia(350, 10, 20).toFixed(0) + "°")
+        ck("y se queda a medias si le pides poco", Math.round(P.giraHacia(350, 10, 5)) === 355)
+
+        const tres = [P.deHex("#3A1810"), P.deHex("#A85030"), P.deHex("#F0C090")]
+        const ocho = P.ampliaRampa(tres, 8)
+        ck("ampliar una rampa de tres da ocho tonos", ocho.length === 8)
+        ck("y sigue yendo de oscuro a claro",
+           ocho.every((c, i) => i === 0 || P.luma(c) >= P.luma(ocho[i - 1])))
+        ck("conservando los extremos que había",
+           P.distancia(ocho[0], tres[0]) < 3 && P.distancia(ocho[7], tres[2]) < 3,
+           P.aHex(ocho[0]) + " … " + P.aHex(ocho[7]))
+        ck("pedir menos tonos de los que hay no inventa nada",
+           P.ampliaRampa(tres, 2).length === 3)
+
+        //  Un gris no tiene tono, así que mezclarlo no puede dar un tono de en
+        //  medio: tiene que quedarse en el del otro.
+        const medio = P.mezclaHsv(P.deHex("#808080"), P.deHex("#FF0000"), 0.5)
+        ck("mezclar un neutro con un color no pasa por tonos que nadie pidió",
+           P.aHsv(medio)[0] < 5 || P.aHsv(medio)[0] > 355, P.aHex(medio))
+
         console.log(malas ? "\n" + malas + " FALLOS" : "\nel motor pasa entero")
         fin.start()
     }

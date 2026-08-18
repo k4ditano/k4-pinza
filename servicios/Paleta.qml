@@ -60,6 +60,24 @@ Singleton {
         rev++
     }
 
+    /**
+     * La paleta de un pack, con los huecos cubiertos.
+     *
+     * Los packs traen rampas de tres tonos porque es la referencia del juego —
+     * crabh saca las suyas de su style.json— y con tres no se puede sombrear:
+     * entre el cuerpo y la sombra hay un salto que a mano se cubre a ojo. Se
+     * cargan tal cual y luego se rellenan, así que los colores del pack siguen
+     * estando todos y en su sitio; lo que se añade va entre medias.
+     *
+     * No lo hace `cargaRampas` porque ése es también el camino de un .gpl o de
+     * la paleta sacada de un dibujo, y ahí inventar tonos sería mentir sobre
+     * lo que tiene la imagen.
+     */
+    function cargaRampasDePack(lista, minimo) {
+        cargaRampas(lista)
+        ampliaTodas(minimo || 9)
+    }
+
     function añadeRampa(nombre, colores) {
         const r = rampas.slice()
         r.push({ nombre: nombre || "rampa " + (r.length + 1),
@@ -85,6 +103,45 @@ Singleton {
         const cc = r[i].colores.slice(); cc.splice(j, 1)
         r[i].colores = cc
         rampas = r; rev++
+    }
+
+    /**
+     * Más tonos en una rampa, sin perder los que tenía.
+     *
+     * Los packs traen rampas de tres tonos porque es lo que el juego usa como
+     * referencia, y con tres no se puede sombrear nada: entre el cuerpo y la
+     * sombra hay un salto que a mano se cubre a ojo. Esto lo rellena
+     * interpolando, así que la rampa sigue siendo la misma con los huecos
+     * puestos.
+     */
+    function ampliaRampa(i, n) {
+        const r = rampas.slice()
+        if (!r[i]) return 0
+        r[i] = { nombre: r[i].nombre, colores: P.ampliaRampa(r[i].colores, n) }
+        rampas = r; rev++
+        return r[i].colores.length
+    }
+
+    /** Lo mismo para todas de una vez. */
+    function ampliaTodas(n) {
+        const r = rampas.map((x) => ({ nombre: x.nombre,
+                                       colores: P.ampliaRampa(x.colores, n) }))
+        rampas = r; rev++
+        return r.length
+    }
+
+    /**
+     * Una rampa nueva a partir de un color, con sus sombras y sus luces.
+     *
+     * Una rampa de un solo color no sirve para nada —ni para sombrear, ni para
+     * la tinta de degradado—, así que del primario sale la rampa entera.
+     */
+    function rampaDesde(c, n, nombre) {
+        const r = rampas.slice()
+        r.push({ nombre: nombre || "rampa " + (r.length + 1),
+                 colores: P.rampaDesde(c, n || 5) })
+        rampas = r; rampaActiva = r.length - 1; rev++
+        return r[r.length - 1].colores.length
     }
 
     function ponColor(i, j, c) {
@@ -207,9 +264,20 @@ Singleton {
         return lista.length
     }
 
-    Component.onCompleted: if (!rampas.length) cargaRampas([
-        { nombre: "neutros", colores: ["#000000", "#3A3A44", "#6B6B78", "#A8A8B4", "#E8E8F0", "#FFFFFF"] },
-        { nombre: "cálidos", colores: ["#5A2010", "#9C3A18", "#D66C34", "#F0A860", "#F8D8A8"] },
-        { nombre: "fríos",   colores: ["#10284A", "#1E4C86", "#3A80C8", "#78B4E8", "#C0E0F8"] }
-    ])
+    //  La paleta de arranque: nueve tonos por rampa, no tres.
+    //
+    //  Tres tonos valen para enseñar una rampa, no para pintar con ella. Los
+    //  anclas son los de siempre y el resto sale de interpolar, así que sigue
+    //  leyéndose igual pero se puede sombrear sin saltos.
+    Component.onCompleted: if (!rampas.length) {
+        cargaRampas([
+            { nombre: "neutros", colores: ["#000000", "#3A3A44", "#6B6B78", "#A8A8B4", "#E8E8F0", "#FFFFFF"] },
+            { nombre: "cálidos", colores: ["#5A2010", "#9C3A18", "#D66C34", "#F0A860", "#F8D8A8"] },
+            { nombre: "fríos",   colores: ["#10284A", "#1E4C86", "#3A80C8", "#78B4E8", "#C0E0F8"] },
+            { nombre: "verdes",  colores: ["#12301A", "#245C2E", "#3F9648", "#7BC96A", "#C4EBA4"] },
+            { nombre: "piel",    colores: ["#4A2018", "#8C4030", "#C87858", "#EAAA88", "#F8DCC0"] },
+            { nombre: "morados", colores: ["#221038", "#452668", "#7048A8", "#A882D8", "#D8C4F0"] }
+        ])
+        ampliaTodas(9)
+    }
 }

@@ -102,7 +102,7 @@ Singleton {
         _revisaRaiz(id)
         // la paleta del pack pasa a ser la de trabajo, y su guía la del medidor
         if (activo && activo.paletas && activo.paletas.length)
-            S.Paleta.cargaRampas(activo.paletas[0].rampas)
+            S.Paleta.cargaRampasDePack(activo.paletas[0].rampas, 9)
         S.Paleta.guia = activo ? (activo.guia || null) : null
     }
 

@@ -14,11 +14,35 @@ import QtQuick.Dialogs
 import "../core" as C
 import "../core/pixeles.js" as P
 import "../servicios" as S
+import "." as V
 
 C.Hoja {
     id: raiz
     titulo: "color"
     icono: C.Tema.i.paleta
+
+    //  Cuál de los dos colores está tocando la rueda: 0 ninguno, 1 el
+    //  primario, 2 el secundario.
+    property int cual: 0
+    function abre(q) {
+        cual = (cual === q) ? 0 : q
+        if (cual) rueda.pon(cual === 1 ? S.Paleta.primario : S.Paleta.secundario)
+    }
+    //  Si el color cambia por otro sitio —el cuentagotas, un tono de la
+    //  paleta— la rueda tiene que seguirlo, o enseñaría un color viejo.
+    //
+    //  Pero si el que cambió es el que acaba de mandar ella, no se toca: el
+    //  tono de un color de ocho bits por canal no vuelve exacto, y devolvérselo
+    //  mientras arrastras le movería la marca bajo el dedo.
+    Connections {
+        target: S.Paleta
+        function onRevChanged() {
+            if (!raiz.cual) return
+            const c = raiz.cual === 1 ? S.Paleta.primario : S.Paleta.secundario
+            if (P.aHexA(c) === P.aHexA(rueda.color)) return
+            rueda.pon(c)
+        }
+    }
 
     //  Igual que en la previa: calcularlo por enlace hace que dependa de la
     //  caché que `compuesto()` acaba de escribir. Además medir el dibujo
@@ -61,11 +85,11 @@ C.Hoja {
                 width: 26; height: 26
                 radius: 3
                 color: S.Paleta.secundarioHex
-                border.width: 1
-                border.color: C.Tema.borde
+                border.width: raiz.cual === 2 ? 2 : 1
+                border.color: raiz.cual === 2 ? C.Tema.acento : C.Tema.borde
                 MouseArea {
                     anchors.fill: parent
-                    onClicked: { elector.cual = 2; elector.selectedColor = S.Paleta.secundarioHex; elector.open() }
+                    onClicked: raiz.abre(2)
                 }
             }
             Rectangle {
@@ -74,10 +98,10 @@ C.Hoja {
                 radius: 3
                 color: S.Paleta.primarioHex
                 border.width: 2
-                border.color: C.Tema.tinta
+                border.color: raiz.cual === 1 ? C.Tema.acento : C.Tema.tinta
                 MouseArea {
                     anchors.fill: parent
-                    onClicked: { elector.cual = 1; elector.selectedColor = S.Paleta.primarioHex; elector.open() }
+                    onClicked: raiz.abre(1)
                 }
             }
             C.Boton {
@@ -112,12 +136,24 @@ C.Hoja {
             }
         }
 
-        ColorDialog {
-            id: elector
-            property int cual: 1
-            onAccepted: {
-                const c = [selectedColor.r * 255, selectedColor.g * 255, selectedColor.b * 255, 255]
-                if (cual === 1) S.Paleta.ponPrimario(c); else S.Paleta.ponSecundario(c)
+        //  La rueda, aquí mismo. Se abre pulsando el pozo del color y se
+        //  cierra volviéndolo a pulsar; mientras está abierta, el pozo que
+        //  estás tocando lleva el borde del acento para que se sepa cuál de
+        //  los dos vas a cambiar.
+        Item {
+            width: parent.width
+            height: rueda.visible ? rueda.implicitHeight + 4 : 0
+            clip: true
+            Behavior on height { NumberAnimation { duration: 110; easing.type: Easing.OutCubic } }
+
+            V.SelectorColor {
+                id: rueda
+                width: parent.width
+                visible: raiz.cual !== 0
+                onCambiado: (c) => {
+                    if (raiz.cual === 1) S.Paleta.ponPrimario(c)
+                    else if (raiz.cual === 2) S.Paleta.ponSecundario(c)
+                }
             }
         }
 
@@ -187,11 +223,18 @@ C.Hoja {
         Row {
             spacing: 2
             C.Boton { icono: C.Tema.i.mas; implicitHeight: 20; width: 24
-                      pista: "rampa nueva con el color primario"
-                      onPulsado: S.Paleta.añadeRampa(null, [S.Paleta.primario]) }
-            C.Boton { texto: "+ tono"; implicitHeight: 20; relleno: 6
+                      pista: "rampa nueva a partir del primario, con sus sombras y sus luces"
+                      onPulsado: S.Paleta.rampaDesde(S.Paleta.primario, 9) }
+            C.Boton { texto: "+ tono"; implicitHeight: 20; relleno: 5
                       pista: "añadir el primario a esta rampa"
                       onPulsado: S.Paleta.añadeColor(S.Paleta.rampaActiva, S.Paleta.primario) }
+            C.Boton { texto: "rellenar"; implicitHeight: 20; relleno: 5
+                      pista: "más tonos en esta rampa, interpolando los que ya tiene"
+                      onPulsado: {
+                          const r = S.Paleta.rampas[S.Paleta.rampaActiva]
+                          if (r) S.Paleta.ampliaRampa(S.Paleta.rampaActiva,
+                                                      Math.min(24, r.colores.length + 4))
+                      } }
             C.Boton { icono: C.Tema.i.varita; implicitHeight: 20; width: 24
                       pista: "sacar la paleta del dibujo"
                       onPulsado: S.Ordenes.ejecuta("paletaDelDibujo") }

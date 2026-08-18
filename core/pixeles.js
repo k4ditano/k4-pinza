@@ -665,6 +665,86 @@ function ordena(lista, por) {
     return c
 }
 
+/*
+ * Girar un tono hacia otro por el camino corto.
+ *
+ * El tono es un círculo, así que restar sin más se pasa de rosca: ir de 350°
+ * a 10° son veinte grados, no trescientos cuarenta.
+ */
+function giraHacia(tono, meta, grados) {
+    const d = ((meta - tono + 540) % 360) - 180
+    const paso = Math.max(-Math.abs(grados), Math.min(Math.abs(grados), d))
+    return ((tono + paso) % 360 + 360) % 360
+}
+
+/** Mezcla dos colores en HSV, con el tono por el camino corto. */
+function mezclaHsv(a, b, f) {
+    const x = aHsv(a), y = aHsv(b)
+    //  Un color sin saturación no tiene tono que aportar: un gris "es" del
+    //  tono del otro. Sin esto, mezclar un neutro con un rojo pasaba por el
+    //  verde de en medio y salían tonos que no había pedido nadie.
+    const ta = x[1] < 0.02 ? y[0] : x[0]
+    const tb = y[1] < 0.02 ? x[0] : y[0]
+    const d = ((tb - ta + 540) % 360) - 180
+    return deHsv(ta + d * f,
+                 x[1] + (y[1] - x[1]) * f,
+                 x[2] + (y[2] - x[2]) * f,
+                 Math.round(a[3] + (b[3] - a[3]) * f))
+}
+
+/*
+ * Una rampa entera a partir de un solo color.
+ *
+ * No basta con subir y bajar el brillo: eso da una tira de grises teñidos que
+ * en un sprite se lee como plástico. Lo que hace que una rampa parezca pintada
+ * es que las sombras se van al frío y saturan, y las luces se van al cálido y
+ * se lavan — que es como se comporta la luz de verdad, y lo que hace a mano
+ * todo el mundo que dibuja píxel.
+ *
+ * El color que le des queda en medio, así que la rampa "es" suya.
+ */
+function rampaDesde(c, n, giro) {
+    const cuantos = Math.max(2, n || 5)
+    const vuelta = giro === undefined ? 22 : giro
+    const h = aHsv(c)
+    const out = []
+    for (let i = 0; i < cuantos; i++) {
+        //  -1 en la sombra más honda, 0 en el color que dieron, +1 en la luz
+        const t = cuantos === 1 ? 0 : (i / (cuantos - 1)) * 2 - 1
+        const v = t < 0 ? h[2] + t * h[2] * 0.82
+                        : h[2] + t * (1 - h[2]) * 0.90
+        const s = t < 0 ? h[1] * (1 - t * 0.30)
+                        : h[1] * (1 - t * 0.45)
+        //  las sombras al azul-violeta, las luces al amarillo
+        const tono = giraHacia(h[0], t < 0 ? 250 : 52, Math.abs(t) * vuelta)
+        out.push(deHsv(tono, Math.max(0, Math.min(1, s)),
+                       Math.max(0.04, Math.min(1, v)), c[3] === undefined ? 255 : c[3]))
+    }
+    return out
+}
+
+/*
+ * Rellena una rampa que ya existe hasta tener `n` tonos.
+ *
+ * Los colores que había se quedan de anclas y lo que falta sale de interpolar
+ * entre ellos, no de inventar: una rampa de tres tonos de un pack sigue siendo
+ * la misma rampa con ocho, sólo que con los saltos cubiertos.
+ */
+function ampliaRampa(colores, n) {
+    const cuantos = Math.max(2, n || 8)
+    const base = colores.slice().sort((a, b) => luma(a) - luma(b))
+    if (!base.length) return []
+    if (base.length === 1) return rampaDesde(base[0], cuantos)
+    if (cuantos <= base.length) return base
+    const out = []
+    for (let i = 0; i < cuantos; i++) {
+        const t = (i / (cuantos - 1)) * (base.length - 1)
+        const k = Math.min(base.length - 2, Math.floor(t))
+        out.push(mezclaHsv(base[k], base[k + 1], t - k))
+    }
+    return out
+}
+
 // ═══════════════════════════════════════════════════════════════
 // tramado
 // ═══════════════════════════════════════════════════════════════

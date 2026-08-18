@@ -2,146 +2,148 @@
 
 # K4 Pinza
 
-Un editor de pixel art que sabe **qué** estás dibujando, no sólo que estás
-dibujando píxeles.
+A pixel art editor that knows **what** you are drawing, not just that you are
+drawing pixels.
 
-*(In English: [README.en.md](README.en.md))*
+*(En español: [README.es.md](README.es.md) — the code, the comments and the
+interface are in Spanish.)*
 
-![El editor](capturas/editor.png)
+![The editor](capturas/editor.png)
 
-Dibujar el sprite es la parte fácil. Lo que cansa es todo lo de alrededor: que
-este objeto mide 32×32 salvo cuando se levanta y entonces 48 de alto; que si es
-rectangular necesita cuatro ficheros con el sufijo correcto y que girarlo
-también gira su huella; que una hoja de personaje son columnas × 8 filas en un
-orden de orientaciones que no se puede equivocar, con una duración por fotograma
-medida en tics.
+Drawing the sprite is the easy part. What wears you down is everything around
+it: that this object is 32×32 except when it stands up and then it is 48 tall;
+that if it is rectangular it needs four files with the right suffix and that
+turning it also turns its footprint; that a character sheet is columns × 8 rows
+in an order of facings you cannot get wrong, with one duration per frame
+measured in ticks.
 
-Eso normalmente vive en tu cabeza y en un manifiesto que editas a mano después
-de exportar. Aquí lo declaras **una vez** —en un fichero JSON que se llama
-pack— y de ahí sale todo lo demás: el tamaño del lienzo, cuántos fotogramas,
-cuántas orientaciones, cómo se llama el fichero y dónde se copia al exportar.
+That normally lives in your head and in a manifest you hand-edit after
+exporting. Here you declare it **once** — in a JSON file called a pack — and
+everything else follows: canvas size, how many frames, how many facings, what
+the file is called and where it is copied on export.
 
-El pack de serie no impone nada, así que sirve igual para dibujar un icono
-suelto.
+The stock pack imposes nothing, so this works just as well for drawing a single
+icon.
 
-## Instalar
+## Install
 
     git clone https://github.com/k4ditano/k4-pinza
     cd k4-pinza
     ./instalar.sh
 
-Deja el programa en el menú de aplicaciones con su icono, un comando `pinza` en
-la terminal, y se ofrece en el «abrir con» de cualquier PNG para traértelo como
-capa. **No copia nada y no pide `sudo`**: instala enlaces dentro de tu carpeta
-personal, así que actualizar es un `git pull`.
+It puts the program in your applications menu with its icon, a `pinza` command
+in the terminal, and offers itself in the "open with" menu of any PNG so you can
+bring it in as a layer. **It copies nothing and asks for no `sudo`**: it
+installs symlinks inside your home directory, so updating is a `git pull`.
 
-    ./instalar.sh --quitar      deshacerlo
+    ./instalar.sh --quitar      undo it
 
-Desinstalar no toca tus dibujos, tus packs ni tus guiones.
+Uninstalling does not touch your drawings, your packs or your scripts.
 
-Hace falta [Quickshell](https://quickshell.org/), Qt 6 (`qt6-base`,
-`qt6-declarative`), Python 3 con Pillow, y las fuentes `Adwaita Sans` y
-`MesloLGS Nerd Font Mono`. El instalador lo comprueba y te lo dice antes de
-tocar nada.
+You need [Quickshell](https://quickshell.org/), Qt 6 (`qt6-base`,
+`qt6-declarative`), Python 3 with Pillow, and the `Adwaita Sans` and
+`MesloLGS Nerd Font Mono` fonts. The installer checks and tells you before
+touching anything.
 
-## Para empezar
+## Getting started
 
-    pinza                    abrir el editor
-    pinza Bicho.pinza        abrir ese proyecto
-    pinza dibujo.png         importarlo como capa
+    pinza                    open the editor
+    pinza Bicho.pinza        open that project
+    pinza dibujo.png         import it as a layer
 
-`Ctrl+K` abre la paleta de comandos y ahí está **todo**, buscando por trozos
-sueltos: «vol h» encuentra «Voltear en horizontal». No hay menús que recorrer.
+`Ctrl+K` opens the command palette and **everything** is in there, searchable by
+loose fragments: "fl h" finds "Flip horizontally". No menus to walk through.
 
-![La paleta de comandos](capturas/comandos.png)
+![Command palette](capturas/comandos.png)
 
-## Lo que lo diferencia
+## What makes it different
 
-**Tres ejes, no dos.** Una celda es capa × fotograma × **orientación**. En los
-demás editores una hoja de ocho caras se monta a mano; aquí la orientación es un
-eje de primera clase, con un compás que las coloca en su sitio geográfico y
-enlace de espejo: dibujas el este y el oeste sale volteado. Para un icono
-simplemente vale una y el compás ni aparece.
+**Three axes, not two.** A cel is layer × frame × **facing**. In other editors
+an eight-facing sheet is assembled by hand; here the facing is a first-class
+axis, with a compass that lays them out geographically and mirror linking: you
+draw east and west comes out flipped. For an icon it is simply one and the
+compass never appears.
 
-**Cada fotograma mide lo que dura.** La tira de abajo no son cuadraditos
-iguales: cada fotograma es tan ancho como tics ocupa, con su regla. Arrastrando
-su borde derecho retimas la animación mirándola, que es como se decide si un
-golpe se siente bien.
+**Each frame is as wide as it is long.** The strip at the bottom is not equal
+boxes: each frame is as wide as the ticks it takes, with its own ruler. Dragging
+its right edge retimes the animation while you watch it, which is how you decide
+whether a hit feels right.
 
-**La muestra, a tamaño real.** Dibujando estás siempre a ×8 o a ×16, y a ese
-aumento cualquier cosa parece bien: los contornos se leen, las sombras se
-separan. A tamaño real la mitad de eso desaparece, y sin verlo mientras dibujas
-te enteras al exportar. Flota sobre el lienzo, se arrastra a donde estorbe menos
-y se anima con la tira.
+**The swatch, at real size.** While drawing you are always at ×8 or ×16, and at
+that magnification anything looks fine: outlines read, shadows separate. At real
+size half of that disappears, and without seeing it while you draw you find out
+on export. It floats over the canvas, drags to wherever it is least in the way,
+and animates along with the strip.
 
 | | |
 |---|---|
-| ![La previa](capturas/previa.png) | ![El color](capturas/color.png) |
-| **Previa en juego.** El sprite sobre un suelo, con su sombra, y las medidas que un juego saca de los píxeles: dónde apoyan los pies, cuánto ocupa la silueta. Catorce filas vacías bajo la figura son catorce píxeles de aire donde debería pisar, y en el lienzo eso no se ve. | **Rampas, no una rejilla.** La unidad de trabajo es sombra → cuerpo → brillo, que es como se piensa dibujando. La tinta de sombreado mueve cada píxel un paso por *su* rampa en vez de aplastarlo con un color plano. La rueda va dentro del panel: elegir un color no debería taparte el dibujo. |
+| ![Preview](capturas/previa.png) | ![Colour](capturas/color.png) |
+| **In-game preview.** The sprite on a floor, with its shadow, and the measurements a game reads out of the pixels: where the feet land, how much the silhouette takes up. Fourteen empty rows under the figure are fourteen pixels of air where it should be standing, and on the canvas that does not show. | **Ramps, not a grid.** The working unit is shadow → body → highlight, which is how you think while drawing. The shading ink moves each pixel one step along *its* ramp instead of flattening it with a solid colour. The wheel lives inside the panel: picking a colour should not cover your drawing. |
 
-**Cambiar un color en todo el personaje.** Sustituir color pregunta hasta dónde
-llega: esta celda, todos los fotogramas de esta cara, o los de las ocho. Hacerlo
-a mano en una hoja de once fotogramas por ocho filas son ochenta y ocho clics, y
-basta fallar uno para que la animación parpadee. Todo el cambio es **un** paso
-del historial.
+**Change one colour across the whole character.** Replace colour asks how far it
+reaches: this cel, every frame of this facing, or all eight. Doing it by hand
+across an eleven-frame, eight-row sheet is eighty-eight clicks, and missing one
+is enough to make the animation flicker. The whole change is **one** history
+step.
 
-**Modo baldosa de verdad y mapa de prueba.** El lienzo envuelve: dibujas
-cruzando la costura y el trazo sale por el otro lado. Y un tileset no se juzga
-mirando la hoja, sino repartido por un campo — que es donde salen las costuras y
-donde se ve que la flor que parecía bonita, cada tres casillas, convierte el
-prado en una alfombra.
+**Real tile mode and a test map.** The canvas wraps: you draw across the seam
+and the stroke comes out the other side. And a tileset is not judged by looking
+at the sheet but by seeing it spread across a field — which is where the seams
+show and where you notice that the flower that looked pretty, every three tiles,
+turns the meadow into a carpet.
 
-**Girar y escalar a ojo** (`Ctrl+T`), con el resultado a la vista. Cada cambio
-se rehace desde el estado de partida, nunca sobre el anterior: girar cinco
-grados cinco veces no es girar veinticinco, es destrozar el dibujo remuestreando
-lo ya remuestreado. Y probar veinte ángulos deja **una** entrada en el historial.
+**Rotate and scale by eye** (`Ctrl+T`), with the result visible as you drag.
+Every change is redone from the starting state, never on top of the previous
+one: rotating five degrees five times is not rotating twenty-five, it is
+destroying the drawing by resampling what was already resampled. And trying
+twenty angles leaves **one** history entry.
 
-**Personajes enteros.** Si el pack lo declara, un personaje no es una hoja sino
-una por acción —quieto, andar, atacar…— y el editor las trata como un solo
-proyecto: saltas de una a otra de un clic, cada una con su geometría ya puesta,
-y exportar escribe las hojas, el fichero de animación que las ata y la ficha que
-lo da de alta, los tres de acuerdo entre sí.
+**Whole characters.** If the pack declares it, a character is not one sheet but
+one per action — idle, walk, attack… — and the editor treats them as a single
+project: you jump between them with one click, each with its geometry already
+set, and exporting writes the sheets, the animation file that ties them together
+and the record that registers it, all three in agreement.
 
-**Guiones en JavaScript**, en `~/.config/pinza/guiones/*.js`. Reciben el
-documento abierto y todo lo que hagan entra en el historial como **un** paso,
-para poder probarlos sin miedo.
+**Scripts in JavaScript**, in `~/.config/pinza/guiones/*.js`. They receive the
+open document and everything they do enters the history as **one** step, so they
+can be tried without fear.
 
-Y lo de siempre, sin sorpresas: selecciones de todo tipo con sumar, restar y
-cortar; lápiz con trazo perfecto, goma, cubo, cuentagotas, formas, degradado
-tramado, difuminar, manchar, aclarar, quemar; pinceles a medida; dieciocho modos
-de fusión, grupos, bloqueo de alfa, capas de referencia; piel de cebolla,
-etiquetas, celdas enlazadas; simetría y rejillas; paletas `.gpl`, `.hex` y desde
-PNG; GIF y APNG.
+And the usual, with no surprises: every kind of selection with add, subtract and
+intersect; pencil with pixel-perfect strokes, eraser, bucket, eyedropper,
+shapes, dithered gradient, blur, smudge, dodge, burn; custom brushes; eighteen
+blend modes, groups, alpha lock, reference layers; onion skin, tags, linked
+cels; symmetry and grids; `.gpl`, `.hex` and from-PNG palettes; GIF and APNG.
 
-**Sin límites de color.** Un pack puede traer una guía de estilo, pero es un
-cuentakilómetros y no una barrera: te dice dónde estás y se apaga.
+**No colour limits.** A pack may bring a style guide, but it is an odometer and
+not a barrier: it tells you where you are and it can be switched off.
 
-## El formato
+## The format
 
-Una carpeta con un JSON y un PNG por celda:
+A folder with one JSON and one PNG per cel:
 
     Bicho.pinza/
-      proyecto.json          capas, fotogramas, duraciones, enlaces
-      celdas/c1.0.3.png      capa . fotograma . orientación
+      proyecto.json          layers, frames, durations, links
+      celdas/c1.0.3.png      layer . frame . facing
       paleta.gpl
 
-Nada de un binario propio, y se nota a diario: se ve en un `git diff`, puedes
-abrir un fotograma suelto en cualquier otro editor, y si mañana el programa no
-arranca el arte sigue estando ahí.
+No custom binary, and you notice daily: it shows up in a `git diff`, you can
+open a single frame in any other editor, and if tomorrow the program does not
+start the art is still there.
 
 ## Packs
 
-Un pack es un JSON: declara sus paletas, sus contratos —lienzo, ejes, patrón de
-nombre, carpeta de salida— y, si quiere, un manifiesto que parchear y una guía
-de estilo. Los del programa están en `packs/`; los tuyos en
-`~/.config/pinza/packs/*.json`, y ganan si repiten `id`, que es como se retoca
-uno de serie sin tocar el repositorio.
+A pack is a JSON file: it declares its palettes, its contracts — canvas, axes,
+naming pattern, output folder — and, if it wants, a manifest to patch and a
+style guide. The built-in ones live in `packs/`; yours go in
+`~/.config/pinza/packs/*.json` and win if they repeat an `id`, which is how you
+tweak a stock one without touching the repository.
 
-## Por dentro
+## Under the hood
 
-Está escrito en QML sobre [Quickshell](https://quickshell.org/), con el motor de
-píxeles en JavaScript puro. Si vas a tocarlo, [docs/interior.md](docs/interior.md)
-cuenta cómo está repartido, por qué, y las seis cosas que este Qt hace mal y hay
-que saber antes de acercarse al lienzo.
+It is written in QML on [Quickshell](https://quickshell.org/), with the pixel
+engine in plain JavaScript. If you are going to touch it,
+[docs/interior.md](docs/interior.md) (in Spanish) explains how it is laid out,
+why, and the six things this Qt gets wrong that you need to know before going
+anywhere near the canvas.
 
-    ./pruebas/correr            las pruebas, sin abrir una ventana
+    ./pruebas/correr            the tests, without opening a window

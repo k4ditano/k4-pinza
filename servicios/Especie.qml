@@ -59,6 +59,15 @@ Singleton {
     }
     readonly property var acciones: plantilla ? plantilla.acciones : []
 
+    /** La siguiente o la anterior, para saltar sin soltar el lápiz. */
+    function saltaAccion(paso) {
+        if (!memoria.d || !memoria.accionActiva) return
+        const ids = Object.keys(memoria.d.acciones)
+        const i = ids.indexOf(memoria.accionActiva)
+        if (i < 0) return
+        editaAccion(ids[(i + paso + ids.length) % ids.length], null)
+    }
+
     function accionDe(id) {
         for (let i = 0; i < acciones.length; i++) if (acciones[i].id === id) return acciones[i]
         return null
@@ -116,7 +125,14 @@ Singleton {
             memoria.accionActiva = ""
             _avisa()
             hecho("abrir", ruta)
-            if (cb) cb(true)
+
+            //  Y se abre una acción, la última que estuviste dibujando o la
+            //  primera. Abrir una criatura y quedarte delante de un lienzo
+            //  vacío sin saber cuál de las ocho estás viendo no es abrirla.
+            const ids = Object.keys(m.acciones || {})
+            const cual = (m.ultima && m.acciones[m.ultima]) ? m.ultima : ids[0]
+            if (cual) editaAccion(cual, () => { if (cb) cb(true) })
+            else if (cb) cb(true)
         })
     }
 
@@ -154,11 +170,31 @@ Singleton {
         const info = memoria.d.acciones[id]
         if (!info) { falla("acción", "esta especie no tiene «" + id + "»"); return }
         if (!memoria.d.ruta) { falla("acción", "guarda la especie antes de dibujarla"); return }
+        if (id === memoria.accionActiva && S.Documento.abierto) { if (cb) cb(true); return }
 
+        //  Antes de irse, guardar la que estabas dibujando. Cambiar de acción
+        //  no puede costarte el trabajo de la anterior: no hay ningún aviso ni
+        //  ninguna forma de recuperarlo, y es un clic que se da todo el rato.
+        if (memoria.accionActiva && S.Documento.abierto && S.Documento.sucio) {
+            recogeDelDocumento()
+            S.Proyecto.guarda(carpetaDe(memoria.accionActiva), () => _abreAccion(id, cb))
+            return
+        }
+        recogeDelDocumento()
+        _abreAccion(id, cb)
+    }
+
+    function _abreAccion(id, cb) {
+        const info = memoria.d.acciones[id]
+        memoria.d.ultima = id
         const carpeta = carpetaDe(id)
         S.Forja.pide("existe", { ruta: carpeta + "/proyecto.json" }, (r) => {
             if (r.bien && r.existe) {
-                S.Proyecto.abre(carpeta, (bien) => { if (bien) memoria.accionActiva = id; _avisa(); if (cb) cb(bien) })
+                S.Proyecto.abre(carpeta, (bien) => {
+                    if (bien) memoria.accionActiva = id
+                    _avisa()
+                    if (cb) cb(bien)
+                })
                 return
             }
             _creaDocumentoDe(id, info)
@@ -359,7 +395,11 @@ Singleton {
                 guarda(carpeta, () => {
                     hecho("importar", total + " acciones de " + fuente.name
                                       + " → " + carpeta.split("/").pop())
-                    if (cb) cb(true)
+                    //  Y se abre la primera, para no dejarte delante de un
+                    //  lienzo vacío preguntándote qué ha pasado.
+                    const primera = Object.keys(memoria.d.acciones)[0]
+                    if (primera) editaAccion(primera, () => { if (cb) cb(true) })
+                    else if (cb) cb(true)
                 })
                 return
             }
@@ -377,6 +417,14 @@ Singleton {
         })
     }
 
+    /**
+     * Una acción, troceada y escrita a disco directamente.
+     *
+     * Ni se abre ni se enseña: se monta la metainformación a mano y se escriben
+     * las celdas. Antes esto llamaba a Documento.nuevo por cada acción y el
+     * lienzo parpadeaba ocho veces mientras importaba, arrastrando en cada
+     * cambio a la muestra, la previa, el compás y el medidor de estilo.
+     */
     function _importaUna(t, cb) {
         exportador.trocea(t.ruta, t.geo.ancho, t.geo.alto, (celdas, cols, filas) => {
             if (!celdas) { falla("importar", "no puedo trocear " + t.ruta); cb(); return }
@@ -385,33 +433,46 @@ Singleton {
             //  trae menos filas de las ocho —las hay— se respetan las que haya:
             //  el juego hace lo mismo, `dir % filas`.
             const nFot = Math.min(cols, t.geo.fotogramas)
-            const orientaciones = S.Packs.contrato("pmd").orientaciones.map((x) => x.id)
-            const dirs = orientaciones.slice(0, Math.max(1, Math.min(filas, orientaciones.length)))
+            const con = S.Packs.contrato("pmd")
+            const todas = con.orientaciones.map((x) => x.id)
+            const dirs = todas.slice(0, Math.max(1, Math.min(filas, todas.length)))
 
-            S.Documento.nuevo({
+            const capaId = "c1"
+            const fotogramas = []
+            for (let f = 0; f < nFot; f++)
+                fotogramas.push({ duracion: t.geo.duraciones[f] || 6, nombre: "" })
+
+            const meta = {
+                version: 1,
                 nombre: memoria.d.nombre,
                 ancho: t.geo.ancho, alto: t.geo.alto,
-                fotogramas: nFot,
+                capas: [{ id: capaId, nombre: "capa 1", visible: true, opacidad: 1,
+                          modo: "normal", bloqueada: false, alfaBloqueado: false,
+                          tipo: "normal", grupo: "", plegado: false }],
+                fotogramas: fotogramas,
                 orientaciones: dirs,
+                etiquetas: [],
+                enlaces: {},
                 pack: "crabh",
-                contrato: JSON.parse(JSON.stringify(S.Packs.contrato("pmd")))
-            })
-            for (let f = 0; f < nFot; f++) S.Documento.ponDuracion(f, t.geo.duraciones[f] || 6)
-            S.Documento.ponCampo("accion", t.id)
-            S.Documento.ponCampo("hitFrame", t.geo.hitFrame)
-            S.Documento.ponCampo("rushFrame", t.geo.rushFrame)
-            S.Documento.ponCampo("returnFrame", t.geo.returnFrame)
-            S.Documento.ponCampo("shadowSize", memoria.d.shadowSize)
+                contrato: JSON.parse(JSON.stringify(con)),
+                baldosa: null,
+                campos: {
+                    accion: t.id,
+                    hitFrame: t.geo.hitFrame,
+                    rushFrame: t.geo.rushFrame,
+                    returnFrame: t.geo.returnFrame,
+                    shadowSize: memoria.d.shadowSize
+                },
+                huella: null
+            }
 
-            const capa = S.Documento.capa(0)
+            const mapa = {}
             for (let dr = 0; dr < dirs.length; dr++) for (let f = 0; f < nFot; f++) {
                 const trozo = celdas[dr * cols + f]
-                if (!trozo) continue
-                P.vuelca(S.Documento.celda(capa.id, f, dr, true), trozo, 0, 0)
+                mapa[capaId + ":" + f + ":" + dr] = trozo || P.nuevo(t.geo.ancho, t.geo.alto)
             }
-            S.Documento.cambiaPixeles(null)
-            S.Historial.limpia()
-            S.Proyecto.guarda(carpetaDe(t.id), () => cb())
+
+            S.Proyecto.guardaCrudo(carpetaDe(t.id), meta, mapa, () => cb())
         })
     }
 
@@ -466,9 +527,11 @@ Singleton {
                     for (let f = 0; f < nFot; f++) dur.push(S.Documento.duracion(f))
                     const campos = S.Documento.d.campos || {}
 
-                    exportador.aHoja(celdas, nFot, nDir, S.Documento.ancho, S.Documento.alto, (url) => {
+                    const hoja = exportador.componHoja(celdas, nFot, nDir,
+                                                        S.Documento.ancho, S.Documento.alto)
+                    {
                         const fichero = id + "-Anim.png"
-                        S.Forja.escribePng(carpeta + "/" + fichero, url, () => {
+                        exportador.escribe(carpeta + "/" + fichero, hoja, () => {
                             anims.push({
                                 nombre: id, indice: info.indice,
                                 ancho: S.Documento.ancho, alto: S.Documento.alto,
@@ -481,7 +544,7 @@ Singleton {
                             hechas++; progreso = hechas / ids.length
                             Qt.callLater(siguiente)
                         })
-                    })
+                    }
                 })
             }
             siguiente()

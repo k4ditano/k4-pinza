@@ -1,13 +1,20 @@
 //  El puente entre los búferes y los ficheros.
 //
-//  Existe por el segundo hallazgo de la cata: Canvas.save() devuelve false y no
-//  escribe nada en este Qt. Lo que sí funciona es toDataURL, así que el camino
-//  de salida es búfer -> Canvas 1:1 -> toDataURL -> la forja escribe el PNG.
-//  Y el de entrada es su espejo: loadImage -> drawImage -> getImageData.
+//  Ya no tiene Canvas, y eso es el arreglo. Escribir un PNG con Canvas.toDataURL
+//  funciona, pero cuesta UN REPINTADO POR FICHERO: hay que redimensionar el
+//  lienzo, pedir el pintado, esperar a que le toque, y sólo entonces se puede
+//  leer. Con una celda al día no se nota; con una criatura de PMD —quinientas
+//  celdas entre todas sus acciones— son ocho segundos de programa bloqueado y
+//  parpadeando, porque además había que abrir cada documento para pintarlo.
 //
-//  Tiene que vivir DENTRO de una ventana aunque no se vea: un Canvas fuera de
-//  la escena no llega a pintar nunca, y entonces toDataURL devuelve un lienzo
-//  en blanco sin decir nada. Por eso esto es una vista y no un servicio.
+//  Ahora los píxeles van a la forja en base64 y los escribe Pillow, todos los
+//  que hagan falta en un solo mensaje. Leer ya iba por ahí desde que el Canvas
+//  devolvía capas vacías al arrancar (ver cata/cata.qml), así que el Canvas ha
+//  dejado de pintar nada en este camino.
+//
+//  Sigue siendo una vista y no un servicio por costumbre y por si algún día
+//  vuelve a hacer falta pintar algo aquí — pero ya no necesita estar en la
+//  escena para funcionar.
 
 import QtQuick
 import "../core/pixeles.js" as P
@@ -15,37 +22,61 @@ import "../servicios" as S
 
 Item {
     id: raiz
-    width: 1; height: 1
-    clip: true
-    opacity: 0.004          // invisible de hecho, pero presente en la escena
-
-    property var _cola: []
-    property var _actual: null
+    width: 0; height: 0
+    visible: false
 
     // ═══════════════════════════════════════════════════════════
     // salida
     // ═══════════════════════════════════════════════════════════
 
-    /** Un búfer -> un data URL de PNG. `cb(url)`. */
-    function aPng(buf, cb) {
-        _cola.push({ tipo: "escribe", buf: buf, cb: cb })
-        _sigue()
+    /** Un búfer a un PNG. `cb(bien)`. */
+    function escribe(ruta, buf, cb) {
+        escribeVarios([{ ruta: ruta, buf: buf }], cb)
     }
 
     /**
-     * Varios búferes en una sola hoja.
+     * Muchos búferes a muchos PNG, en un solo viaje.
      *
-     * `disposicion` decide la rejilla, y es lo que separa un tileset de una
-     * hoja PMD: en PMD las columnas son fotogramas y las filas orientaciones,
-     * en una tira de efecto todo va en una fila. Quien lo sabe es el contrato.
+     * Se parte en tandas porque un mensaje con quinientas celdas de 48×48 son
+     * varios megas de base64 en una sola línea, y eso empieza a doler en el
+     * otro extremo. En tandas de cuarenta no se nota ninguna de las dos cosas.
      */
-    function aHoja(celdas, cols, filas, cw, ch, cb) {
+    function escribeVarios(lista, cb) {
+        if (!lista.length) { if (cb) cb(true); return }
+        const tanda = 40
+        let i = 0
+        let bien = true
+
+        function siguiente() {
+            if (i >= lista.length) { if (cb) cb(bien); return }
+            const ficheros = []
+            for (let k = 0; k < tanda && i < lista.length; k++, i++) {
+                const e = lista[i]
+                ficheros.push({ ruta: e.ruta, ancho: e.buf.w, alto: e.buf.h,
+                                datos: P.aBase64(e.buf) })
+            }
+            S.Forja.pide("escribirPixeles", { ficheros: ficheros }, (r) => {
+                if (!r.bien) { bien = false; console.warn("no se pudo escribir: " + r.error) }
+                Qt.callLater(siguiente)
+            })
+        }
+        siguiente()
+    }
+
+    /**
+     * Monta una hoja con varias celdas. Devuelve el búfer; no escribe nada.
+     *
+     * `cols` y `filas` deciden la rejilla, y es lo que separa un tileset de una
+     * hoja PMD: en PMD las columnas son fotogramas y las filas orientaciones.
+     * Quien lo sabe es el contrato.
+     */
+    function componHoja(celdas, cols, filas, cw, ch) {
         const gran = P.nuevo(cols * cw, filas * ch)
         for (let f = 0; f < filas; f++) for (let c = 0; c < cols; c++) {
             const b = celdas[f * cols + c]
             if (b) P.vuelca(gran, b, c * cw, f * ch)
         }
-        aPng(gran, cb)
+        return gran
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -55,15 +86,12 @@ Item {
     /**
      * Un PNG del disco -> un búfer. `cb(buf o null)`.
      *
-     * Por la forja y no por el Canvas. La primera versión cargaba la imagen con
-     * loadImage y la leía con getImageData, y fallaba de la peor manera
-     * posible: al abrir un proyecto recién arrancado el programa, las primeras
-     * celdas volvían VACÍAS y sin error, porque el Canvas todavía no tenía la
-     * imagen lista cuando le tocaba pintar. Un proyecto se abría a medias y
-     * parecía que se habían perdido capas.
-     *
-     * Escribir sí se queda en el Canvas: ahí se pinta y se lee el resultado en
-     * la misma llamada, sin nada asíncrono en medio, y eso sí es de fiar.
+     * Por la forja y no por el Canvas. Cargar la imagen con loadImage y leerla
+     * con getImageData fallaba de la peor manera posible: al abrir un proyecto
+     * recién arrancado el programa, las primeras celdas volvían VACÍAS y sin
+     * error, porque el Canvas todavía no tenía la imagen lista cuando le tocaba
+     * pintar. Un proyecto se abría a medias y parecía que se habían perdido
+     * capas.
      */
     function dePng(ruta, cb) {
         const limpia = ruta.indexOf("file://") === 0 ? ruta.substring(7) : ruta
@@ -71,6 +99,20 @@ Item {
             if (!r.bien) { console.warn("no se puede leer " + limpia + ": " + r.error); cb(null); return }
             cb(P.deBase64(r.datos, r.ancho, r.alto))
         })
+    }
+
+    /** Varios PNG de golpe. `cb({ruta: buf})`. */
+    function deVarios(rutas, cb) {
+        const out = {}
+        let quedan = rutas.length
+        if (!quedan) { cb(out); return }
+        for (let i = 0; i < rutas.length; i++) {
+            const r = rutas[i]
+            dePng(r, (b) => {
+                if (b) out[r] = b
+                if (--quedan === 0) cb(out)
+            })
+        }
     }
 
     /** Un PNG del disco troceado en celdas de cw×ch. `cb(lista, cols, filas)`. */
@@ -84,51 +126,5 @@ Item {
                 out.push(P.recorte(b, c * cw, f * ch, cw, ch))
             cb(out, cols, filas)
         })
-    }
-
-    // ═══════════════════════════════════════════════════════════
-    // la cola
-    // ═══════════════════════════════════════════════════════════
-
-    function _sigue() {
-        if (_actual || !_cola.length) return
-        _actual = _cola.shift()
-        hoja.width = _actual.buf.w
-        hoja.height = _actual.buf.h
-        hoja.requestPaint()
-    }
-
-    function _termina(resultado) {
-        const cb = _actual ? _actual.cb : null
-        _actual = null
-        if (cb) cb(resultado)
-        Qt.callLater(_sigue)
-    }
-
-    Canvas {
-        id: hoja
-        width: 1; height: 1
-        renderStrategy: Canvas.Immediate
-        renderTarget: Canvas.Image
-        anchors.left: parent.left
-        anchors.top: parent.top
-
-        onPaint: {
-            if (!raiz._actual) return
-            const b = raiz._actual.buf
-            //  Un repintado que llegue con el tamaño viejo no sirve: se pide
-            //  otro y ya está. Sin volver a pedirlo, la cola se quedaría
-            //  parada para siempre y el programa dejaría de guardar en
-            //  silencio, que es la peor forma de fallar que hay.
-            if (width !== b.w || height !== b.h) { Qt.callLater(requestPaint); return }
-
-            const g = getContext("2d")
-            g.clearRect(0, 0, b.w, b.h)
-            const img = g.createImageData(b.w, b.h)
-            for (let i = 0; i < b.d.length; i++) img.data[i] = b.d[i]
-            // la de SIETE argumentos: la de tres no hace nada (cata/cata.qml)
-            g.putImageData(img, 0, 0, 0, 0, b.w, b.h)
-            raiz._termina(toDataURL("image/png"))
-        }
     }
 }

@@ -742,6 +742,28 @@ var _B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 var _B64INV = null
 
 /**
+ * Un búfer RGBA a base64.
+ *
+ * La vuelta de deBase64, para mandar píxeles a la forja sin pasarlos por un
+ * Canvas. Escribir un PNG con el Canvas cuesta un repintado POR FICHERO, y una
+ * criatura de PMD son quinientas celdas: ocho segundos de programa bloqueado,
+ * parpadeando. Por aquí van todas en un par de mensajes.
+ */
+function aBase64(b) {
+    if (!_B64INV) _preparaB64()
+    let s = ""
+    const d = b.d, n = d.length
+    for (let i = 0; i < n; i += 3) {
+        const a = d[i], c = i + 1 < n ? d[i + 1] : 0, e = i + 2 < n ? d[i + 2] : 0
+        const bits = (a << 16) | (c << 8) | e
+        s += _B64[(bits >> 18) & 63] + _B64[(bits >> 12) & 63]
+           + (i + 1 < n ? _B64[(bits >> 6) & 63] : "=")
+           + (i + 2 < n ? _B64[bits & 63] : "=")
+    }
+    return s
+}
+
+/**
  * Base64 a un búfer RGBA.
  *
  * El motor de QML no trae atob, así que se decodifica a mano. Es el camino por
@@ -749,12 +771,14 @@ var _B64INV = null
  * porque leerlas con el Canvas depende de que estén cargadas justo cuando toca
  * pintar y al arrancar no lo están — devolvía capas vacías sin dar ningún error.
  */
+function _preparaB64() {
+    _B64INV = new Int16Array(128)
+    for (let i = 0; i < 128; i++) _B64INV[i] = -1
+    for (let i = 0; i < 64; i++) _B64INV[_B64.charCodeAt(i)] = i
+}
+
 function deBase64(texto, w, h) {
-    if (!_B64INV) {
-        _B64INV = new Int16Array(128)
-        for (let i = 0; i < 128; i++) _B64INV[i] = -1
-        for (let i = 0; i < 64; i++) _B64INV[_B64.charCodeAt(i)] = i
-    }
+    if (!_B64INV) _preparaB64()
     const b = nuevo(w, h)
     const n = b.d.length
     let salida = 0, acumulado = 0, bits = 0

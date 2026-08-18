@@ -138,6 +138,13 @@ ShellRoot {
                         width: parent.width
                         spacing: 1
 
+                        //  Arriba del todo cuando hay una criatura abierta: es
+                        //  lo primero que hay que saber, en cuál de las ocho
+                        //  estás.
+                        V.PanelAcciones {
+                            width: pila.width
+                            visible: S.Especie.abierta && S.Especie.accion !== ""
+                        }
                         V.PanelPaleta { width: pila.width; visible: S.Ajustes.panelPaleta }
                         V.PanelCapas  { width: pila.width; visible: S.Ajustes.panelCapas }
                         V.Previa      { width: pila.width; visible: S.Ajustes.panelPrevia }

@@ -489,14 +489,12 @@ Singleton {
           icono: "nuevo",
           cuando: () => !!(S.Packs.contrato("pmd") && S.Packs.contrato("pmd").especie),
           hacer: () => ord.pideHoja("especie:blanco") },
-        { id: "especieSiguiente", titulo: "Acción siguiente de la especie", grupo: "especie",
-          cuando: () => S.Especie.abierta && S.Especie.accion !== "",
-          hacer: () => {
-              const ids = Object.keys(S.Especie.d.acciones)
-              const i = ids.indexOf(S.Especie.accion)
-              S.Especie.recogeDelDocumento()
-              S.Especie.editaAccion(ids[(i + 1) % ids.length], null)
-          } },
+        { id: "especieSiguiente", titulo: "Acción siguiente", grupo: "especie",
+          atajo: "Alt+Right", cuando: () => S.Especie.abierta && S.Especie.accion !== "",
+          hacer: () => S.Especie.saltaAccion(1) },
+        { id: "especieAnterior", titulo: "Acción anterior", grupo: "especie",
+          atajo: "Alt+Left", cuando: () => S.Especie.abierta && S.Especie.accion !== "",
+          hacer: () => S.Especie.saltaAccion(-1) },
         { id: "especieExportar", titulo: "Exportar la especie entera", grupo: "especie",
           icono: "exportar", cuando: () => S.Especie.abierta,
           hacer: () => { S.Especie.recogeDelDocumento()

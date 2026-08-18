@@ -135,6 +135,11 @@ ShellRoot {
 
     // ── 3 · las acciones se abren y tienen dibujo ──────────────
     function paso3() {
+        //  Al acabar de importar tiene que quedar una acción abierta: si no,
+        //  te quedas mirando un lienzo sin saber qué ha pasado.
+        ck("al acabar de importar queda una acción abierta y dicha",
+           S.Especie.accion !== "" && S.Documento.abierto, S.Especie.accion)
+
         S.Especie.editaAccion("Walk", (bien) => {
             ck("una acción se abre para dibujarla", bien === true)
             ck("con las ocho filas de orientación",
@@ -173,9 +178,28 @@ ShellRoot {
             const b = S.Documento.celda(capa.id, 0, 0, true)
             P.pon(b, 1, 1, [255, 0, 255, 255])
             S.Documento.cambiaPixeles(null)
-            S.Proyecto.guarda(null, () => paso4())
+
+            //  Y saltar a otra acción SIN guardar a mano: cambiar de acción no
+            //  puede costarte el trabajo de la anterior. Es un clic que se da
+            //  todo el rato y no hay ningún aviso ni forma de recuperarlo.
+            S.Especie.editaAccion("Attack", () => {
+                ck("saltar de acción cambia el documento",
+                   S.Especie.accion === "Attack" && S.Documento.campo("accion") === "Attack",
+                   S.Especie.accion)
+                S.Especie.saltaAccion(-1)
+                esperaVuelta.start()
+            })
         })
     }
+
+    Timer { id: esperaVuelta; interval: 700; onTriggered: {
+        raiz.ck("y se puede saltar a la anterior", S.Especie.accion === "Walk", S.Especie.accion)
+        const b = S.Documento.celda(S.Documento.capa(0).id, 0, 0, false)
+        raiz.ck("el retoque que hicimos antes de saltar NO se perdió",
+                P.lee(b, 1, 1)[0] === 255 && P.lee(b, 1, 1)[2] === 255,
+                P.lee(b, 1, 1).join())
+        raiz.paso4()
+    } }
 
     // ── 4 · devolverla al juego ────────────────────────────────
     function paso4() {

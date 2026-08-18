@@ -159,6 +159,35 @@ def orden_leer_pixeles(p):
             "datos": base64.b64encode(im.tobytes()).decode("ascii")}
 
 
+def orden_escribir_pixeles(p):
+    """Escribe PNG a partir de píxeles RGBA crudos, uno o muchos de una vez.
+
+    Existe para no pasar cada fichero por el Canvas de QML. Escribir un PNG por
+    ahí cuesta un repintado por fichero, y una criatura de PMD son quinientas
+    celdas: el programa se quedaba ocho segundos bloqueado y parpadeando porque
+    además había que abrir cada documento para pintarlo. Aquí llegan todas
+    juntas en un mensaje.
+    """
+    if not HAY_PIL:
+        raise RuntimeError("hace falta python-pillow para escribir imágenes")
+    trozos = p.get("ficheros") or [p]
+    escritos = []
+    for f in trozos:
+        ruta = expande(f["ruta"])
+        os.makedirs(os.path.dirname(ruta), exist_ok=True)
+        crudo = base64.b64decode(f["datos"])
+        esperado = int(f["ancho"]) * int(f["alto"]) * 4
+        if len(crudo) < esperado:
+            crudo = crudo + b"\x00" * (esperado - len(crudo))
+        im = Image.frombytes("RGBA", (int(f["ancho"]), int(f["alto"])), crudo[:esperado])
+        # el temporal conserva la extensión: Pillow decide el formato por ella
+        tmp = ruta + ".pinza-tmp.png"
+        im.save(tmp)
+        os.replace(tmp, ruta)
+        escritos.append(ruta)
+    return {"escritos": escritos, "cuantos": len(escritos)}
+
+
 def orden_gif(p):
     """Monta un GIF (o un APNG) con los fotogramas ya exportados.
 
@@ -334,6 +363,7 @@ ORDENES = {
     "leerTexto": orden_leer_texto,
     "escribirTexto": orden_escribir_texto,
     "escribir": orden_escribir,
+    "escribirPixeles": orden_escribir_pixeles,
     "borrar": orden_borrar,
     "pngInfo": orden_png_info,
     "leerPixeles": orden_leer_pixeles,

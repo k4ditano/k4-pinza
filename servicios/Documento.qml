@@ -40,10 +40,22 @@ Singleton {
     property int revPixeles: 0     // sólo píxeles
     signal pixelesCambiados(int x, int y, int w, int h)
 
-    function cambia()          { rev++; if (d) d.sucio = true }
-    function cambiaPixeles(r)  {
+    //  OJO AL ORDEN: primero se marca sucio y DESPUÉS se sube el contador.
+    //
+    //  Al revés no funciona, y no da error: subir el contador reevalúa el
+    //  enlace de `sucio` en ese mismo instante, cuando el documento todavía
+    //  está marcado limpio; luego se marca sucio y ya no hay nada que avise,
+    //  porque el enlace depende del contador y no del objeto. Estuvo así desde
+    //  el principio y `sucio` mentía siempre: el punto de "sin guardar" no
+    //  salía, el autoguardado no guardaba, y cambiar de acción de una criatura
+    //  se llevaba por delante lo que acabaras de dibujar.
+    function cambia() {
+        if (memoria.d) memoria.d.sucio = true
+        rev++
+    }
+    function cambiaPixeles(r) {
+        if (memoria.d) memoria.d.sucio = true
         revPixeles++
-        if (d) d.sucio = true
         if (r) pixelesCambiados(r.x, r.y, r.w, r.h)
         else pixelesCambiados(0, 0, ancho, alto)
     }
@@ -800,6 +812,7 @@ Singleton {
     }
 
     function limpio() { if (memoria.d) { memoria.d.sucio = false; rev++ } }
+
 
     function campo(id) { return memoria.d && memoria.d.campos ? memoria.d.campos[id] : undefined }
     function ponCampo(id, v) {

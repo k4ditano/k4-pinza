@@ -41,38 +41,60 @@ Singleton {
         if (!destino) { falla("guardar", "no hay ruta"); return }
 
         estado = "guardando"
+        progreso = 0
         const meta = S.Documento.meta()
         const claves = S.Documento.clavesPropias()
-        let quedan = claves.length + 1
-        progreso = 0
 
-        function paso() {
-            quedan--
-            progreso = 1 - quedan / (claves.length + 1)
-            if (quedan > 0) return
-            estado = ""
-            S.Documento.ponRuta(destino)
-            S.Documento.limpio()
-            ultimoMensaje = "guardado en " + destino
-            hecho("guardar", destino)
-            if (cb) cb(true)
+        //  Todas las celdas en un viaje. El nombre de fichero ES la clave: capa,
+        //  fotograma y orientación se leen de un vistazo en el explorador.
+        const lista = []
+        for (let i = 0; i < claves.length; i++) {
+            const k = claves[i]
+            lista.push({ ruta: destino + "/celdas/" + k.split(":").join(".") + ".png",
+                         buf: S.Documento.d.celdas[k] })
         }
 
         S.Forja.creaCarpeta(destino + "/celdas", () => {
-            S.Forja.escribeTexto(destino + "/proyecto.json",
-                                 JSON.stringify(meta, null, 2) + "\n", paso)
             S.Forja.escribeTexto(destino + "/paleta.gpl", S.Paleta.aGpl(meta.nombre), null)
-
-            for (let i = 0; i < claves.length; i++) {
-                const k = claves[i]
-                const buf = S.Documento.d.celdas[k]
-                // el nombre de fichero ES la clave: capa, fotograma y
-                // orientación se leen de un vistazo en el explorador
-                const nombre = k.split(":").join(".") + ".png"
-                exportador.aPng(buf, (url) => {
-                    S.Forja.escribePng(destino + "/celdas/" + nombre, url, paso)
+            exportador.escribeVarios(lista, (bien) => {
+                S.Forja.escribeTexto(destino + "/proyecto.json",
+                                     JSON.stringify(meta, null, 2) + "\n", () => {
+                    estado = ""
+                    progreso = 1
+                    S.Documento.ponRuta(destino)
+                    S.Documento.limpio()
+                    ultimoMensaje = "guardado en " + destino
+                    hecho("guardar", destino)
+                    if (cb) cb(bien)
                 })
-            }
+            })
+        })
+    }
+
+    /**
+     * Escribe un proyecto SIN abrirlo.
+     *
+     * Importar una criatura son ocho proyectos, y hacerlo abriendo cada uno
+     * significaba cambiar el documento visible ocho veces: el lienzo iba
+     * parpadeando de acción en acción, y con él la muestra, la previa, el
+     * compás y el medidor de estilo, todos recalculando por cada cambio. Aquí
+     * no se toca nada de lo que estás mirando.
+     *
+     * `celdas` es un mapa clave -> búfer, con las mismas claves que usa el
+     * documento: capa:fotograma:orientación.
+     */
+    function guardaCrudo(ruta, meta, celdas, cb) {
+        const claves = Object.keys(celdas)
+        const lista = []
+        for (let i = 0; i < claves.length; i++)
+            lista.push({ ruta: ruta + "/celdas/" + claves[i].split(":").join(".") + ".png",
+                         buf: celdas[claves[i]] })
+        S.Forja.creaCarpeta(ruta + "/celdas", () => {
+            exportador.escribeVarios(lista, (bien) => {
+                S.Forja.escribeTexto(ruta + "/proyecto.json",
+                                     JSON.stringify(meta, null, 2) + "\n",
+                                     () => { if (cb) cb(bien) })
+            })
         })
     }
 
@@ -98,26 +120,23 @@ Singleton {
             _aplicaRejilla()
 
             const claves = S.Documento.clavesPropias()
-            let quedan = claves.length
-            if (!quedan) { estado = ""; hecho("abrir", ruta); if (cb) cb(true); return }
+            if (!claves.length) { estado = ""; hecho("abrir", ruta); if (cb) cb(true); return }
 
-            for (let i = 0; i < claves.length; i++) {
-                const k = claves[i]
-                const nombre = k.split(":").join(".") + ".png"
-                exportador.dePng(ruta + "/celdas/" + nombre, (buf) => {
-                    if (buf) S.Documento.ponCelda(k, buf)
-                    quedan--
-                    progreso = 1 - quedan / claves.length
-                    if (quedan > 0) return
-                    estado = ""
-                    S.Documento.cambiaPixeles(null)
-                    S.Documento.limpio()
-                    S.Historial.limpia()
-                    ultimoMensaje = "abierto " + ruta
-                    hecho("abrir", ruta)
-                    if (cb) cb(true)
-                })
-            }
+            const rutas = claves.map((k) => ruta + "/celdas/" + k.split(":").join(".") + ".png")
+            exportador.deVarios(rutas, (mapa) => {
+                for (let i = 0; i < claves.length; i++) {
+                    const b = mapa[rutas[i]]
+                    if (b) S.Documento.ponCelda(claves[i], b)
+                }
+                estado = ""
+                progreso = 1
+                S.Documento.cambiaPixeles(null)
+                S.Documento.limpio()
+                S.Historial.limpia()
+                ultimoMensaje = "abierto " + ruta
+                hecho("abrir", ruta)
+                if (cb) cb(true)
+            })
         })
     }
 
@@ -209,18 +228,15 @@ Singleton {
 
             // ── un PNG por orientación ───────────────────────────
             if (salida.modo === "png-por-orientacion" && no > 1) {
-                let quedan = no
+                const lista = []
                 for (let dr = 0; dr < no; dr++) {
-                    const etiqueta = S.Documento.etiquetaOrientacion(dr)
-                    const nombre = nombraCon(salida.patron, { orientacion: etiqueta })
-                    const buf = S.Documento.compuesto(0, dr)
-                    exportador.aPng(buf, (url) => {
-                        S.Forja.escribePng(carpeta + "/" + nombre, url, () => {
-                            escritos.push(carpeta + "/" + nombre)
-                            if (--quedan === 0) acaba()
-                        })
-                    })
+                    const nombre = nombraCon(salida.patron,
+                                             { orientacion: S.Documento.etiquetaOrientacion(dr) })
+                    lista.push({ ruta: carpeta + "/" + nombre,
+                                 buf: P.clonar(S.Documento.compuesto(0, dr)) })
+                    escritos.push(carpeta + "/" + nombre)
                 }
+                exportador.escribeVarios(lista, () => acaba())
                 return
             }
 
@@ -239,11 +255,11 @@ Singleton {
                 if (no > 1 && salida.patronOrientaciones) patron = salida.patronOrientaciones
                 else if (nf === 1 && salida.patronUnico) patron = salida.patronUnico
                 const nombre = nombraCon(patron, { accion: (d.campos || {}).accion || "Anim" })
-                exportador.aHoja(celdas, cols, filas, S.Documento.ancho, S.Documento.alto, (url) => {
-                    S.Forja.escribePng(carpeta + "/" + nombre, url, () => {
-                        escritos.push(carpeta + "/" + nombre)
-                        acaba()
-                    })
+                const hoja = exportador.componHoja(celdas, cols, filas,
+                                                   S.Documento.ancho, S.Documento.alto)
+                exportador.escribe(carpeta + "/" + nombre, hoja, () => {
+                    escritos.push(carpeta + "/" + nombre)
+                    acaba()
                 })
                 return
             }
@@ -252,11 +268,9 @@ Singleton {
             const patron = (nf === 1 && no === 1 && salida.patronUnico) ? salida.patronUnico : salida.patron
             const nombre = nombraCon(patron, { orientacion: S.Documento.etiquetaOrientacion(0),
                                                accion: (d.campos || {}).accion || "Anim" })
-            exportador.aPng(S.Documento.compuesto(0, 0), (url) => {
-                S.Forja.escribePng(carpeta + "/" + nombre, url, () => {
-                    escritos.push(carpeta + "/" + nombre)
-                    acaba()
-                })
+            exportador.escribe(carpeta + "/" + nombre, S.Documento.compuesto(0, 0), () => {
+                escritos.push(carpeta + "/" + nombre)
+                acaba()
             })
         })
     }
@@ -335,26 +349,25 @@ Singleton {
         const tmp = (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/pinza-anim"
         const dur = []
         const ficheros = []
-        let quedan = S.Documento.nFotogramas
 
         S.Forja.creaCarpeta(tmp, () => {
+            const lista = []
             for (let f = 0; f < S.Documento.nFotogramas; f++) {
                 dur.push(S.Documento.duracion(f))
                 const fichero = tmp + "/f" + f + ".png"
                 ficheros.push(fichero)
-                exportador.aPng(S.Documento.compuesto(f, S.Documento.orientacion), (url) => {
-                    S.Forja.escribePng(fichero, url, () => {
-                        if (--quedan > 0) return
-                        S.Forja.pide("gif", { ficheros: ficheros, duraciones: dur,
-                                              ruta: ruta, formato: formato }, (r) => {
-                            estado = ""
-                            if (r.bien) { ultimoMensaje = "escrito " + ruta; hecho("animación", ruta) }
-                            else falla("animación", r.error)
-                            if (cb) cb(r.bien)
-                        })
-                    })
-                })
+                lista.push({ ruta: fichero,
+                             buf: P.clonar(S.Documento.compuesto(f, S.Documento.orientacion)) })
             }
+            exportador.escribeVarios(lista, () => {
+                S.Forja.pide("gif", { ficheros: ficheros, duraciones: dur,
+                                      ruta: ruta, formato: formato }, (r) => {
+                    estado = ""
+                    if (r.bien) { ultimoMensaje = "escrito " + ruta; hecho("animación", ruta) }
+                    else falla("animación", r.error)
+                    if (cb) cb(r.bien)
+                })
+            })
         })
     }
 

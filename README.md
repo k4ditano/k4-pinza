@@ -177,7 +177,10 @@ pruebas para que nos enteremos el día que dejen de ser verdad.
   borra: lo deja igual. Con eso, la goma no borraba nada y deshacer no deshacía
   nada — a la vista, porque por dentro las dos funcionaban perfectamente. Hay
   que limpiar la zona antes de volcarla.
-- **`Canvas.save()` devuelve `false` y no escribe.** Exportar es `toDataURL` y
+- **`Canvas.save()` devuelve `false` y no escribe.** Y aunque `toDataURL`
+  funciona, escribir por ahí cuesta **un repintado por fichero**: una criatura
+  de PMD son quinientas celdas y eran ocho segundos de programa bloqueado. Los
+  píxeles van a la forja en base64 y los escribe Pillow, todos en un mensaje. Exportar es `toDataURL` y
   que la forja escriba el fichero. Leer va al revés y **no** por el Canvas:
   cargar una imagen y leerla con `getImageData` depende de que esté lista justo
   cuando toca pintar, y al arrancar no lo está — devolvía capas vacías sin dar
@@ -217,6 +220,10 @@ siempre. Cada acción queda como un proyecto normal, con sus capas y su deshacer
 **puesta**: cada una con su tamaño, sus fotogramas, sus duraciones y sus
 fotogramas de golpe, y las ocho filas en el orden que lee el juego. Si eso hay
 que teclearlo, la plantilla no sirve de nada.
+
+Mientras la dibujas, el panel de **acciones** dice en cuál estás, cuáles tienen
+ya algo dibujado y salta de una a otra de un clic (o con `Alt+←` / `Alt+→`).
+Cambiar de acción guarda antes la que dejas.
 
 Un proyecto de especie es una carpeta:
 

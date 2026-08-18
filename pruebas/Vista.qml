@@ -80,6 +80,26 @@ ShellRoot {
         ck("y deshacerlo devuelve el color de antes",
            P.lee(b0, 3, 3).join() === antes.join(), P.lee(b0, 3, 3).join())
 
+        // ── el aviso de "sin guardar" ────────────────────────────
+        //
+        //  Parece un detalle y no lo es: de él dependen el punto de la barra,
+        //  el autoguardado y que cambiar de acción en una criatura guarde antes
+        //  la que dejas. Estuvo mintiendo desde el principio porque el contador
+        //  se subía ANTES de marcar el documento, así que el enlace se
+        //  reevaluaba con el valor viejo y nadie volvía a avisar.
+        S.Documento.limpio()
+        ck("tras guardar, el documento está limpio", !S.Documento.sucio)
+        P.pon(S.Documento.celdaActiva(true), 0, 0, [1, 2, 3, 255])
+        S.Documento.cambiaPixeles(null)
+        ck("pintar un píxel lo marca como sin guardar", S.Documento.sucio)
+        S.Documento.limpio()
+        ck("y limpiarlo lo limpia otra vez", !S.Documento.sucio)
+        S.Documento.añadeCapa("testigo")
+        ck("añadir una capa también lo marca", S.Documento.sucio)
+        S.Documento.limpio()
+        S.Documento.borraCapa(S.Documento.nCapas - 1)
+        ck("y borrarla también", S.Documento.sucio)
+
         // los tres ejes
         S.Documento.ponOrientaciones(["S", "E", "N", "W"])
         ck("cambiar de orientaciones no pierde lo dibujado",

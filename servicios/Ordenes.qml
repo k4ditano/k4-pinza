@@ -52,6 +52,54 @@ Singleton {
         S.Historial.cierraEstructura(nombre)
     }
 
+    /**
+     * Aplica una transformación geométrica a LO SELECCIONADO, o a la capa
+     * entera si no hay selección.
+     *
+     * Que voltear y girar respeten la selección no es un detalle: es la mitad
+     * del trabajo de animar. Volteas un brazo, giras una pinza, mueves una
+     * pata — y para eso hace falta que la operación toque sólo lo que marcaste
+     * y que el resto del dibujo siga donde estaba.
+     *
+     * La selección se transforma CON el dibujo, encajándola en un búfer por su
+     * alfa y pasándola por la misma función: así girar noventa grados deja la
+     * marca girada también, y se puede encadenar sin volver a seleccionar.
+     */
+    function transforma(nombre, fn) {
+        const b = _buf()
+        if (!b) return
+        if (!S.Seleccion.activa || !S.Seleccion.limites) { _reemplaza(nombre, fn(b)); return }
+
+        const l = S.Seleccion.limites
+        const trozo = P.recorte(b, l.x, l.y, l.w, l.h)
+        const marca = P.nuevo(l.w, l.h)
+        for (let y = 0; y < l.h; y++) for (let x = 0; x < l.w; x++) {
+            if (S.Seleccion.contiene(l.x + x, l.y + y)) marca.d[(y * l.w + x) * 4 + 3] = 255
+            else P.pon(trozo, x, y, [0, 0, 0, 0])
+        }
+
+        const nuevo = fn(trozo)
+        const nuevaMarca = fn(marca)
+        // centrado en el mismo sitio: girar algo alargado no debe mandarlo lejos
+        const nx = Math.round(l.x + l.w / 2 - nuevo.w / 2)
+        const ny = Math.round(l.y + l.h / 2 - nuevo.h / 2)
+
+        _conHistorial(nombre, (buf) => {
+            for (let y = l.y; y < l.y + l.h; y++) for (let x = l.x; x < l.x + l.w; x++)
+                if (S.Seleccion.contiene(x, y)) P.pon(buf, x, y, [0, 0, 0, 0])
+            P.estampa(buf, nuevo, nx, ny)
+        })
+
+        const m = new Uint8Array(S.Documento.ancho * S.Documento.alto)
+        for (let y = 0; y < nuevaMarca.h; y++) for (let x = 0; x < nuevaMarca.w; x++) {
+            if (nuevaMarca.d[(y * nuevaMarca.w + x) * 4 + 3] < 128) continue
+            const gx = nx + x, gy = ny + y
+            if (gx < 0 || gy < 0 || gx >= S.Documento.ancho || gy >= S.Documento.alto) continue
+            m[gy * S.Documento.ancho + gx] = 1
+        }
+        S.Seleccion.pon(m, S.Documento.ancho, S.Documento.alto, "nueva")
+    }
+
     /** Sustituye la celda activa por otro búfer, del tamaño que sea. */
     function _reemplaza(nombre, nuevo) {
         _conHistorial(nombre, (b) => {
@@ -107,7 +155,22 @@ Singleton {
           cuando: () => ord.hayDoc && ord.portapapeles !== null,
           hacer: () => {
               const l = S.Seleccion.limites
-              _conHistorial("pegar", (b) => P.vuelca(b, ord.portapapeles, l ? l.x : 0, l ? l.y : 0))
+              const px = l ? l.x : 0, py = l ? l.y : 0
+              const r = ord.portapapeles
+              //  Se ESTAMPA, no se vuelca: lo transparente del portapapeles no
+              //  debe abrir un agujero rectangular en lo que había debajo.
+              _conHistorial("pegar", (b) => P.estampa(b, r, px, py))
+              //  Y lo pegado queda seleccionado, para poder moverlo con V sin
+              //  tener que volver a marcarlo — que es lo que se hace siempre.
+              const m = new Uint8Array(S.Documento.ancho * S.Documento.alto)
+              for (let y = 0; y < r.h; y++) for (let x = 0; x < r.w; x++) {
+                  if (P.lee(r, x, y)[3] === 0) continue
+                  const gx = px + x, gy = py + y
+                  if (gx < 0 || gy < 0 || gx >= S.Documento.ancho || gy >= S.Documento.alto) continue
+                  m[gy * S.Documento.ancho + gx] = 1
+              }
+              S.Seleccion.pon(m, S.Documento.ancho, S.Documento.alto, "nueva")
+              S.Pinceles.elige("mover")
           } },
         { id: "borrar", titulo: "Borrar", grupo: "editar", atajo: "Del", cuando: () => ord.hayDoc,
           hacer: () => _conHistorial("borrar", (b) => {
@@ -155,17 +218,31 @@ Singleton {
           hacer: () => S.Pinceles.pincelPersonal = null },
 
         // ── transformar ─────────────────────────────────────────
+        //  Todas respetan la selección: si hay algo marcado tocan sólo eso, y
+        //  si no, la capa entera. El título lo dice para que no haya sorpresas.
         { id: "voltearH", titulo: "Voltear en horizontal", grupo: "transformar", icono: "espejo",
           atajo: "Shift+H", cuando: () => ord.hayDoc,
-          hacer: () => _reemplaza("voltear", P.volteaH(ord._buf())) },
+          hacer: () => transforma(ord.haySel ? "voltear la selección" : "voltear",
+                                  (b) => P.volteaH(b)) },
         { id: "voltearV", titulo: "Voltear en vertical", grupo: "transformar", icono: "espejoV",
           atajo: "Shift+V", cuando: () => ord.hayDoc,
-          hacer: () => _reemplaza("voltear", P.volteaV(ord._buf())) },
+          hacer: () => transforma(ord.haySel ? "voltear la selección" : "voltear",
+                                  (b) => P.volteaV(b)) },
         { id: "girar90", titulo: "Girar 90°", grupo: "transformar", icono: "girar",
-          cuando: () => ord.hayDoc && S.Documento.ancho === S.Documento.alto,
-          hacer: () => _reemplaza("girar", P.gira90(ord._buf(), 1)) },
+          //  Sin selección hace falta un lienzo cuadrado —si no, el resultado no
+          //  cabe—, pero con selección da igual: el trozo girado se recoloca
+          //  centrado donde estaba.
+          cuando: () => ord.hayDoc && (ord.haySel || S.Documento.ancho === S.Documento.alto),
+          hacer: () => transforma(ord.haySel ? "girar la selección" : "girar",
+                                  (b) => P.gira90(b, 1)) },
+        { id: "girar270", titulo: "Girar 90° al revés", grupo: "transformar", icono: "girar",
+          cuando: () => ord.hayDoc && (ord.haySel || S.Documento.ancho === S.Documento.alto),
+          hacer: () => transforma(ord.haySel ? "girar la selección" : "girar",
+                                  (b) => P.gira90(b, 3)) },
         { id: "girar180", titulo: "Girar 180°", grupo: "transformar", icono: "girar",
-          cuando: () => ord.hayDoc, hacer: () => _reemplaza("girar", P.gira90(ord._buf(), 2)) },
+          cuando: () => ord.hayDoc,
+          hacer: () => transforma(ord.haySel ? "girar la selección" : "girar",
+                                  (b) => P.gira90(b, 2)) },
         { id: "desplazar", titulo: "Desplazar envolviendo…", grupo: "transformar",
           cuando: () => ord.hayDoc, hacer: () => ord.pideHoja("desplazar") },
         { id: "redimensionar", titulo: "Tamaño del lienzo…", grupo: "transformar", icono: "escalar",

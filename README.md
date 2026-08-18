@@ -66,6 +66,13 @@ al exportar. Enseña ×1, ×2 y ×3 —los que quepan— y se anima con la tira.
 medidas que el juego saca de los píxeles. Lo que importa no es cómo se ve al
 800 % de zoom.
 
+**Lo marcado se transforma solo.** Voltear y girar respetan la selección: si hay
+algo marcado tocan sólo eso y dejan el resto del dibujo donde estaba, y la marca
+gira con el dibujo para poder encadenar sin volver a seleccionar. Es la mitad del
+trabajo de animar — marcas un brazo, lo volteas; copias una pata, la pegas en el
+fotograma siguiente y la mueves. Lo pegado queda seleccionado y con la
+herramienta de mover ya puesta.
+
 **Modo baldosa de verdad.** El lienzo envuelve: dibujas cruzando la costura y el
 trazo sale por el otro lado, con las ocho repeticiones alrededor.
 

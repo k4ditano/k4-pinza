@@ -79,6 +79,22 @@ function recorte(b, x, y, w, h) {
     return r
 }
 
+/**
+ * Vuelca un recorte RESPETANDO lo que ya había.
+ *
+ * Los píxeles transparentes del recorte no borran nada. Es la diferencia entre
+ * pegar algo encima de un dibujo y pegarlo dentro de un agujero rectangular del
+ * tamaño del recorte: `vuelca` hace lo segundo, que es lo que quiere deshacer y
+ * lo que NO quiere nadie pegando.
+ */
+function estampa(b, r, x, y, alfaBloqueado) {
+    for (let j = 0; j < r.h; j++) for (let i = 0; i < r.w; i++) {
+        const c = lee(r, i, j)
+        if (c[3] === 0) continue
+        mezcla(b, x + i, y + j, c, alfaBloqueado)
+    }
+}
+
 /** Vuelca un recorte encima, crudo. Es lo que usa deshacer. */
 function vuelca(b, r, x, y) {
     for (let j = 0; j < r.h; j++) for (let i = 0; i < r.w; i++) {

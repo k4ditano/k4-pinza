@@ -20,7 +20,37 @@ Singleton {
     property bool bucle: true
     property string modo: "ida"           // ida · vuelta · vaiven
     property bool soloEtiqueta: true      // quedarse dentro de la etiqueta actual
+    /**
+     * A cuánto se mira, que NO es a cuánto va.
+     *
+     * La velocidad de verdad son los tics de cada fotograma: eso es lo que se
+     * guarda, lo que se exporta y lo que el juego reproduce. Esto sólo multiplica
+     * el reloj de la previa, para poder mirar un golpe despacio y ver en qué
+     * fotograma pega. Por eso no se guarda en los ajustes: abrir mañana el
+     * programa y encontrártelo a un cuarto sin acordarte sería la herramienta
+     * mintiéndote otra vez, que es justo lo que no puede pasar aquí.
+     */
     property real velocidad: 1.0
+    readonly property var velocidades: [0.25, 0.5, 1, 2, 4]
+    readonly property string velocidadTexto:
+        velocidad === 0.25 ? "×¼" : velocidad === 0.5 ? "×½"
+      : velocidad === 1 ? "×1" : "×" + velocidad
+
+    /** El siguiente escalón, dando la vuelta. Primero despacio, que es el caso. */
+    function otraVelocidad() {
+        const orden = [1, 0.5, 0.25, 2, 4]
+        const i = orden.indexOf(velocidad)
+        velocidad = orden[(i < 0 ? 0 : i + 1) % orden.length]
+    }
+    function masDespacio() {
+        const i = velocidades.indexOf(velocidad)
+        velocidad = velocidades[Math.max(0, (i < 0 ? 2 : i) - 1)]
+    }
+    function masRapido() {
+        const i = velocidades.indexOf(velocidad)
+        velocidad = velocidades[Math.min(velocidades.length - 1, (i < 0 ? 2 : i) + 1)]
+    }
+
     property int _sentido: 1
 
     readonly property int desde: {

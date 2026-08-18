@@ -403,6 +403,52 @@ Singleton {
         cambia()
     }
 
+    /**
+     * La velocidad de la animación entera, estirando o encogiendo cada
+     * fotograma en proporción.
+     *
+     * Hasta ahora sólo se podía retimar arrastrando el borde de un fotograma,
+     * uno a uno. Vale para afinar el de impacto, pero no para lo más normal:
+     * «esto va lento, que vaya un poco más rápido». En una tirada de once
+     * fotogramas eso eran once arrastres y perder el reparto que ya tenías.
+     *
+     * El reparto se conserva porque cada duración se multiplica por el mismo
+     * factor: si el de impacto duraba la mitad que el de recuperación, sigue
+     * durando la mitad. Y el mínimo es un tic — un fotograma de cero tics no
+     * es un fotograma rápido, es un fotograma que no se ve.
+     */
+    function escalaDuraciones(factor) {
+        if (!memoria.d || !(factor > 0)) return 0
+        for (let i = 0; i < memoria.d.fotogramas.length; i++) {
+            const f = memoria.d.fotogramas[i]
+            f.duracion = Math.max(1, Math.round(f.duracion * factor))
+        }
+        cambia()
+        return duracionTotal
+    }
+
+    /** Todos los fotogramas al mismo compás, que es como empieza casi todo. */
+    function ponDuracionTodos(tics) {
+        if (!memoria.d) return 0
+        const t = Math.max(1, Math.round(tics))
+        for (let i = 0; i < memoria.d.fotogramas.length; i++)
+            memoria.d.fotogramas[i].duracion = t
+        cambia()
+        return duracionTotal
+    }
+
+    /**
+     * Que la animación entera dure lo que le digas, repartiendo como estaba.
+     *
+     * Es la forma en la que se piensa de verdad: «este ciclo de andar tiene que
+     * durar medio segundo». Con tics enteros el total no siempre cae exacto, así
+     * que devuelve el que ha quedado en vez de fingir que sí.
+     */
+    function duraEnTotal(tics) {
+        if (!memoria.d || !(tics > 0) || !duracionTotal) return 0
+        return escalaDuraciones(tics / duracionTotal)
+    }
+
     readonly property int duracionTotal: {
         rev
         if (!memoria.d) return 0

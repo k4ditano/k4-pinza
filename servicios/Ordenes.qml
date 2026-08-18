@@ -121,6 +121,14 @@ Singleton {
         S.Seleccion.pon(m, S.Documento.ancho, S.Documento.alto, "nueva")
     }
 
+    /** Estirar o encoger la animación entera, en un solo paso del historial. */
+    function transformaRitmo(factor, nombre) {
+        if (!S.Documento.abierto) return
+        S.Historial.abreEstructura()
+        S.Documento.escalaDuraciones(factor)
+        S.Historial.cierraEstructura(nombre)
+    }
+
     function transforma(nombre, fn, fnMarca) {
         const c = _capa(), b = _buf()
         if (!c || !b) return
@@ -474,6 +482,38 @@ Singleton {
           hacer: () => S.Ajustes.muestra = !S.Ajustes.muestra },
         { id: "previa", titulo: "Previa en juego", grupo: "vista", icono: "juego",
           cuando: () => ord.hayDoc, hacer: () => S.Ajustes.panelPrevia = !S.Ajustes.panelPrevia },
+        //  Dos velocidades distintas y conviene no confundirlas: éstas cambian
+        //  LO QUE DURA la animación —los tics de cada fotograma, que es lo que
+        //  se guarda y lo que reproduce el juego—, y las de «mirar» de abajo
+        //  sólo tocan el reloj de la previa.
+        { id: "masLenta", titulo: "Animación más lenta", grupo: "animación",
+          icono: "play", atajo: "Alt++", cuando: () => ord.hayDoc,
+          hacer: () => ord.transformaRitmo(1.25, "animación más lenta") },
+        { id: "masRapida", titulo: "Animación más rápida", grupo: "animación",
+          icono: "play", atajo: "Alt+-", cuando: () => ord.hayDoc,
+          hacer: () => ord.transformaRitmo(0.8, "animación más rápida") },
+        { id: "mismoCompas", titulo: "Todos los fotogramas a la misma duración",
+          grupo: "animación", icono: "play",
+          cuando: () => ord.hayDoc && S.Documento.nFotogramas > 1,
+          hacer: () => {
+              //  La del fotograma en el que estás: es la que acabas de mirar y
+              //  decidir que está bien.
+              const t = S.Documento.duracion(S.Documento.fotograma)
+              S.Historial.abreEstructura()
+              S.Documento.ponDuracionTodos(t)
+              S.Historial.cierraEstructura("todos a " + t + " tics")
+          } },
+
+        { id: "verDespacio", titulo: "Mirar la animación más despacio (sólo la previa)",
+          grupo: "animación", icono: "play", cuando: () => ord.hayDoc,
+          hacer: () => S.Animacion.masDespacio() },
+        { id: "verRapido", titulo: "Mirar la animación más rápido (sólo la previa)",
+          grupo: "animación", icono: "play", cuando: () => ord.hayDoc,
+          hacer: () => S.Animacion.masRapido() },
+        { id: "verNormal", titulo: "Mirar la animación a su velocidad de verdad",
+          grupo: "animación", icono: "play",
+          cuando: () => ord.hayDoc && S.Animacion.velocidad !== 1,
+          hacer: () => S.Animacion.velocidad = 1 },
         { id: "historial", titulo: "Historial", grupo: "vista", icono: "historial",
           hacer: () => S.Ajustes.panelHistorial = !S.Ajustes.panelHistorial },
         { id: "tema", titulo: "Cambiar a claro / oscuro", grupo: "vista",

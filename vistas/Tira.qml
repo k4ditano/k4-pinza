@@ -59,6 +59,18 @@ Rectangle {
             implicitHeight: 26
             onPulsado: S.Animacion.siguiente()
         }
+        //  Con play y pausa, porque es de la misma familia: cómo lo MIRAS. Lo
+        //  que dura de verdad está al otro lado de la tira, con los tics, y
+        //  tenerlos juntos era pedir que se confundieran.
+        C.Boton {
+            texto: S.Animacion.velocidadTexto
+            activo: S.Animacion.velocidad !== 1
+            relleno: 8
+            implicitHeight: 26
+            pista: "a qué velocidad lo MIRAS: sólo la previa. Lo que se guarda y "
+                   + "lo que reproduce el juego son los tics de cada fotograma"
+            onPulsado: S.Animacion.otraVelocidad()
+        }
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -180,11 +192,23 @@ Rectangle {
                             cursorShape: Qt.SizeHorCursor
                             property real desde: 0
                             property int ticsDesde: 0
-                            onPressed: (m) => { desde = m.x; ticsDesde = fot.tics }
+                            //  Un paso del historial por arrastre, no por cada
+                            //  píxel que mueves. Retimar no se podía deshacer:
+                            //  ponDuracion cambiaba el documento y nadie lo
+                            //  apuntaba, así que un tirón sin querer se quedaba.
+                            onPressed: (m) => {
+                                desde = m.x; ticsDesde = fot.tics
+                                S.Historial.abreEstructura()
+                            }
                             onPositionChanged: (m) => {
                                 if (!pressed) return
                                 const d = Math.round((m.x - desde) / raiz.pxPorTic)
                                 S.Documento.ponDuracion(index, Math.max(1, ticsDesde + d))
+                            }
+                            onReleased: {
+                                if (fot.tics === ticsDesde) { S.Historial.olvidaEstructura(); return }
+                                S.Historial.cierraEstructura("fotograma " + (index + 1)
+                                                             + ": " + fot.tics + " tics")
                             }
                         }
                     }
@@ -269,24 +293,63 @@ Rectangle {
             onPulsado: S.Animacion.modo = S.Animacion.modo === "ida" ? "vaiven"
                      : S.Animacion.modo === "vaiven" ? "vuelta" : "ida"
         }
-        Column {
+        //  Lo que dura, y se puede escribir encima.
+        //
+        //  Estaba aquí como número muerto, que es raro: es la cifra que más
+        //  miras de la tira y la que quieres cambiar. Escribir un total nuevo
+        //  estira o encoge TODOS los fotogramas en proporción, así que el
+        //  reparto que ya habías afinado —el de impacto corto, el de
+        //  recuperación largo— se conserva; sólo cambia el compás.
+        Row {
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 0
-            Text {
-                text: S.Documento.duracionTotal + " tics"
-                font.family: C.Tema.tipoMono
-                font.pixelSize: 10
-                color: C.Tema.tinta
-                horizontalAlignment: Text.AlignRight
-                width: 54
+            spacing: 4
+
+            C.Boton {
+                anchors.verticalCenter: parent.verticalCenter
+                texto: "−"
+                width: 22; implicitHeight: 22
+                tenue: !S.Documento.abierto
+                //  Van con el número, no con la sensación: menos tics es menos
+                //  tiempo, o sea más rápida. Al revés —«−» para ir más lento—
+                //  el botón dice una cosa y la cifra de al lado la contraria.
+                pista: "menos tics: la animación va más rápida   Alt+-"
+                onPulsado: S.Ordenes.ejecuta("masRapida")
             }
-            Text {
-                text: (S.Documento.duracionTotal / 60).toFixed(2) + " s"
-                font.family: C.Tema.tipoMono
-                font.pixelSize: 10
-                color: C.Tema.tenue
-                horizontalAlignment: Text.AlignRight
-                width: 54
+            C.Boton {
+                anchors.verticalCenter: parent.verticalCenter
+                texto: "+"
+                width: 22; implicitHeight: 22
+                tenue: !S.Documento.abierto
+                pista: "más tics: la animación va más lenta   Alt++"
+                onPulsado: S.Ordenes.ejecuta("masLenta")
+            }
+
+            Column {
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 0
+
+                C.Campo {
+                    width: 76
+                    numero: true
+                    minimo: 1; maximo: 99999
+                    sufijo: "t"
+                    valor: String(S.Documento.duracionTotal)
+                    onCambiado: (v) => {
+                        const n = parseInt(v)
+                        if (!n || n === S.Documento.duracionTotal) return
+                        S.Historial.abreEstructura()
+                        S.Documento.duraEnTotal(n)
+                        S.Historial.cierraEstructura("cambiar el ritmo")
+                    }
+                }
+                Text {
+                    text: (S.Documento.duracionTotal / 60).toFixed(2) + " s"
+                    font.family: C.Tema.tipoMono
+                    font.pixelSize: 10
+                    color: C.Tema.tenue
+                    horizontalAlignment: Text.AlignRight
+                    width: 76
+                }
             }
         }
     }

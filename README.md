@@ -66,8 +66,10 @@ compass never appears.
 
 **Each frame is as wide as it is long.** The strip at the bottom is not equal
 boxes: each frame is as wide as the ticks it takes, with its own ruler. Dragging
-its right edge retimes the animation while you watch it, which is how you decide
-whether a hit feels right.
+its right edge retimes that one; typing the total on the right retimes the whole
+animation, stretching or shrinking every frame in proportion — the balance you
+had already tuned is kept, only the tempo changes. And separately, a ×1 next to
+play to watch it in slow motion without touching what gets exported.
 
 **The swatch, at real size.** While drawing you are always at ×8 or ×16, and at
 that magnification anything looks fine: outlines read, shadows separate. At real

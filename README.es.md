@@ -65,8 +65,10 @@ simplemente vale una y el compás ni aparece.
 
 **Cada fotograma mide lo que dura.** La tira de abajo no son cuadraditos
 iguales: cada fotograma es tan ancho como tics ocupa, con su regla. Arrastrando
-su borde derecho retimas la animación mirándola, que es como se decide si un
-golpe se siente bien.
+su borde derecho retimas ése; escribiendo el total de la derecha retimas la
+animación entera, estirando o encogiendo todos en proporción — el reparto que ya
+habías afinado se conserva, sólo cambia el compás. Y aparte, un ×1 junto al
+play para mirarla a cámara lenta sin tocar lo que se exporta.
 
 **La muestra, a tamaño real.** Dibujando estás siempre a ×8 o a ×16, y a ese
 aumento cualquier cosa parece bien: los contornos se leen, las sombras se

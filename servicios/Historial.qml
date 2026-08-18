@@ -124,6 +124,16 @@ Singleton {
                            orientacion: S.Documento.orientacion } : null
     }
 
+    /**
+     * Cerrar sin apuntar nada: se abrió un paso y al final no cambió nada.
+     *
+     * Hace falta para los arrastres. Pinchar el borde de un fotograma y
+     * soltarlo en el sitio no es un cambio, y sin esto dejaba un paso vacío en
+     * el historial que al deshacer no hacía nada — que es peor que no tenerlo,
+     * porque parece que Ctrl+Z se ha quedado colgado.
+     */
+    function olvidaEstructura() { _antesMeta = null }
+
     function cierraEstructura(nombre) {
         if (!_antesMeta) return false
         const m = S.Documento.meta()

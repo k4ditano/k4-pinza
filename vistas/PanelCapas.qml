@@ -29,9 +29,17 @@ C.Hoja {
                 readonly property int idx: S.Documento.nCapas - 1 - index   // al revés
                 readonly property var capa: S.Documento.capa(idx)
                 readonly property bool actual: S.Documento.capaActiva === idx
+                readonly property bool esGrupo: capa ? capa.tipo === "grupo" : false
+                readonly property int sangria: S.Documento.rev, S.Documento.hondura(idx)
+
+                //  Lo que está dentro de un grupo plegado no se enseña. La
+                //  fila desaparece del todo en vez de quedarse gris: una lista
+                //  de capas con la mitad inalcanzables no es un árbol, es ruido.
+                readonly property bool escondida: S.Documento.rev, S.Documento.oculta(idx)
 
                 width: parent.width
-                height: 26
+                height: escondida ? 0 : 26
+                visible: !escondida
                 radius: 3
                 color: actual ? C.Tema.acentoTenue : filaRaton.containsMouse ? C.Tema.alta : "transparent"
                 border.width: actual ? 1 : 0
@@ -46,7 +54,7 @@ C.Hoja {
 
                 Row {
                     anchors.left: parent.left
-                    anchors.leftMargin: 4
+                    anchors.leftMargin: 4 + parent.sangria * 10
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 2
 
@@ -69,6 +77,7 @@ C.Hoja {
                     }
                     C.Boton {
                         width: 20; implicitHeight: 20
+                        visible: !parent.parent.esGrupo
                         texto: "α"
                         activo: capa ? capa.alfaBloqueado : false
                         tenue: capa ? !capa.alfaBloqueado : true
@@ -77,9 +86,27 @@ C.Hoja {
                     }
                 }
 
+                C.Icono {
+                    id: pliegue
+                    visible: parent.esGrupo
+                    glifo: capa && capa.plegado ? C.Tema.i.flecha : C.Tema.i.abajo
+                    anchors.left: parent.left
+                    anchors.leftMargin: 74 + parent.sangria * 10
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 14
+                    font.pixelSize: 11
+                    color: C.Tema.tenue
+                    MouseArea {
+                        anchors.fill: parent
+                        anchors.margins: -3
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: { capa.plegado = !capa.plegado; S.Documento.cambia() }
+                    }
+                }
+
                 Text {
                     anchors.left: parent.left
-                    anchors.leftMargin: 74
+                    anchors.leftMargin: 74 + parent.sangria * 10 + (parent.esGrupo ? 16 : 0)
                     anchors.right: marcas.left
                     anchors.rightMargin: 4
                     anchors.verticalCenter: parent.verticalCenter
@@ -89,6 +116,7 @@ C.Hoja {
                     color: capa && capa.tipo === "referencia" ? C.Tema.tenue
                          : actual ? C.Tema.acento : C.Tema.tinta
                     font.italic: capa ? capa.tipo === "referencia" : false
+                    font.weight: parent.esGrupo ? Font.DemiBold : Font.Normal
                     elide: Text.ElideRight
                 }
 
@@ -168,6 +196,9 @@ C.Hoja {
             C.Boton { icono: C.Tema.i.fusion; implicitHeight: 22; width: 26
                       pista: "fusionar con la de abajo"; tenue: S.Documento.capaActiva === 0
                       onPulsado: S.Ordenes.ejecuta("capaFusionar") }
+            C.Boton { icono: C.Tema.i.carpeta; implicitHeight: 22; width: 26
+                      pista: "agrupar   Ctrl+G"
+                      onPulsado: S.Ordenes.ejecuta("capaAgrupar") }
             C.Boton { icono: C.Tema.i.referencia; implicitHeight: 22; width: 26
                       pista: "capa de referencia, para calcar"
                       onPulsado: S.Ordenes.ejecuta("capaReferencia") }

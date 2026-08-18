@@ -98,7 +98,7 @@ Singleton {
             capas: [{
                 id: idFondo, nombre: "capa 1", visible: true, opacidad: 1,
                 modo: "normal", bloqueada: false, alfaBloqueado: false,
-                tipo: "normal", sangrado: 0
+                tipo: "normal", grupo: "", plegado: false
             }],
             fotogramas: [],
             orientaciones: orientaciones.slice(),
@@ -202,15 +202,22 @@ Singleton {
     /** El orden de la lista es de abajo arriba, como se compone. */
     function añadeCapa(nombre, tipo, donde) {
         if (!memoria.d) return null
+        const anterior = capa(capaActiva)
         const c = {
             id: _id(), nombre: nombre || ("capa " + (memoria.d.capas.length + 1)),
             visible: true, opacidad: 1, modo: "normal",
-            bloqueada: false, alfaBloqueado: false, tipo: tipo || "normal", sangrado: 0
+            bloqueada: false, alfaBloqueado: false, tipo: tipo || "normal",
+            // nace dentro del mismo grupo que la capa activa, que es donde
+            // esperas que aparezca si acabas de abrir un grupo para trabajar
+            grupo: anterior ? (anterior.tipo === "grupo" ? anterior.id : anterior.grupo || "") : "",
+            plegado: false
         }
         const i = donde === undefined ? capaActiva + 1 : donde
         memoria.d.capas.splice(i, 0, c)
-        for (let f = 0; f < nFotogramas; f++) for (let dr = 0; dr < nOrientaciones; dr++)
-            memoria.d.celdas[clave(c.id, f, dr)] = P.nuevo(ancho, alto)
+        // un grupo no tiene píxeles propios: sólo junta a los de dentro
+        if (c.tipo !== "grupo")
+            for (let f = 0; f < nFotogramas; f++) for (let dr = 0; dr < nOrientaciones; dr++)
+                memoria.d.celdas[clave(c.id, f, dr)] = P.nuevo(ancho, alto)
         memoria.capaActiva = i
         cambia(); cambiaPixeles(null)
         return c
@@ -232,13 +239,42 @@ Singleton {
         return c
     }
 
+    /**
+     * Borra una capa, y si es un grupo también lo que lleva dentro.
+     *
+     * Por ID y no por índice. La primera versión recogía los índices de las
+     * hijas y las borraba en orden inverso, y eso funciona con una lista plana
+     * pero no con grupos anidados: en cuanto una hija es a su vez un grupo, su
+     * borrado recursivo corre los índices de todo lo que venía detrás y los que
+     * quedaban por borrar apuntaban ya a otra capa. Quedaban capas huérfanas
+     * apuntando a un grupo que ya no existía — invisibles para siempre, porque
+     * la composición sólo recorre grupos que existen.
+     */
     function borraCapa(i) {
         const c = capa(i)
-        if (!c || nCapas <= 1) return false
-        for (let f = 0; f < nFotogramas; f++) for (let dr = 0; dr < nOrientaciones; dr++)
-            delete memoria.d.celdas[clave(c.id, f, dr)]
-        memoria.d.capas.splice(i, 1)
-        memoria.capaActiva = Math.max(0, Math.min(memoria.capaActiva, nCapas - 1))
+        if (!c) return false
+
+        const fuera = {}
+        function recoge(id) {
+            fuera[id] = true
+            const capas = memoria.d.capas
+            for (let k = 0; k < capas.length; k++)
+                if ((capas[k].grupo || "") === id && !fuera[capas[k].id]) recoge(capas[k].id)
+        }
+        recoge(c.id)
+
+        const quedan = memoria.d.capas.filter((x) => !fuera[x.id])
+        // un documento sin ninguna capa no es un documento
+        if (!quedan.length) return false
+
+        const ids = Object.keys(fuera)
+        for (let k = 0; k < ids.length; k++)
+            for (let f = 0; f < nFotogramas; f++) for (let dr = 0; dr < nOrientaciones; dr++)
+                delete memoria.d.celdas[clave(ids[k], f, dr)]
+
+        memoria.d.capas = quedan
+        memoria.capaActiva = Math.max(0, Math.min(memoria.capaActiva, quedan.length - 1))
+        _cofre.buf = null
         cambia(); cambiaPixeles(null)
         return true
     }
@@ -256,6 +292,10 @@ Singleton {
     function fusionaAbajo(i) {
         const arriba = capa(i), abajo = capa(i - 1)
         if (!arriba || !abajo) return false
+        // Con un grupo por medio no está claro qué se pediría: se aplana el
+        // grupo primero y luego se fusiona, que son dos decisiones distintas.
+        if (arriba.tipo === "grupo" || abajo.tipo === "grupo") return false
+        if ((arriba.grupo || "") !== (abajo.grupo || "")) return false
         for (let f = 0; f < nFotogramas; f++) for (let dr = 0; dr < nOrientaciones; dr++) {
             const a = celda(arriba.id, f, dr, false)
             if (!a) continue
@@ -440,30 +480,126 @@ Singleton {
             && k.buf.w === memoria.d.ancho && k.buf.h === memoria.d.alto) return k.buf
 
         const out = P.nuevo(memoria.d.ancho, memoria.d.alto)
-        for (let i = 0; i < memoria.d.capas.length; i++) {
-            const c = memoria.d.capas[i]
-            if (!c.visible || c.tipo === "referencia") continue
-            const b = celda(c.id, ff, dd, false)
-            if (!b) continue
-            P.compon(out, b, c.modo, c.opacidad)
-        }
+        componEn(out, ff, dd, null, false)
         k.buf = out; k.sello = sello; k.f = ff; k.d = dd
         return out
+    }
+
+    /**
+     * Compone una celda sobre el búfer que le den. EL ÚNICO sitio que sabe
+     * cómo se apilan las capas.
+     *
+     * Lo usan el lienzo —que sólo recompone el rectángulo que ensució el
+     * trazo— y `compuesto()`, que lo hace entero para exportar. Tenerlo dos
+     * veces sería tener dos respuestas distintas a "cómo se ve esto", y la que
+     * saldría por el PNG no tendría por qué ser la que ves en pantalla.
+     *
+     * `rect` es {x,y,w,h} o null para todo. `conReferencia` incluye las capas
+     * de calco, que se ven al dibujar pero no se exportan.
+     */
+    function componEn(out, ff, dd, rect, conReferencia) {
+        if (!memoria.d) return
+        const r = rect || { x: 0, y: 0, w: memoria.d.ancho, h: memoria.d.alto }
+        _componGrupo(out, "", ff, dd, r, conReferencia)
+    }
+
+    /**
+     * Un grupo y todo lo que lleva dentro, recursivamente.
+     *
+     * Un grupo se compone aparte y ENTERO antes de caer sobre lo de abajo, que
+     * es la diferencia con dejar sus capas sueltas: la opacidad y el modo del
+     * grupo se aplican al resultado, no capa a capa. Poner tres capas al 50 %
+     * dentro de un grupo al 50 % no es lo mismo que seis capas al 50 %, y eso
+     * es justo para lo que se agrupa.
+     */
+    function _componGrupo(out, idGrupo, ff, dd, r, conReferencia) {
+        const capas = memoria.d.capas
+        for (let i = 0; i < capas.length; i++) {
+            const c = capas[i]
+            if ((c.grupo || "") !== idGrupo) continue
+            if (!c.visible) continue
+            if (c.tipo === "referencia" && !conReferencia) continue
+
+            if (c.tipo === "grupo") {
+                const tmp = P.nuevo(memoria.d.ancho, memoria.d.alto)
+                _componGrupo(tmp, c.id, ff, dd, r, conReferencia)
+                P.compon(out, tmp, c.modo, c.opacidad, r.x, r.y, r.w, r.h)
+                continue
+            }
+            const b = celda(c.id, ff, dd, false)
+            if (!b) continue
+            P.compon(out, b, c.tipo === "referencia" ? "normal" : c.modo, c.opacidad,
+                     r.x, r.y, r.w, r.h)
+        }
     }
 
     /** Igual pero contando las capas de referencia, para la vista. */
     function compuestoConReferencia(f, dr) {
         if (!memoria.d) return null
-        const ff = f === undefined ? fotograma : f
-        const dd = dr === undefined ? orientacion : dr
-        const out = P.nuevo(ancho, alto)
-        for (let i = 0; i < memoria.d.capas.length; i++) {
-            const c = memoria.d.capas[i]
-            if (!c.visible) continue
-            const b = celda(c.id, ff, dd, false)
-            if (!b) continue
-            P.compon(out, b, c.tipo === "referencia" ? "normal" : c.modo, c.opacidad)
+        const out = P.nuevo(memoria.d.ancho, memoria.d.alto)
+        componEn(out, f === undefined ? fotograma : f,
+                 dr === undefined ? orientacion : dr, null, true)
+        return out
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // grupos
+    // ═══════════════════════════════════════════════════════════
+
+    /** Mete la capa i en un grupo nuevo, justo por encima de ella. */
+    function agrupa(i, nombre) {
+        const c = capa(i)
+        if (!c) return null
+        const g = {
+            id: _id(), nombre: nombre || "grupo", visible: true, opacidad: 1,
+            modo: "normal", bloqueada: false, alfaBloqueado: false,
+            tipo: "grupo", grupo: c.grupo || "", plegado: false
         }
+        memoria.d.capas.splice(i + 1, 0, g)
+        c.grupo = g.id
+        cambia(); cambiaPixeles(null)
+        return g
+    }
+
+    /** Saca una capa de su grupo, al nivel del grupo. */
+    function desagrupa(i) {
+        const c = capa(i)
+        if (!c || !c.grupo) return false
+        const padre = capaPorId(c.grupo)
+        c.grupo = padre ? (padre.grupo || "") : ""
+        cambia(); cambiaPixeles(null)
+        return true
+    }
+
+    /** Cuántos grupos hay por encima de esta capa, para sangrarla en la lista. */
+    function hondura(i) {
+        const c = capa(i)
+        if (!c) return 0
+        let n = 0, g = c.grupo
+        while (g && n < 8) { const p = capaPorId(g); if (!p) break; g = p.grupo; n++ }
+        return n
+    }
+
+    /** Si alguno de sus grupos está plegado, esta capa no se enseña. */
+    function oculta(i) {
+        const c = capa(i)
+        if (!c) return false
+        let g = c.grupo, n = 0
+        while (g && n < 8) {
+            const p = capaPorId(g)
+            if (!p) break
+            if (p.plegado) return true
+            g = p.grupo; n++
+        }
+        return false
+    }
+
+    /** Las capas de dentro de un grupo, en orden. */
+    function hijas(idGrupo) {
+        const out = []
+        if (!memoria.d) return out
+        for (let i = 0; i < memoria.d.capas.length; i++)
+            if ((memoria.d.capas[i].grupo || "") === idGrupo) out.push(i)
         return out
     }
 

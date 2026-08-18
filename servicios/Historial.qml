@@ -133,6 +133,76 @@ Singleton {
         return true
     }
 
+    // ═══════════════════════════════════════════════════════════
+    // instantánea completa
+    // ═══════════════════════════════════════════════════════════
+    //
+    //  Para lo que toca píxeles POR TODAS PARTES sin pasar por una herramienta:
+    //  un guión. El historial de estructura guarda el mapa de celdas por
+    //  referencia a propósito —los píxeles tienen su propia entrada— pero un
+    //  guión escribe dentro de los búferes sin dejar ninguna, así que deshacerlo
+    //  devolvía el mapa apuntando a los mismos búferes ya machacados. Aquí se
+    //  copian de verdad. Es caro, y da igual: correr un guión es algo que se
+    //  hace una vez y a conciencia, no sesenta veces por segundo.
+
+    property var _antesTodo: null
+
+    function _instantanea() {
+        const d = S.Documento.d
+        if (!d) return null
+        const celdas = {}
+        const k = Object.keys(d.celdas)
+        for (let i = 0; i < k.length; i++) {
+            const v = d.celdas[k[i]]
+            celdas[k[i]] = (v && v.enlace) ? { enlace: v.enlace } : P.clonar(v)
+        }
+        return { meta: JSON.parse(JSON.stringify(S.Documento.meta())), celdas: celdas,
+                 capaActiva: S.Documento.capaActiva, fotograma: S.Documento.fotograma,
+                 orientacion: S.Documento.orientacion }
+    }
+
+    function abreCompleto() { _antesTodo = _instantanea() }
+
+    function cierraCompleto(nombre) {
+        if (!_antesTodo) return false
+        const antes = _antesTodo
+        const despues = _instantanea()
+        _antesTodo = null
+        if (!despues) return false
+        _empuja({ t: "completo", nombre: nombre, antes: antes, despues: despues })
+        return true
+    }
+
+    /** Deshace sin dejar rastro: para cuando un guión revienta a mitad. */
+    function cancelaCompleto() {
+        if (!_antesTodo) return false
+        const s = _antesTodo
+        _antesTodo = null
+        _restaura(s)
+        return true
+    }
+
+    function _restaura(s) {
+        const d = S.Documento.d
+        if (!d || !s) return
+        d.ancho = s.meta.ancho; d.alto = s.meta.alto
+        d.capas = JSON.parse(JSON.stringify(s.meta.capas))
+        d.fotogramas = JSON.parse(JSON.stringify(s.meta.fotogramas))
+        d.orientaciones = s.meta.orientaciones.slice()
+        d.etiquetas = JSON.parse(JSON.stringify(s.meta.etiquetas || []))
+        const celdas = {}
+        const k = Object.keys(s.celdas)
+        for (let i = 0; i < k.length; i++) {
+            const v = s.celdas[k[i]]
+            celdas[k[i]] = (v && v.enlace) ? { enlace: v.enlace } : P.clonar(v)
+        }
+        d.celdas = celdas
+        S.Documento.capaActiva = Math.min(s.capaActiva, d.capas.length - 1)
+        S.Documento.fotograma = Math.min(s.fotograma, d.fotogramas.length - 1)
+        S.Documento.orientacion = Math.min(s.orientacion, d.orientaciones.length - 1)
+        S.Documento.cambia(); S.Documento.cambiaPixeles(null)
+    }
+
     /** Copia superficial del mapa: las claves sí, los búferes por referencia. */
     function _copiaMapa() {
         const d = S.Documento.d
@@ -156,6 +226,8 @@ Singleton {
             if (!cel) return
             P.vuelca(cel, haciaAtras ? c.antes : c.despues, c.x, c.y)
             S.Documento.cambiaPixeles({ x: c.x, y: c.y, w: c.w, h: c.h })
+        } else if (c.t === "completo") {
+            _restaura(haciaAtras ? c.antes : c.despues)
         } else if (c.t === "estructura") {
             const e = haciaAtras ? c.antes : c.despues
             d.ancho = e.meta.ancho; d.alto = e.meta.alto

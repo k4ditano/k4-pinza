@@ -61,6 +61,21 @@ sombra. Lo que importa no es cómo se ve al 800 % de zoom.
 **Modo baldosa de verdad.** El lienzo envuelve: dibujas cruzando la costura y el
 trazo sale por el otro lado, con las ocho repeticiones alrededor.
 
+**Mapa de prueba.** Un tileset no se juzga mirando la hoja: se juzga viéndolo
+repartido por un campo, que es donde salen las costuras y donde se ve que la flor
+que parecía bonita, puesta cada tres casillas, convierte el prado en una
+alfombra. El reparto no está inventado — es el mismo que hace el juego: sólo
+casillas enteras opacas y no blancas, ordenadas por varianza de luminancia, el
+40 % más plano como suelo y el resto salpicado.
+
+**Guiones en JavaScript.** El mismo idioma en el que ya está escrito el
+programa, así que no hay otro intérprete ni una traducción del modelo por medio.
+Un guión recibe un objeto `pinza` y trabaja contra el documento abierto; todo lo
+que haga entra en el historial como **un** paso, para que se pueda probar sin
+miedo. Vienen tres de ejemplo: contornear la silueta en todas las orientaciones,
+centrar cada celda, y apoyar la figura en el suelo con el mismo hueco en todos
+los fotogramas.
+
 **Sin menús y sin diálogos modales.** `Ctrl+K` para cualquier orden, buscando por
 trozos sueltos («vol h» encuentra «Voltear en horizontal») y enseñando sólo lo
 que se puede hacer ahora. Botón derecho sostenido sobre el lienzo para la rueda
@@ -71,7 +86,8 @@ Y lo de siempre: selección por marco, elipse, lazo, lazo poligonal, varita y
 color, con sumar/restar/cortar; lápiz con trazo perfecto, goma, cubo,
 cuentagotas, líneas, rectángulos, elipses, degradado tramado, difuminar,
 manchar, aclarar, quemar, sustituir color; pinceles a medida desde una
-selección; dieciocho modos de fusión, bloqueo de alfa, capas de referencia;
+selección; dieciocho modos de fusión, grupos anidables, bloqueo de alfa, capas de
+referencia;
 voltear, girar, escalar por vecino cercano o con suavizado tipo RotSprite,
 sesgar, recortar al contenido; piel de cebolla teñida, etiquetas con ida, vuelta
 y vaivén, celdas enlazadas; simetría, rejilla de píxel y de casilla; paletas
@@ -87,7 +103,9 @@ salta de un clic.
     servicios/         el estado, en singletons
       Documento.qml    capas × fotogramas × orientaciones
       Historial.qml    deshacer por comandos, no por instantáneas
+      Ordenes.qml      todo lo que el programa sabe hacer, en una lista
       Proyecto.qml     guardar, abrir, exportar
+      Guiones.qml      correr JavaScript contra el documento
       Forja.qml        el único sitio que lanza procesos
     vistas/            lienzo, compás, tira, paneles, hojas
     packs/             genérico.json, crabh.json — y los tuyos
@@ -102,6 +120,12 @@ mientras dibujas se lleva el dibujo por delante; y QML no avisa cuando mutas por
 dentro un `property var`, así que en vez de pelearse con eso hay dos contadores
 —`rev` y `revPixeles`— a los que se enganchan las vistas. Separarlos es lo que
 hace que un trazo no reconstruya la lista de capas sesenta veces por segundo.
+
+Cómo se apilan las capas lo sabe **una sola función**, `Documento.componEn`. La
+usan el lienzo —que sólo recompone el rectángulo que ensució el trazo— y la
+exportación, que lo hace entero. Tenerlo dos veces sería tener dos respuestas
+distintas a «cómo se ve esto», y la que saldría por el PNG no tendría por qué ser
+la que ves.
 
 El zoom no lo hace el Canvas: el Canvas está siempre a 1:1 con el sprite y quien
 lo agranda es la GPU, sin suavizar. Por eso da igual dibujar al 100 % o al
@@ -135,6 +159,26 @@ Nada de un binario propio, y por tres razones que se notan a diario: se ve en un
 `git diff`, se puede abrir un fotograma suelto en cualquier otro editor mientras
 a pinza le falte una herramienta, y si mañana el programa no arranca el arte
 sigue estando ahí.
+
+## Guiones
+
+    ~/.config/pinza/guiones/*.js
+
+Un guión recibe `pinza` y trabaja contra el documento abierto:
+
+```js
+pinza.paraCada((buf, capa, fotograma, orientacion) => {
+  pinza.paraCadaPixel(buf, (c, x, y) => {
+    if (c[3] === 0) return
+    return pinza.color('#D66C34')
+  })
+})
+pinza.log('listo')
+```
+
+`pinza.px` es el motor de píxeles entero, por si hace falta algo que la API no
+trae — pero entonces te toca a ti no romper nada. Un guión que revienta a mitad
+se cancela sin dejar rastro en el historial.
 
 ## Packs
 

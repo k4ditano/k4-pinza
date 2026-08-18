@@ -4,111 +4,284 @@
   "resumen": "Sin reglas de nadie. Eliges el tamaño, los fotogramas y las orientaciones, y exportas donde quieras.",
   "raiz": null,
   "guia": null,
-
   "paletas": [
     {
       "id": "arranque",
       "nombre": "de arranque",
       "rampas": [
-        { "nombre": "neutros", "colores": ["#14141C", "#2E2E3C", "#54546A", "#8A8AA0", "#BEBECE", "#F2F2F8"] },
-        { "nombre": "cálidos", "colores": ["#4A1808", "#8C3010", "#C86028", "#EC9850", "#F8D0A0"] },
-        { "nombre": "fríos",   "colores": ["#0C2044", "#1A4880", "#3078C4", "#70ACE4", "#B8DCF8"] },
-        { "nombre": "verdes",  "colores": ["#0E3018", "#1E6030", "#3A9850", "#70C878", "#B4E8B0"] },
-        { "nombre": "carne",   "colores": ["#5A2820", "#94503C", "#C88060", "#E8B090", "#F8DCC4"] }
+        {
+          "nombre": "neutros",
+          "colores": [
+            "#14141C",
+            "#2E2E3C",
+            "#54546A",
+            "#8A8AA0",
+            "#BEBECE",
+            "#F2F2F8"
+          ]
+        },
+        {
+          "nombre": "cálidos",
+          "colores": [
+            "#4A1808",
+            "#8C3010",
+            "#C86028",
+            "#EC9850",
+            "#F8D0A0"
+          ]
+        },
+        {
+          "nombre": "fríos",
+          "colores": [
+            "#0C2044",
+            "#1A4880",
+            "#3078C4",
+            "#70ACE4",
+            "#B8DCF8"
+          ]
+        },
+        {
+          "nombre": "verdes",
+          "colores": [
+            "#0E3018",
+            "#1E6030",
+            "#3A9850",
+            "#70C878",
+            "#B4E8B0"
+          ]
+        },
+        {
+          "nombre": "carne",
+          "colores": [
+            "#5A2820",
+            "#94503C",
+            "#C88060",
+            "#E8B090",
+            "#F8DCC4"
+          ]
+        }
       ]
     },
     {
       "id": "dieciseis",
       "nombre": "dieciséis tonos",
       "rampas": [
-        { "nombre": "oscuros", "colores": ["#1A1C2C", "#5D275D", "#B13E53", "#EF7D57"] },
-        { "nombre": "cálidos", "colores": ["#FFCD75", "#A7F070", "#38B764", "#257179"] },
-        { "nombre": "fríos",   "colores": ["#29366F", "#3B5DC9", "#41A6F6", "#73EFF7"] },
-        { "nombre": "claros",  "colores": ["#F4F4F4", "#94B0C2", "#566C86", "#333C57"] }
+        {
+          "nombre": "oscuros",
+          "colores": [
+            "#1A1C2C",
+            "#5D275D",
+            "#B13E53",
+            "#EF7D57"
+          ]
+        },
+        {
+          "nombre": "cálidos",
+          "colores": [
+            "#FFCD75",
+            "#A7F070",
+            "#38B764",
+            "#257179"
+          ]
+        },
+        {
+          "nombre": "fríos",
+          "colores": [
+            "#29366F",
+            "#3B5DC9",
+            "#41A6F6",
+            "#73EFF7"
+          ]
+        },
+        {
+          "nombre": "claros",
+          "colores": [
+            "#F4F4F4",
+            "#94B0C2",
+            "#566C86",
+            "#333C57"
+          ]
+        }
       ]
     }
   ],
-
   "contratos": [
     {
       "id": "libre",
       "titulo": "Lienzo libre",
       "resumen": "Lo que quieras, del tamaño que quieras.",
-      "ancho": 32, "alto": 32,
+      "ancho": 32,
+      "alto": 32,
       "tamañoLibre": true,
-      "orientaciones": [{ "id": "u", "titulo": "única", "flecha": "·" }],
+      "orientaciones": [
+        {
+          "id": "u",
+          "titulo": "única",
+          "flecha": "·"
+        }
+      ],
       "orientacionesLibres": true,
-      "fotogramas": 1, "fotogramasLibres": true,
+      "fotogramas": 1,
+      "fotogramasLibres": true,
       "duracion": 6,
       "rejilla": null,
-      "salida": { "modo": "png", "carpeta": "", "patron": "{nombre}.png" }
+      "salida": {
+        "modo": "png",
+        "carpeta": "",
+        "patron": "{nombre}.png"
+      }
     },
     {
       "id": "icono",
       "titulo": "Icono",
       "resumen": "Un cuadrado pequeño, un solo fotograma.",
-      "ancho": 16, "alto": 16,
+      "ancho": 16,
+      "alto": 16,
       "tamañoLibre": true,
-      "orientaciones": [{ "id": "u", "titulo": "única", "flecha": "·" }],
-      "fotogramas": 1, "fotogramasLibres": false,
+      "orientaciones": [
+        {
+          "id": "u",
+          "titulo": "única",
+          "flecha": "·"
+        }
+      ],
+      "fotogramas": 1,
+      "fotogramasLibres": false,
       "rejilla": null,
-      "salida": { "modo": "png", "carpeta": "", "patron": "{nombre}.png" }
+      "salida": {
+        "modo": "png",
+        "carpeta": "",
+        "patron": "{nombre}.png"
+      }
     },
     {
       "id": "animacion",
       "titulo": "Hoja de animación",
       "resumen": "Varios fotogramas en fila. Se exporta como tira horizontal.",
-      "ancho": 32, "alto": 32,
+      "ancho": 32,
+      "alto": 32,
       "tamañoLibre": true,
-      "orientaciones": [{ "id": "u", "titulo": "única", "flecha": "·" }],
+      "orientaciones": [
+        {
+          "id": "u",
+          "titulo": "única",
+          "flecha": "·"
+        }
+      ],
       "orientacionesLibres": true,
-      "fotogramas": 4, "fotogramasLibres": true,
+      "fotogramas": 4,
+      "fotogramasLibres": true,
       "duracion": 6,
       "rejilla": null,
-      "salida": { "modo": "hoja", "disposicion": "fotogramas-en-columnas",
-                  "carpeta": "", "patron": "{nombre}.png" }
+      "salida": {
+        "modo": "hoja",
+        "disposicion": "fotogramas-en-columnas",
+        "carpeta": "",
+        "patron": "{nombre}.png"
+      }
     },
     {
       "id": "personaje",
       "titulo": "Personaje de cuatro caras",
       "resumen": "Sur, este, norte y oeste, con los fotogramas que quieras. Lo normal en un cenital.",
-      "ancho": 32, "alto": 32,
+      "ancho": 32,
+      "alto": 32,
       "tamañoLibre": true,
       "orientaciones": [
-        { "id": "S", "titulo": "sur",   "flecha": "↓" },
-        { "id": "E", "titulo": "este",  "flecha": "→" },
-        { "id": "N", "titulo": "norte", "flecha": "↑" },
-        { "id": "W", "titulo": "oeste", "flecha": "←" }
+        {
+          "id": "S",
+          "titulo": "sur",
+          "flecha": "↓"
+        },
+        {
+          "id": "E",
+          "titulo": "este",
+          "flecha": "→"
+        },
+        {
+          "id": "N",
+          "titulo": "norte",
+          "flecha": "↑"
+        },
+        {
+          "id": "W",
+          "titulo": "oeste",
+          "flecha": "←"
+        }
       ],
-      "espejo": { "E": "W" },
-      "fotogramas": 4, "fotogramasLibres": true,
+      "espejo": {
+        "E": "W"
+      },
+      "fotogramas": 4,
+      "fotogramasLibres": true,
       "duracion": 6,
       "rejilla": null,
-      "salida": { "modo": "hoja", "disposicion": "orientaciones-en-filas",
-                  "carpeta": "", "patron": "{nombre}.png" }
+      "salida": {
+        "modo": "hoja",
+        "disposicion": "orientaciones-en-filas",
+        "carpeta": "",
+        "patron": "{nombre}.png"
+      }
     },
     {
       "id": "baldosa",
       "titulo": "Baldosa",
       "resumen": "Una baldosa que envuelve. Se dibuja cruzando la costura y sale por el otro lado.",
-      "ancho": 32, "alto": 32,
+      "ancho": 32,
+      "alto": 32,
       "tamañoLibre": true,
-      "orientaciones": [{ "id": "u", "titulo": "única", "flecha": "·" }],
-      "fotogramas": 1, "fotogramasLibres": true,
+      "orientaciones": [
+        {
+          "id": "u",
+          "titulo": "única",
+          "flecha": "·"
+        }
+      ],
+      "fotogramas": 1,
+      "fotogramasLibres": true,
       "baldosa": true,
       "rejilla": null,
-      "salida": { "modo": "png", "carpeta": "", "patron": "{nombre}.png" }
+      "salida": {
+        "modo": "png",
+        "carpeta": "",
+        "patron": "{nombre}.png"
+      }
     },
     {
       "id": "atlas",
       "titulo": "Atlas de baldosas",
       "resumen": "Una rejilla de baldosas en una sola imagen. Tú pones el tamaño de casilla.",
-      "ancho": 256, "alto": 256,
+      "ancho": 256,
+      "alto": 256,
       "tamañoLibre": true,
-      "orientaciones": [{ "id": "u", "titulo": "única", "flecha": "·" }],
-      "fotogramas": 1, "fotogramasLibres": true,
-      "rejilla": { "ancho": 16, "alto": 16, "libre": true },
-      "salida": { "modo": "png", "carpeta": "", "patron": "{nombre}.png" }
+      "orientaciones": [
+        {
+          "id": "u",
+          "titulo": "única",
+          "flecha": "·"
+        }
+      ],
+      "fotogramas": 1,
+      "fotogramasLibres": true,
+      "rejilla": {
+        "ancho": 16,
+        "alto": 16,
+        "libre": true
+      },
+      "salida": {
+        "modo": "png",
+        "carpeta": "",
+        "patron": "{nombre}.png"
+      },
+      "bloques": [
+        {
+          "desde": 0,
+          "hasta": 999,
+          "titulo": "suelo",
+          "color": "#76C138"
+        }
+      ],
+      "mapaPrueba": true
     }
   ]
 }

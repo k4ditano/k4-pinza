@@ -199,6 +199,18 @@ Singleton {
         { id: "capaAplanar", titulo: "Aplanar todo", grupo: "capas", icono: "aplanar",
           cuando: () => ord.hayDoc && S.Documento.nCapas > 1,
           hacer: () => _conEstructura("aplanar", () => S.Documento.aplana()) },
+        { id: "capaAgrupar", titulo: "Agrupar la capa", grupo: "capas", icono: "carpeta",
+          atajo: "Ctrl+G", cuando: () => ord.hayDoc,
+          hacer: () => _conEstructura("agrupar",
+                       () => S.Documento.agrupa(S.Documento.capaActiva)) },
+        { id: "capaDesagrupar", titulo: "Sacar la capa de su grupo", grupo: "capas",
+          cuando: () => ord.hayDoc && !!(ord._capa() && ord._capa().grupo),
+          hacer: () => _conEstructura("desagrupar",
+                       () => S.Documento.desagrupa(S.Documento.capaActiva)) },
+        { id: "capaGrupoNuevo", titulo: "Grupo vacío", grupo: "capas", icono: "carpeta",
+          cuando: () => ord.hayDoc,
+          hacer: () => _conEstructura("grupo nuevo",
+                       () => S.Documento.añadeCapa("grupo", "grupo")) },
         { id: "capaReferencia", titulo: "Capa de referencia (para calcar)", grupo: "capas",
           icono: "referencia", cuando: () => ord.hayDoc,
           hacer: () => _conEstructura("capa de referencia", () => {
@@ -292,6 +304,10 @@ Singleton {
           hacer: () => S.Ajustes.panelHistorial = !S.Ajustes.panelHistorial },
         { id: "tema", titulo: "Cambiar a claro / oscuro", grupo: "vista",
           hacer: () => ord.pideTema() },
+
+        // ── guiones ─────────────────────────────────────────────
+        { id: "guiones", titulo: "Guiones…", grupo: "guiones", icono: "engranaje",
+          atajo: "Ctrl+J", cuando: () => ord.hayDoc, hacer: () => ord.pideHoja("guiones") },
 
         // ── pack ────────────────────────────────────────────────
         { id: "pack", titulo: "Cambiar de pack…", grupo: "pack", icono: "engranaje",

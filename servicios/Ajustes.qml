@@ -42,6 +42,7 @@ Singleton {
     property bool panelPaleta: true
     property bool panelPrevia: false
     property bool panelHistorial: false
+    property bool panelMapa: true
     property bool tira: true
     property bool compas: true
 
@@ -77,7 +78,7 @@ Singleton {
                          "ajedrez", "modoBaldosa", "medidasSilueta", "simetriaH", "simetriaV",
                          "cebolla", "cebollaAtras", "cebollaDelante", "cebollaOpacidad",
                          "cebollaTeñida", "panelCapas", "panelPaleta", "panelPrevia",
-                         "panelHistorial", "tira", "compas", "pack", "autoguardado", "avisoGuia",
+                         "panelHistorial", "panelMapa", "tira", "compas", "pack", "autoguardado", "avisoGuia",
                          "raices"]
         for (let i = 0; i < nombres.length; i++) j[nombres[i]] = aj[nombres[i]]
         fichero.setText(JSON.stringify(j, null, 2))

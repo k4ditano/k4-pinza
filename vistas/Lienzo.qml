@@ -65,14 +65,11 @@ Item {
             const i = (y * aw + x) * 4
             _local.d[i] = 0; _local.d[i+1] = 0; _local.d[i+2] = 0; _local.d[i+3] = 0
         }
-        for (let k = 0; k < d.capas.length; k++) {
-            const c = d.capas[k]
-            if (!c.visible) continue
-            const b = S.Documento.celda(c.id, S.Documento.fotograma, S.Documento.orientacion, false)
-            if (!b) continue
-            P.compon(_local, b, c.tipo === "referencia" ? "normal" : c.modo,
-                     c.opacidad, x0, y0, x1 - x0, y1 - y0)
-        }
+        //  La misma función que usa la exportación, con el rectángulo sucio.
+        //  Tener aquí una copia de "cómo se apilan las capas" haría que el PNG
+        //  que sale no tuviera por qué parecerse a lo que ves.
+        S.Documento.componEn(_local, S.Documento.fotograma, S.Documento.orientacion,
+                             { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, true)
         for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
             const i = (y * aw + x) * 4
             _img.data[i] = _local.d[i]; _img.data[i+1] = _local.d[i+1]

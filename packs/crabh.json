@@ -573,7 +573,8 @@
         "modo": "png",
         "carpeta": "assets/tiles/{nombre}",
         "patron": "tileset_0.png"
-      }
+      },
+      "mapaPrueba": true
     }
   ]
 }

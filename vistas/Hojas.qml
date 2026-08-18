@@ -87,7 +87,7 @@ Item {
             "nuevo": cNuevo, "exportar": cExportar, "lienzo": cLienzo, "escalar": cEscalar,
             "orientaciones": cOrientaciones, "pack": cPack, "comprobar": cComprobar,
             "etiqueta": cEtiqueta, "cuantizar": cCuantizar, "desplazar": cDesplazar,
-            "importar": cImportar, "exportarAnim": cAnim
+            "importar": cImportar, "exportarAnim": cAnim, "guiones": cGuiones
         })
 
         Flickable {
@@ -861,6 +861,132 @@ Item {
                                            parent.filasSonOrientaciones, null)
                     raiz.cierra()
                 }
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // guiones
+    // ═══════════════════════════════════════════════════════════
+
+    Component {
+        id: cGuiones
+        Column {
+            spacing: 8
+            Component.onCompleted: S.Guiones.refresca()
+
+            Text {
+                width: parent.width
+                text: "en JavaScript, contra el documento abierto. Todo lo que haga un "
+                      + "guión entra en el historial como UN paso, así que se puede probar "
+                      + "sin miedo: si hace un destrozo, Ctrl+Z."
+                wrapMode: Text.WordWrap
+                font.family: C.Tema.tipo; font.pixelSize: 10; color: C.Tema.tenue
+            }
+
+            C.Rotulo { text: "los que hay" }
+            Repeater {
+                model: S.Guiones.lista
+                C.Boton {
+                    width: parent.width
+                    texto: modelData.nombre.replace(/\.js$/, "").replace(/-/g, " ")
+                    onPulsado: S.Guiones.corredeFichero(modelData.ruta)
+                }
+            }
+            Text {
+                visible: S.Guiones.lista.length === 0
+                text: "ninguno todavía"
+                font.family: C.Tema.tipo; font.pixelSize: 10; color: C.Tema.apagado
+            }
+
+            Item { width: 1; height: 4 }
+            C.Rotulo { text: "o uno a mano" }
+            Rectangle {
+                width: parent.width
+                height: 130
+                radius: 3
+                color: C.Tema.fondo
+                border.width: 1
+                border.color: editor.activeFocus ? C.Tema.acento : C.Tema.borde
+                clip: true
+                Flickable {
+                    anchors.fill: parent
+                    anchors.margins: 6
+                    contentHeight: editor.implicitHeight
+                    TextEdit {
+                        id: editor
+                        width: parent.width
+                        font.family: C.Tema.tipoMono
+                        font.pixelSize: 11
+                        color: C.Tema.tinta
+                        selectionColor: C.Tema.acento
+                        selectByMouse: true
+                        wrapMode: TextEdit.WrapAnywhere
+                        text: "pinza.paraCada((buf) => {\n"
+                            + "  pinza.paraCadaPixel(buf, (c) => {\n"
+                            + "    if (c[3] === 0) return\n"
+                            + "    return pinza.color('#D66C34')\n"
+                            + "  })\n"
+                            + "})\n"
+                            + "pinza.log('listo')"
+                    }
+                }
+            }
+            Row {
+                spacing: 6
+                C.Boton {
+                    texto: "correr"; activo: true; relleno: 12
+                    onPulsado: S.Guiones.corre(editor.text, "guión a mano")
+                }
+                C.Boton {
+                    icono: C.Tema.i.carpeta
+                    width: 26; implicitHeight: 26
+                    pista: "abrir la carpeta de guiones"
+                    onPulsado: S.Forja.creaCarpeta(S.Guiones.carpeta,
+                                                   () => S.Forja.abre(S.Guiones.carpeta))
+                }
+            }
+
+            Rectangle {
+                width: parent.width
+                visible: S.Guiones.ultimoError !== null
+                height: err.implicitHeight + 12
+                radius: 3
+                color: C.Tema.acentoTenue
+                border.width: 1; border.color: C.Tema.mal
+                Text {
+                    id: err
+                    anchors.left: parent.left; anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.margins: 7
+                    text: S.Guiones.ultimoError ? S.Guiones.ultimoError.mensaje : ""
+                    wrapMode: Text.WordWrap
+                    font.family: C.Tema.tipoMono; font.pixelSize: 10; color: C.Tema.tinta
+                }
+            }
+            Rectangle {
+                width: parent.width
+                visible: S.Guiones.salida.length > 0
+                height: Math.min(90, sal.implicitHeight + 12)
+                radius: 3
+                color: C.Tema.fondo
+                border.width: 1; border.color: C.Tema.bordeSuave
+                clip: true
+                Text {
+                    id: sal
+                    anchors.left: parent.left; anchors.right: parent.right
+                    anchors.top: parent.top; anchors.margins: 6
+                    text: S.Guiones.salida
+                    wrapMode: Text.WrapAnywhere
+                    font.family: C.Tema.tipoMono; font.pixelSize: 10; color: C.Tema.tenue
+                }
+            }
+
+            Text {
+                width: parent.width
+                text: "los tuyos van en ~/.config/pinza/guiones/*.js"
+                wrapMode: Text.WordWrap
+                font.family: C.Tema.tipo; font.pixelSize: 10; color: C.Tema.apagado
             }
         }
     }

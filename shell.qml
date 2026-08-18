@@ -128,6 +128,14 @@ ShellRoot {
                         V.PanelPaleta { width: pila.width; visible: S.Ajustes.panelPaleta }
                         V.PanelCapas  { width: pila.width; visible: S.Ajustes.panelCapas }
                         V.Previa      { width: pila.width; visible: S.Ajustes.panelPrevia }
+                        V.MapaPrueba {
+                            width: pila.width
+                            //  Sólo cuando el documento es un tileset: en un
+                            //  sprite no significa nada y sería ruido fijo.
+                            visible: S.Ajustes.panelMapa && S.Documento.abierto
+                                     && !!(S.Documento.d && S.Documento.d.contrato
+                                           && S.Documento.d.contrato.mapaPrueba)
+                        }
                         V.PanelHistorial { width: pila.width; visible: S.Ajustes.panelHistorial }
                     }
                 }

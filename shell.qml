@@ -576,6 +576,14 @@ ShellRoot {
             return "abriendo " + ruta
         }
 
+        /** Guardar lo abierto como imagen en una ruta dada. Para guiones. */
+        function guardarImagen(ruta: string): string {
+            if (!S.Documento.abierto) return "no hay nada abierto"
+            if (!ruta) return "hace falta una ruta"
+            S.Proyecto.guardaImagenEn(ruta, null)
+            return "guardando en " + ruta
+        }
+
         function importar(ruta: string): string {
             if (!ruta) return "hace falta una ruta"
             S.Proyecto.importaComoCapa(ruta, null)

@@ -116,7 +116,22 @@ Singleton {
 
     // ── acceso cómodo ────────────────────────────────────────────
     readonly property var d: memoria.d
-    readonly property bool abierto: memoria.d !== null
+    /**
+     * ¿Hay un documento? No «¿hay algo en la variable?».
+     *
+     * Era `memoria.d !== null`, que es una afirmación más flaca de lo que
+     * parece: una recarga que falla a medias deja la memoria persistente a
+     * medio restaurar —un objeto que existe y no tiene ni capas ni fotogramas—
+     * y con eso el programa entero se comportaba como si tuvieras un dibujo de
+     * 0×0 delante. Paneles activos, herramientas listas, y un guardado que
+     * escribiría esa nada encima de las celdas buenas.
+     *
+     * Había un guardián en `onDChanged` que lo soltaba, pero depende de que la
+     * restauración avise, y no siempre avisa. Preguntarlo aquí no depende de
+     * nada: si no es un documento, no está abierto, y da igual cómo haya
+     * llegado ese objeto ahí.
+     */
+    readonly property bool abierto: rev, esDocumento(memoria.d)
     readonly property int ancho: rev, memoria.d ? memoria.d.ancho : 0
     readonly property int alto: rev, memoria.d ? memoria.d.alto : 0
     readonly property int nCapas: rev, memoria.d ? memoria.d.capas.length : 0

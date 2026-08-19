@@ -852,7 +852,13 @@ Singleton {
                 orientaciones: dirs,
                 etiquetas: [],
                 enlaces: {},
-                pack: "crabh",
+                //  El pack que esté puesto, no uno escrito a mano. Importar
+                //  una criatura sellaba sus ocho acciones como del pack de la
+                //  casa dijeras lo que dijeras: cualquiera que se haga un pack
+                //  con plantilla de criatura se encontraba sus bichos firmados
+                //  por otro, y al abrirlos les cargaba las paletas y los
+                //  contratos que no eran.
+                pack: S.Packs.activoId,
                 contrato: JSON.parse(JSON.stringify(con)),
                 baldosa: null,
                 campos: {

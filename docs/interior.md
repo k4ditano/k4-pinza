@@ -278,26 +278,26 @@ de verdad, no los que hagan falta para llegar a un porcentaje. Acumular hasta
 cubrir el 90 % parecía razonable y era una trampa: **en un sprite pequeño casi
 todo el dibujo está a un píxel del borde**, así que colores del cuerpo entran
 en el anillo con un 20 % cada uno y se colaban como contorno. En el `Hurt` de
-Pidgey —un bicho de doscientos píxeles en un lienzo de 48×48— el negro es el
-60 % del anillo y otros dos rondan el 20 %: no son contorno, son borde del
-cuerpo. Y un color protegido por error es un color que el recolor no toca:
+un sprite medido —doscientos píxeles de bicho en un lienzo de 48×48— el negro
+era el 60 % del anillo y otros dos rondaban el 20 %: no eran contorno, eran
+borde del cuerpo. Y un color protegido por error es un color que el recolor no toca:
 media variante sin recolorear y ninguna queja. Un contorno de dos tonos sí
 existe —matizado por el lado de la luz— pero entonces los dos pesan parecido.
 
 De cada color se devuelven dos fracciones que contestan preguntas distintas y
 hacen falta las dos: `delAnillo` es cuánto del contorno es ese color —alto
 significa «este color ES el contorno»— y `suyoFuera` es cuánto de ese color
-está en el contorno —bajo significa que además se usa por dentro—. En el Pidgey
-de crabh el negro da 1.000 y 0.646: es todo el contorno, y aun así un tercio
-del negro del dibujo está en los ojos y en las líneas de dentro. Ninguna regla
-por luminancia distingue esas dos cosas.
+está en el contorno —bajo significa que además se usa por dentro—. En un sprite
+con contorno negro se midió 1.000 y 0.646: el negro es todo el contorno, y aun
+así un tercio del negro del dibujo está en los ojos y en las líneas de dentro.
+Ninguna regla por luminancia distingue esas dos cosas.
 
 Esto se aprendió tiñendo el contorno «para que no pareciera un agujero
-recortado». Medido después: en crabh el **100 % del borde de la silueta es
-negro puro en todos los bichos**. No era un gusto que mejorar, era la
-convención de la casa — y un solo bicho con el contorno teñido canta desde
-lejos al lado de los demás. Un pack puede tener otra, y por eso la regla no es
-«el contorno es negro» sino «el contorno es el que ya había».
+recortado». Medido después sobre el juego al que iba: el **100 % del borde de
+la silueta era negro puro en todos sus bichos**. No era un gusto que mejorar,
+era la convención de la casa — y un solo bicho con el contorno teñido canta
+desde lejos al lado de los demás. Otro proyecto tendrá otra, y por eso la regla
+no es «el contorno es negro» sino «el contorno es el que ya había».
 
 Y si algún día se tiñe a propósito, la otra mitad de la lección sigue en pie:
 **el contorno tiene que seguir siendo lo más oscuro del dibujo**. Mapeando el
@@ -321,9 +321,9 @@ entre ellas — pegadas, dos siluetas vecinas se tocan y sus bordes dejan de ser
 borde, y entonces el contorno, que se detecta por posición, se detecta mal.
 
 **Y ahí hay una trampa que conviene saber antes de usarlo.** El solape es un
-sustituto, no el objetivo. Ajustando el ancho del Pidey contra un Pidgey de
-verdad, el máximo de solape estaba en ×1.45 — y a ×1.45 el bicho sale
-rechoncho y peor que a ×1.18, que puntúa algo menos. Maximizar el parecido con
+sustituto, no el objetivo. Ajustando el ancho de un bicho generado contra una
+referencia de verdad, el máximo de solape estaba en ×1.45 — y a ×1.45 el bicho
+salía rechoncho y peor que a ×1.18, que puntúa algo menos. Maximizar el parecido con
 la silueta de OTRA criatura no es lo mismo que hacer un buen sprite. Los
 números sirven para saber en qué dirección moverse y cuánto margen hay; quien
 decide dónde parar sigue siendo quien mira.
@@ -363,7 +363,8 @@ el filo del lienzo, celdas vacías. Es la regla de las pruebas del programa
 por el mismo motivo: los fallos que importan no dan error en ningún sitio. Con
 `base` se compara contra el original del que salió la variante y sólo se cuenta
 lo añadido; sin eso te acusa de lo que ya venía en el material —el `Charge` de
-un Pidgey tiene treinta celdas tocando el filo antes de que nadie lo toque— y
+un sprite cualquiera puede tener treinta celdas tocando el filo antes de que
+nadie lo toque— y
 un aviso que salta siempre deja de leerse a la tercera vez.
 
 `pinza_convenciones` mira el arte que YA existe en una carpeta y dice qué
@@ -422,16 +423,16 @@ leyendo los ficheros desde fuera— aplicada a lo que dibuja una IA, y por la
 misma razón: lo que se ve en el editor no es lo que sale.
 
 Y lleva `base`, que importa más de lo que parece. Sin ella te acusa de lo que
-ya venía en el material: el `Charge` de un Pidgey tiene treinta celdas tocando
-el filo antes de que nadie lo toque, y **un aviso que salta siempre deja de
+ya venía en el material: hay acciones con treinta celdas tocando el filo del
+lienzo antes de que nadie las toque, y **un aviso que salta siempre deja de
 leerse a la tercera vez**. Con la base sólo se cuenta lo que has añadido tú.
 
 `pinza_convenciones` mira el arte que YA existe en una carpeta y dice de qué
 color es el contorno de la casa, cuántos colores gasta un sprite y de qué
 tamaño son las hojas. Un pack trae una guía escrita, pero las convenciones que
-mandan están en los ficheros: en crabh el contorno es negro puro en el 98 % del
-borde de todo lo que hay. Preguntárselo al arte cuesta una llamada; no
-preguntárselo costó teñir un contorno y no enterarse.
+mandan están en los ficheros: en el juego que se midió, el contorno era negro
+puro en el 98 % del borde de todo lo que había. Preguntárselo al arte cuesta
+una llamada; no preguntárselo costó teñir un contorno y no enterarse.
 
 `pinza_criatura` trabaja al nivel que importa —catálogo, traer, acciones,
 cambiar, guardar— porque una variante es de la criatura entera.

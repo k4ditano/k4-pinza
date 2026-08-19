@@ -904,8 +904,9 @@ ShellRoot {
             //  Sólo lo que de verdad han pedido: `paraDocumento` rellena lo
             //  que falte CON EL CONTRATO, así que meter aquí un 32×32 por
             //  defecto no era un defecto, era pisar al contrato. Pedir la
-            //  criatura de crabh daba un lienzo suelto de 32×32 con una sola
-            //  cara, que es justo lo contrario de lo que se había pedido.
+            //  criatura de un pack —40×40, cuatro fotogramas, ocho caras—
+            //  daba un lienzo suelto de 32×32 con una sola cara, que es justo
+            //  lo contrario de lo que se había pedido.
             let o = { nombre: s.nombre || "sin nombre" }
             for (const k of ["ancho", "alto", "fotogramas", "orientaciones"])
                 if (s[k] !== undefined) o[k] = s[k]

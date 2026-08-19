@@ -147,6 +147,72 @@ ShellRoot {
         ck("una silueta cortada por el lienzo se sombrea igual",
            pegado > lejos + 4, Math.round(pegado) + " vs " + Math.round(lejos))
 
+
+        // ── medir ────────────────────────────────────────────────
+        //
+        //  Una referencia sólo sirve si de ella salen NÚMEROS. Y los números
+        //  tienen que ser comparables entre dibujos de tamaños distintos, que
+        //  es el caso de verdad: un sprite de 96 contra uno de 40.
+        const alta = F.rect(40, 40, 16, 6, 8, 28)
+        const baja = F.rect(20, 20, 8, 3, 4, 14)      // la misma forma, a otra escala
+        const gorda = F.rect(40, 40, 10, 6, 20, 28)
+
+        const pa = F.perfil(alta, 8), pb = F.perfil(baja, 8)
+        ck("el perfil sale normalizado, así que no depende del tamaño",
+           pa.every((f, i) => Math.abs(f.ancho - pb[i].ancho) < 0.06),
+           pa[0].ancho + " vs " + pb[0].ancho)
+        ck("y sí distingue una figura más ancha",
+           Math.abs(F.perfil(gorda, 8)[0].ancho - pa[0].ancho) < 0.06 === false ||
+           F.perfil(gorda, 8)[0].ancho > 0.9,
+           F.perfil(gorda, 8)[0].ancho)
+
+        ck("el solape de algo consigo mismo es 1", F.solape(alta, alta).iou === 1)
+        ck("y con la misma forma a otra escala, casi 1",
+           F.solape(alta, baja).iou > 0.95, F.solape(alta, baja).iou)
+        ck("pero con una forma distinta, bastante menos",
+           F.solape(alta, gorda).iou < 0.6,
+           F.solape(alta, gorda).iou + " · relación " + JSON.stringify(F.solape(alta, gorda).relacion))
+
+        //  Encontrar el desplazamiento es la mitad de la medida: dos siluetas
+        //  iguales corridas dos píxeles no son dos siluetas distintas.
+        const corrida = F.mueve(F.disco(40, 40, 20, 20, 9), 2, -1)
+        const quieta = F.disco(40, 40, 20, 20, 9)
+        ck("y encuentra el desplazamiento entre dos iguales",
+           F.solape(corrida, quieta).iou > 0.97, JSON.stringify(F.solape(corrida, quieta)))
+
+        ck("una figura simétrica se sabe simétrica", F.simetria(F.disco(32,32,16,16,9)) > 0.98)
+        //  La simetría se mide sobre la propia caja, así que un disco lo es
+        //  esté donde esté: lo asimétrico es tener un bulto a un lado.
+        const torcida = F.une(F.disco(32,32,16,16,9), F.disco(32,32,25,12,4))
+        ck("y una con un bulto a un lado, no", F.simetria(torcida) < 0.85, F.simetria(torcida))
+
+        const cm = F.centro(F.rect(20, 20, 4, 2, 6, 4))
+        ck("el centro de masa cae donde debe", Math.abs(cm.x - 6.5) < 0.01 && Math.abs(cm.y - 3.5) < 0.01,
+           cm.x + "," + cm.y)
+
+        //  Sacarle las rampas a un dibujo es lo que permite hacer una
+        //  variante: una rampa es sustituible, una lista de colores no.
+        let mez = P.nuevo(20, 20)
+        F.cuerpo(mez, F.rect(20,20,0,0,10,20), { rampa: F.rampa("#c03434", 5), contorno: false })
+        F.cuerpo(mez, F.rect(20,20,10,0,10,20), { rampa: F.rampa("#3455c0", 5), contorno: false })
+        const rs = F.rampasDe(mez)
+        ck("agrupa los colores en las rampas con las que se pintó", rs.length === 2,
+           rs.length + " rampas: " + rs.map((r) => r.colores.length).join("+"))
+        ck("y cada una va de oscuro a claro",
+           rs.every((r) => r.colores.every((c, i) =>
+               i === 0 || P.luma(P.deHex(c)) >= P.luma(P.deHex(r.colores[i-1])))))
+        let conGris = P.nuevo(20, 20)
+        F.cuerpo(conGris, F.rect(20,20,0,0,20,20), { rampa: F.rampa("#c03434", 5), contorno: false })
+        F.pinta(conGris, F.rect(20,20,2,2,4,4), "#808080")
+        ck("y los neutros van a su propio grupo, no arrastran a ninguna rampa",
+           F.rampasDe(conGris).some((r) => r.tono === null),
+           JSON.stringify(F.rampasDe(conGris).map((r) => r.tono)))
+
+        const an = F.analiza(mez)
+        ck("analizar devuelve la caja, el centro y el perfil de una vez",
+           an.limites.w === 20 && an.perfil.length === 16 && an.rampas.length === 2,
+           JSON.stringify(an.limites))
+
         console.log(malas ? "\n" + malas + " FALLOS" : "\nla figura pasa entera")
         fin.start()
     }

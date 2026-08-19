@@ -511,3 +511,199 @@ function deTextoColor(filas, leyenda, w, h) {
         }
     return b
 }
+
+// ═══════════════════════════════════════════════════════════════
+// medir un dibujo
+// ═══════════════════════════════════════════════════════════════
+//
+//  Lo que hace útil una referencia no es verla: es sacarle los números. Una
+//  cresta que mide cinco píxeles y se echa atrás treinta grados se pone en un
+//  aparejo de una vez; mirándola se pone a la séptima. Todo lo de aquí abajo
+//  existe para convertir un dibujo en parámetros.
+
+/** El centro de masa de una máscara, en píxeles del lienzo. */
+function centro(k) {
+    let sx = 0, sy = 0, n = 0
+    for (let y = 0; y < k.h; y++) for (let x = 0; x < k.w; x++)
+        if (k.m[y * k.w + x]) { sx += x; sy += y; n++ }
+    return n ? { x: sx / n, y: sy / n, n: n } : null
+}
+
+/**
+ * El perfil de una silueta: por cada franja de altura, dónde empieza y dónde
+ * acaba, en fracción de su propia caja.
+ *
+ * Está remuestreado a un número fijo de franjas y normalizado por la caja a
+ * propósito: así el perfil de un sprite de 96 y el de uno de 40 se pueden
+ * comparar número a número. Es la huella de las PROPORCIONES, que es lo único
+ * que se quiere de una referencia — el tamaño y la posición dan igual.
+ */
+function perfil(k, franjas) {
+    const n = franjas || 16
+    const l = limites(k)
+    const out = []
+    if (!l) return out
+    for (let i = 0; i < n; i++) {
+        const y0 = l.y + Math.floor(i * l.h / n)
+        const y1 = l.y + Math.max(y0 + 1 - l.y, Math.floor((i + 1) * l.h / n))
+        let a = k.w, b = -1, c = 0
+        for (let y = y0; y < Math.min(l.y + l.h, y1); y++)
+            for (let x = l.x; x < l.x + l.w; x++)
+                if (k.m[y * k.w + x]) { if (x < a) a = x; if (x > b) b = x; c++ }
+        out.push(b < a ? { izq: 0, der: 0, ancho: 0, lleno: 0 }
+                       : { izq: +((a - l.x) / l.w).toFixed(3),
+                           der: +((b - l.x + 1) / l.w).toFixed(3),
+                           ancho: +((b - a + 1) / l.w).toFixed(3),
+                           lleno: +(c / ((y1 - y0) * l.w)).toFixed(3) })
+    }
+    return out
+}
+
+/** Cuánto se parece una silueta a su propio espejo. 1 es simétrica exacta. */
+function simetria(k) {
+    const l = limites(k)
+    if (!l) return 0
+    let igual = 0, total = 0
+    for (let y = l.y; y < l.y + l.h; y++) for (let x = l.x; x < l.x + l.w; x++) {
+        const e = l.x + l.w - 1 - (x - l.x)
+        const a = k.m[y * k.w + x], b = en(k, e, y)
+        if (a || b) { total++; if (a && b) igual++ }
+    }
+    return total ? +(igual / total).toFixed(3) : 0
+}
+
+/**
+ * Reescala una máscara por vecino más próximo hasta que su silueta mida
+ * `alto` de alta, y la centra en (cx, cy) de un lienzo de w×h.
+ *
+ * El escalado es UNIFORME a propósito. Estirar cada silueta hasta llenar la
+ * misma caja parece lo cómodo y es justo lo que no se quiere: una figura alta
+ * y estrecha y una baja y ancha salen idénticas después de estirarlas, y la
+ * proporción —que es la mitad de lo que se le pide a una referencia— se pierde
+ * por el camino.
+ */
+function reescala(k, alto, w, h, cx, cy) {
+    const l = limites(k)
+    const r = mascara(w, h)
+    if (!l || !l.h) return r
+    const f = alto / l.h
+    const nw = Math.max(1, Math.round(l.w * f)), nh = Math.max(1, Math.round(alto))
+    const x0 = Math.round(cx - nw / 2), y0 = Math.round(cy - nh / 2)
+    for (let y = 0; y < nh; y++) for (let x = 0; x < nw; x++) {
+        const sx = l.x + Math.min(l.w - 1, Math.floor(x / f))
+        const sy = l.y + Math.min(l.h - 1, Math.floor(y / f))
+        if (k.m[sy * k.w + sx]) marca(r, x0 + x, y0 + y)
+    }
+    return r
+}
+
+/**
+ * Cuánto se solapan dos siluetas, con la segunda reescalada a la caja de la
+ * primera y probando desplazamientos.
+ *
+ * Devuelve la unión partido la intersección, que es la medida estándar y va
+ * de 0 a 1. Esto es lo que convierte «se parece» en un número, y con un
+ * número se puede BUSCAR: mover un parámetro del aparejo, volver a medir, y
+ * quedarse con el que sube. Sin esto, ajustar es opinar.
+ */
+function solape(a, b, margen) {
+    const la = limites(a), lb = limites(b)
+    if (!la || !lb) return { iou: 0, dx: 0, dy: 0, relacion: null }
+    const bb = reescala(b, la.h, a.w, a.h, la.x + la.w / 2, la.y + la.h / 2)
+    const m = margen === undefined ? 3 : margen
+    let mejor = { iou: 0, dx: 0, dy: 0 }
+    for (let dy = -m; dy <= m; dy++) for (let dx = -m; dx <= m; dx++) {
+        let inter = 0, union = 0
+        for (let y = 0; y < a.h; y++) for (let x = 0; x < a.w; x++) {
+            const p = a.m[y * a.w + x], q = en(bb, x - dx, y - dy)
+            if (p || q) { union++; if (p && q) inter++ }
+        }
+        const iou = union ? inter / union : 0
+        if (iou > mejor.iou) mejor = { iou: +iou.toFixed(4), dx: dx, dy: dy }
+    }
+    //  La relación de aspecto de cada una, para que un desacuerdo de anchura
+    //  se pueda leer como un número y no sólo como un solape más bajo.
+    mejor.relacion = { a: +(la.w / la.h).toFixed(3), b: +(lb.w / lb.h).toFixed(3) }
+    return mejor
+}
+
+/**
+ * Los colores de un dibujo, agrupados en rampas por tono.
+ *
+ * Un sprite no trae su paleta ordenada: trae una lista de colores. Agruparlos
+ * por tono y ordenar cada grupo por luminancia es lo que devuelve las RAMPAS
+ * con las que se dibujó, y una rampa es sustituible — que es todo el asunto de
+ * hacer una variante. Los grises van aparte porque no tienen tono, y meterlos
+ * con cualquiera arrastraría la rampa entera hacia el neutro.
+ */
+function rampasDe(b, tope) {
+    const cols = coloresPorPeso(b, tope || 48)
+    const grupos = []
+    const grises = []
+    //  El tono es un ÁNGULO y se promedia como un ángulo: sumando senos y
+    //  cosenos. Hacerlo como un número normal parece que funciona hasta que
+    //  entra un rojo —que está a la vez en 350 y en 10— y la media sale en
+    //  120, en pleno verde. Entonces el grupo deja de atraer a los suyos y
+    //  empieza a robar a otros. Lo peor es que dependía del ORDEN de llegada
+    //  de los colores, así que salía distinto en cada motor de JavaScript.
+    const gr = (g) => {
+        const t = Math.atan2(g.sy, g.sx) * 180 / Math.PI
+        return (t % 360 + 360) % 360
+    }
+    for (let i = 0; i < cols.length; i++) {
+        const c = cols[i].color
+        const hsv = P.aHsv(c)
+        if (hsv[1] < 0.14) { grises.push(cols[i]); continue }
+        const rad = hsv[0] * Math.PI / 180
+        let mejorG = -1, mejorD = 46
+        for (let g = 0; g < grupos.length; g++) {
+            const d = Math.abs(gr(grupos[g]) - hsv[0])
+            const dd = Math.min(d, 360 - d)
+            if (dd < mejorD) { mejorD = dd; mejorG = g }
+        }
+        if (mejorG < 0) grupos.push({ sx: 0, sy: 0, cols: [] })
+        const g = grupos[mejorG < 0 ? grupos.length - 1 : mejorG]
+        g.cols.push(cols[i])
+        g.sx += Math.cos(rad); g.sy += Math.sin(rad)
+    }
+    if (grises.length) grupos.push({ sx: 0, sy: 0, gris: true, cols: grises })
+    return grupos.map((g) => ({
+        tono: g.gris ? null : Math.round(gr(g)) % 360,
+        pixeles: g.cols.reduce((a, x) => a + x.veces, 0),
+        colores: g.cols.sort((x, y) => P.luma(x.color) - P.luma(y.color))
+                       .map((x) => P.aHex(x.color))
+    })).sort((a, b2) => b2.pixeles - a.pixeles)
+}
+
+function coloresPorPeso(b, tope) { return P.coloresDe(b, tope) }
+
+/** Todo lo medible de un búfer, de una llamada. */
+function analiza(b, franjas) {
+    const k = deBuffer(b)
+    const l = limites(k)
+    const c = centro(k)
+    const m = P.medidas(b)
+    const sil = P.silueta(b)
+    const val = [0, 0, 0, 0, 0, 0, 0, 0]
+    for (let i = 0; i < b.w * b.h; i++) {
+        if (b.d[i * 4 + 3] < 8) continue
+        val[Math.min(7, Math.floor(P.luma([b.d[i*4], b.d[i*4+1], b.d[i*4+2]]) / 32))]++
+    }
+    return {
+        lienzo: { ancho: b.w, alto: b.h },
+        limites: l,
+        pixeles: c ? c.n : 0,
+        densidad: l ? +(c.n / (l.w * l.h)).toFixed(3) : 0,
+        //  El centro de masa dentro de su propia caja: dice si el bicho pesa
+        //  arriba o abajo, que es media proporción.
+        centro: l && c ? { x: +((c.x - l.x) / l.w).toFixed(3),
+                           y: +((c.y - l.y) / l.h).toFixed(3) } : null,
+        simetria: simetria(k),
+        silueta: { pieBajo: sil.pieBajo, medioAncho: sil.medioAncho, base: +sil.base.toFixed(2) },
+        saturacion: +m.saturacion.toFixed(3),
+        luminancia: +m.luminancia.toFixed(1),
+        valores: val,
+        perfil: perfil(k, franjas || 16),
+        rampas: rampasDe(b)
+    }
+}

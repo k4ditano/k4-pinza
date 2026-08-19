@@ -178,6 +178,7 @@ metal». Las proporciones son lo único que no se deduce de una descripción, y 
 justo lo que una referencia da medido.
 
 ![Pidgey y su versión de fuego](capturas/pidgey-fuego.png)
+![El ciclo de andar, con las llamas](capturas/pidgey-fuego-ciclo.png)
 
 Con las rampas ya sacadas, una **variante deja de dibujarse**: cada color se
 coloca en su rampa, se mira en qué escalón cae, y se sustituye por el que ocupa

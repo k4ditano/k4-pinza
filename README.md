@@ -181,6 +181,7 @@ metal". Proportions are the one thing you cannot deduce from a description, and
 they are exactly what a reference hands you measured.
 
 ![Pidgey and its fire version](capturas/pidgey-fuego.png)
+![The walk cycle, with the flames](capturas/pidgey-fuego-ciclo.png)
 
 With the ramps pulled out, a **variant stops being drawn**: each colour is
 placed in its ramp, you look at which step it lands on, and it is replaced by

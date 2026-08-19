@@ -61,6 +61,26 @@ Singleton {
         else guarda(p.ruta, p.cb)
     }
 
+    /**
+     * Quita de `celdas/` los PNG que ya no son de nadie.
+     *
+     * Va SIEMPRE al final y nunca antes: si podara primero y luego fallara la
+     * escritura, habría borrado lo viejo sin tener lo nuevo. Y un fallo aquí
+     * NO estropea el guardado — las celdas y el proyecto.json ya están en el
+     * disco y concuerdan; que sobren ficheros es cosmético, y decir que un
+     * guardado bueno ha fallado sería mentir en la dirección contraria pero
+     * mentir igual.
+     */
+    function _poda(destino, claves) {
+        const conservar = []
+        for (let i = 0; i < claves.length; i++)
+            conservar.push(claves[i].split(":").join(".") + ".png")
+        S.Forja.poda(destino + "/celdas", "*.png", conservar, (r) => {
+            if (!r || !r.bien) { console.warn("no se pudo podar " + destino + "/celdas"); return }
+            if (r.cuantos) console.log("podadas " + r.cuantos + " celdas que ya no eran de nadie")
+        })
+    }
+
     function guarda(ruta, cb) {
         if (!S.Documento.abierto) return
         const destino = ruta || S.Documento.ruta
@@ -123,6 +143,7 @@ Singleton {
                     S.Documento.limpio()
                     ultimoMensaje = "guardado en " + destino
                     hecho("guardar", destino)
+                    _poda(destino, claves)
                     if (cb) cb(true)
                     _despacha()
                 })
@@ -152,7 +173,13 @@ Singleton {
             exportador.escribeVarios(lista, (bien) => {
                 S.Forja.escribeTexto(ruta + "/proyecto.json",
                                      JSON.stringify(meta, null, 2) + "\n",
-                                     () => { if (cb) cb(bien) })
+                                     () => {
+                    //  Sólo se poda si las celdas llegaron. Podar detrás de una
+                    //  escritura fallida sería borrar lo viejo sin tener lo
+                    //  nuevo, que es la única forma de que esto pierda trabajo.
+                    if (bien) _poda(ruta, claves)
+                    if (cb) cb(bien)
+                })
             })
         })
     }

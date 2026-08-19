@@ -89,5 +89,9 @@ Singleton {
     function leeTexto(ruta, cb)             { pide("leerTexto", { ruta: ruta }, cb) }
     function creaCarpeta(ruta, cb)          { pide("carpeta", { ruta: ruta }, cb) }
     function lista_(ruta, patron, cb)       { pide("listar", { ruta: ruta, patron: patron }, cb) }
+    /** Borra de una carpeta lo que no esté en `conservar`. Ver `orden_podar`. */
+    function poda(ruta, patron, conservar, cb) {
+        pide("podar", { ruta: ruta, patron: patron, conservar: conservar }, cb)
+    }
     function abre(ruta)                     { pide("abrir", { ruta: ruta }, null) }
 }

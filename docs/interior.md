@@ -112,6 +112,25 @@ escribía ese fantasma encima de las celdas buenas. `Documento.esDocumento` es e
 guardián, y se usa también al arrancar, porque una recarga que **falla** a
 medias deja la memoria persistente a medio restaurar.
 
+Y guardar **poda**. Escribía las celdas de ahora y se dejaba las de antes:
+borrar una capa la quitaba de la memoria y del `proyecto.json`, pero sus PNG se
+quedaban en `celdas/` para siempre. No corrompía nada —al abrir, el contador de
+ids arranca en el máximo más uno, así que una capa nueva no reutiliza el id de
+una muerta— pero la carpeta crecía sin parar y un `git diff` enseñaba ficheros
+que no eran de nadie, que es justo lo que este formato promete no hacer.
+
+El orden importa y es lo único delicado que tiene: se poda **al final**, cuando
+las celdas y el `proyecto.json` ya están escritos y concuerdan. Podando antes,
+una escritura que falle te deja sin lo viejo y sin lo nuevo. Y un fallo al
+podar **no** estropea el guardado: lo que hay en el disco es correcto, que
+sobren ficheros es cosmético, y decir que un guardado bueno ha fallado sería
+mentir en la otra dirección pero mentir igual.
+
+La forja se niega a podar si no le dan nada que conservar. Una poda así
+vaciaría la carpeta entera y eso no es nunca lo que alguien quiso: es un fallo
+aguas arriba. Distinguirlo cuesta una línea y quita la única forma que tiene
+esto de perder trabajo.
+
 Hay dos relojes de autoguardado. El periódico cubre estar dibujando sin parar;
 el otro salta a los seis segundos de que **pares**. Hace falta porque cerrar la
 ventana no avisa a nadie —ni `closed` ni `visible` se enteran en este

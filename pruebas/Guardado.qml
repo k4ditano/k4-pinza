@@ -141,9 +141,69 @@ ShellRoot {
                     S.Proyecto.abre(ruta, (bien) => {
                         ck("exportar guarda antes lo que tenías delante", bien
                            && !P.vacio(S.Documento.compuesto(0, 0)))
-                        fin.start()
+                        paso5()
                     })
                 })
+            })
+        })
+    }
+
+
+    // ── 5 · guardar no se deja celdas de nadie ──────────────────
+    //
+    //  Borrar una capa la quitaba de la memoria y del proyecto.json, pero sus
+    //  PNG se quedaban en `celdas/` para siempre. No corrompe nada —al abrir,
+    //  el contador de ids arranca en el máximo más uno, así que una capa nueva
+    //  no reutiliza un id viejo— pero la carpeta crecía sin parar y un
+    //  `git diff` enseñaba ficheros que no eran de nadie, que es justo lo que
+    //  este formato promete no hacer.
+    function paso5() {
+        const ruta = base + "/Poda.pinza"
+        S.Documento.nuevo({ nombre: "Poda", ancho: 8, alto: 8, fotogramas: 2 })
+        raiz.pinta([200, 40, 40, 255])
+        S.Documento.añadeCapa("sobra")
+        raiz.pinta([40, 200, 40, 255])
+        S.Proyecto.guarda(ruta, () => {
+            S.Forja.lista_(ruta + "/celdas", "*.png", (r1) => {
+                ck("dos capas por dos fotogramas son cuatro celdas en disco",
+                   r1.ficheros.length === 4, r1.ficheros.length)
+
+                //  Se borra la capa de arriba y se vuelve a guardar. Antes esto
+                //  dejaba las dos celdas viejas ahí para siempre.
+                S.Documento.borraCapa(1)
+                S.Proyecto.guarda(ruta, () => {
+                    S.Forja.lista_(ruta + "/celdas", "*.png", (r2) => {
+                        ck("y al borrar una capa, sus celdas se van del disco",
+                           r2.ficheros.length === 2,
+                           r2.ficheros.map((f) => f.nombre).join(" "))
+                        //  Lo que queda tiene que ser lo de la capa que sigue
+                        //  viva, no dos ficheros cualesquiera.
+                        const viva = S.Documento.capa(0).id
+                        ck("y las que quedan son las de la capa que sigue viva",
+                           r2.ficheros.every((f) => f.nombre.indexOf(viva + ".") === 0),
+                           r2.ficheros.map((f) => f.nombre).join(" "))
+                        S.Proyecto.abre(ruta, (bien) => {
+                            ck("y el proyecto sigue abriéndose con su dibujo",
+                               bien && !P.vacio(S.Documento.compuesto(0, 0)))
+                            paso6()
+                        })
+                    })
+                })
+            })
+        })
+    }
+
+    //  Una poda sin nada que conservar vaciaría la carpeta entera, y eso no es
+    //  nunca lo que alguien quiso: es un fallo aguas arriba. Cuesta una línea
+    //  distinguirlo y evita la única forma que tiene esto de perder trabajo.
+    function paso6() {
+        const ruta = base + "/Poda.pinza/celdas"
+        S.Forja.poda(ruta, "*.png", [], (r) => {
+            ck("podar sin nada que conservar no borra nada", r.bien && r.cuantos === 0,
+               (r && r.omitido) || "")
+            S.Forja.lista_(ruta, "*.png", (r2) => {
+                ck("y la carpeta sigue entera", r2.ficheros.length === 2, r2.ficheros.length)
+                fin.start()
             })
         })
     }

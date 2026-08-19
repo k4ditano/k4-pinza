@@ -152,6 +152,42 @@ def orden_borrar(p):
     return {"borrado": False}
 
 
+def orden_podar(p):
+    """Borra de una carpeta lo que ya no pertenece al proyecto.
+
+    Guardar escribía las celdas de ahora y se dejaba las de antes. Borrar una
+    capa la quitaba de la memoria y del proyecto.json, pero sus PNG se quedaban
+    en `celdas/` para siempre: la carpeta crecía sin parar y un `git diff` te
+    enseñaba ficheros que no pertenecían a nada. No corrompía —al abrir, el
+    contador de ids arranca en el máximo más uno, así que una capa nueva nunca
+    reutiliza un id viejo— pero es justo lo que este formato promete no hacer.
+
+    `conservar` VACÍO no poda nada y lo dice. Una poda sin nada que conservar
+    vaciaría la carpeta entera, y eso no es nunca lo que alguien quiso: es un
+    fallo aguas arriba. Aquí cuesta una línea distinguirlo y evita la única
+    forma que tiene esto de ser catastrófico.
+
+    Sólo mira los hijos directos que casan con el patrón, y sólo borra
+    ficheros: ni carpetas, ni nada que no haya pedido explícitamente.
+    """
+    base = expande(p["ruta"])
+    conservar = set(p.get("conservar") or [])
+    if not conservar:
+        return {"borrados": [], "cuantos": 0, "omitido": "sin nada que conservar"}
+    if not os.path.isdir(base):
+        return {"borrados": [], "cuantos": 0}
+    patron = p.get("patron", "*")
+    borrados = []
+    for f in sorted(glob.glob(os.path.join(base, patron))):
+        if not os.path.isfile(f):
+            continue
+        if os.path.basename(f) in conservar:
+            continue
+        os.remove(f)
+        borrados.append(os.path.basename(f))
+    return {"borrados": borrados, "cuantos": len(borrados)}
+
+
 PNG_FIRMA = b"\x89PNG\r\n\x1a\n"
 
 
@@ -401,6 +437,7 @@ def orden_abrir(p):
 
 
 ORDENES = {
+    "podar": orden_podar,
     "ping": orden_ping,
     "packs": orden_packs,
     "carpeta": orden_carpeta,

@@ -844,6 +844,19 @@ HERRAMIENTAS = [
         },
     },
     {
+        "name": "pinza_campos",
+        "description":
+            "Los campos que pide el contrato del pack: descripción, familia, a "
+            "qué movimiento pertenece… Sin argumentos los lee; con un objeto "
+            "los pone.\n"
+            "Importan porque son lo que hace que el fichero exportado se dé de "
+            "alta solo en el manifiesto del juego: un efecto sin su campo de "
+            "movimiento es un PNG que nadie sabe de quién es. Rellénalos ANTES "
+            "de exportar.",
+        "inputSchema": {"type": "object", "properties": {
+            "valores": {"type": "object", "description": "campo -> valor"}}},
+    },
+    {
         "name": "pinza_ordenes",
         "description":
             "Todas las órdenes del editor con su id, su título y si se pueden "
@@ -1158,6 +1171,17 @@ def ejecuta(nombre, args):
                                         "<- activa" if c.get("activa") else "")
                 for c in r["capas"]))
         return texto("capa %d: %s" % (r["capa"], r["nombre"]))
+
+    if nombre == "pinza_campos":
+        r = pideJson("campos", json.dumps(args.get("valores") or {}))
+        if not r.get("bien"):
+            return fallo(r.get("error", "no se pudo"))
+        lin = ["%-14s %s" % (k, "—" if v in (None, "") else v)
+               for k, v in (r["campos"] or {}).items()]
+        if r.get("ignorados"):
+            lin.append("IGNORADOS (el contrato no los pide): "
+                       + ", ".join(r["ignorados"]))
+        return texto("\n".join(lin) or "este contrato no pide campos")
 
     if nombre == "pinza_ordenes":
         r = pideJson("ordenes")

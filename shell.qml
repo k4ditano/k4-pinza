@@ -1206,6 +1206,44 @@ ShellRoot {
             return S.Ordenes.promptIA(true)
         }
 
+        /**
+         * Los campos que pide el contrato: la descripción, la familia, a qué
+         * movimiento pertenece…
+         *
+         *     {}                                    los lee
+         *     {"movimiento":"tackle","family":"normal"}   los pone
+         *
+         * Sin esto no había forma de rellenarlos sin abrir la hoja de
+         * exportar a mano, y son justo lo que hace que el fichero exportado se
+         * dé de alta solo en el manifiesto del juego: un efecto sin su campo
+         * `movimiento` es un PNG que nadie sabe de quién es.
+         */
+        function campos(spec: string): string {
+            if (!S.Documento.abierto) return JSON.stringify({ bien: false, error: "no hay nada abierto" })
+            let s = {}
+            try { s = spec ? JSON.parse(spec) : {} } catch (e) { return JSON.stringify({ bien: false, error: "el spec no es JSON" }) }
+            const d = S.Documento.d
+            const con = d.contrato
+            const declara = (con && con.campos) ? con.campos.map((c) => c.id) : []
+            const claves = Object.keys(s)
+            const sobran = claves.filter((k) => declara.indexOf(k) < 0)
+            for (let i = 0; i < claves.length; i++)
+                if (sobran.indexOf(claves[i]) < 0) S.Documento.ponCampo(claves[i], s[claves[i]])
+            const ahora = {}
+            for (let i = 0; i < declara.length; i++) {
+                const v = S.Documento.campo(declara[i])
+                ahora[declara[i]] = v === undefined ? null : v
+            }
+            return JSON.stringify({
+                bien: true, campos: ahora,
+                pide: con && con.campos ? con.campos : [],
+                //  Se dice lo que se ha ignorado en vez de tragárselo: un campo
+                //  mal escrito que se acepta en silencio es un campo que crees
+                //  puesto y no está.
+                ignorados: sobran
+            })
+        }
+
         /** Guardar en una carpeta concreta, sin diálogo. Para un lote. */
         function guardarEn(ruta: string): string {
             if (!S.Documento.abierto) return JSON.stringify({ bien: false, error: "no hay nada abierto" })

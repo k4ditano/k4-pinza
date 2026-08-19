@@ -383,6 +383,25 @@ de hexadecimales son cuatro mil símbolos para un sprite de 32×32; esto son mil
 y sobre todo es **editable** — se puede decir «la fila 12 columna 7 sobra» y que
 la frase signifique algo.
 
+Y hay un botón para engancharla: `Ctrl+K` → «Conectar una IA» enseña un texto y
+lo copia, para pegárselo al agente y que se configure él. Configurar un
+servidor MCP a mano es averiguar en qué fichero va, con qué forma y qué ruta
+poner, y eso cambia con cada cliente y a estrenar cada vez que sale uno nuevo.
+El texto se enseña entero antes de copiarlo a propósito: algo que le vas a dar
+a un programa que va a ejecutar cosas en tu ordenador se lee antes.
+
+Lo genera `Ordenes.promptIA` y no la hoja que lo enseña, porque hay dos sitios
+que lo piden —la hoja y el verbo `promptIA` del IPC— y quien trabaja por SSH no
+puede pulsar un botón.
+
+Copiar pasa por la forja, que es la que lanza procesos, y prueba `wl-copy`,
+`xclip` y `xsel` en vez de suponer cuál toca. Con una trampa que cuesta
+encontrar: **en Wayland el que copia NO termina**. `wl-copy` se queda vivo
+siendo el dueño del portapapeles hasta que otro se lo quita, así que esperar a
+que acabe es esperar para siempre — el texto ya está copiado y el proceso sigue
+ahí porque ese es su trabajo. Seguir corriendo cuenta como éxito; sólo un final
+con código distinto de cero es un fallo.
+
 ## Lo que el servidor le cuenta al modelo
 
 MCP deja al servidor entregar unas instrucciones al conectarse, y es el único

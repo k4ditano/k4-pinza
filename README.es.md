@@ -129,26 +129,34 @@ cuentakilómetros y no una barrera: te dice dónde estás y se apaga.
 
 ## Que dibuje la IA
 
-Hay un servidor **MCP** en `mcp/pinza-mcp.py`: engánchalo a Claude Code —o a
+Hay un servidor **MCP**: engánchalo a tu agente —Claude Code, Codex, o
 cualquier cliente MCP— y puedes pedirle que te haga cosas.
 
-    claude mcp add pinza -- ~/.local/bin/pinza --mcp
+**No hace falta que sepas cómo se configura.** En el editor, `Ctrl+K` →
+«Conectar una IA» te enseña un texto y lo copia; se lo pegas a tu agente y se
+configura él. Si trabajas sin ventana, el mismo texto sale por
 
-Conduce **la ventana que ya tienes abierta**, así que lo ves dibujar en directo,
-y todo lo que hace entra en el historial como **un** paso: un Ctrl+Z deshace la
-intervención entera. Puede crear documentos, dibujar, ejecutar cualquier orden
-del editor, medir la silueta, guardar y exportar según el contrato — y sobre
-todo puede **mirar**: `pinza_ver` le devuelve una imagen de cómo va, que es lo
-que convierte esto en un ciclo de dibujar y corregir en vez de un disparo a
-ciegas.
+    pinza --mcp                        # el servidor, para engancharlo a mano
+    qs -c pinza ipc call pinza promptIA   # el texto, si prefieres pegarlo
+
+Conduce **la ventana que ya tienes abierta**, así que lo ves dibujar en
+directo, y todo lo que hace entra en el historial como **un** paso: un Ctrl+Z
+deshace la intervención entera. No pide claves ni cuentas, y no habla con
+internet salvo que le pidas traerte una referencia de una URL.
 
 ![Cuatro cacharros generados](capturas/cacharros.png)
+
+Puede crear documentos y criaturas, dibujar, ejecutar cualquier orden del
+editor, medir la silueta, guardar y exportar según el contrato — y sobre todo
+puede **mirar**: le devuelve una imagen de cómo va, que es lo que convierte
+esto en un ciclo de dibujar y corregir en vez de un disparo a ciegas.
 
 Lo que no hace es poner píxeles a mano, porque se le da mal: escribiendo una
 rejilla símbolo a símbolo se pierde entre filas y no puede releerse. Dibuja con
 `core/figura.js`, que es la otra mitad de esto y sirve igual para un guion
 tuyo — se declaran **masas** (elipses, cápsulas, polígonos), se unen en una
-silueta, y el sombreado sale de **una regla**: una dirección de luz y una rampa.
+silueta, y el sombreado sale de **una regla**: una dirección de luz y una
+rampa.
 
     const cuerpo = F.une(F.disco(W,H,16,21,8), F.capsula(W,H,16,10,16,15,3.5))
     F.cuerpo(b, cuerpo, { rampa: pinza.rampa("fríos"), luz: "NO", amplitud: 2 })
@@ -158,58 +166,50 @@ sombrear mueve cada píxel **por su rampa** en vez de echarle gris encima, lo
 que sale conserva los colores del juego y se puede recolorear después como
 cualquier otro dibujo.
 
+![Un bicho de acero en ocho caras](capturas/pidey.png)
+
+Las ocho caras de ahí arriba no son ocho dibujos: son **un aparejo**. El bicho
+se describe una vez como partes colocadas en (lado, arriba, adelante) y cada
+cara es la misma descripción girada. El pico desaparece al darse la vuelta y la
+cola aparece porque están en sitios opuestos del bicho, no porque nadie lo
+decidiera cara por cara.
+
+### Partir de algo que ya existe
+
+Es lo que más se pide: una variante, un recolor, «lo mismo pero de metal».
+
+`pinza_hoja` trocea una hoja de sprites que ya tienes. `pinza_referencia` mete
+una imagen como **capa de calco** —de tu disco, de una URL, o de PokeAPI por su
+nombre— y esa capa **no se exporta nunca**: no es una promesa, es que el
+compositor que escribe los PNG ni la mira.
+
+`pinza_analiza` le saca los números que una descripción no puede dar:
+proporciones, perfil de anchura, y los colores agrupados en **rampas**. Con las
+rampas, una variante deja de dibujarse: cada color se coloca en su rampa, se
+mira en qué escalón cae, y se sustituye por el que ocupa ese escalón en la
+rampa de destino. La sombra sigue siendo sombra, así que el bicho se sigue
+reconociendo.
+
+El **contorno** se detecta y se respeta. No por su color, que puede ser
+cualquiera, sino por dónde está: los píxeles con algún vecino transparente. Tu
+proyecto probablemente tenga una convención de contorno, y un solo sprite que
+la rompa canta desde lejos — `pinza_convenciones` se la pregunta al arte que ya
+tienes en vez de suponerla.
+
+Y una criatura se trabaja **entera**: `pinza_criatura` recorre todas sus
+acciones. Un recolor que sólo llega a una deja un bicho que cambia de color al
+pararse, y eso no se ve dibujando: se ve jugando.
+
+Por último, `pinza_verifica` lee los PNG **ya escritos** y dice qué salió mal —
+un color sin sustituir, un contorno teñido sin querer, algo recortado contra el
+borde del lienzo—, comparándolo con el original para no acusarte de lo que ya
+venía en el material. Lo que se ve en el editor no es lo que sale; eso sólo lo
+dice el disco.
+
 Dicho lo cual: esto no le da criterio. Le da consistencia y precisión — la
 octava orientación, los intercalados, el contorno, la paleta conforme, las
-costuras de un tileset, las cuarenta y siete piezas de un autotile. Las
-proporciones y el carácter del bicho siguen siendo tuyos.
-
-**Y puede partir de algo que ya existe.** `pinza_referencia` mete una imagen
-como capa de calco —de tu disco, de una URL, o `pokeapi:pidgey` para traerse un
-sprite— y `pinza_analiza` le saca los números: proporciones, perfil de anchura,
-y los colores ya agrupados en **rampas**, que es lo que hace sustituible una
-paleta. `pinza_compara` te dice en un número cuánto se parece lo tuyo a la
-referencia y en qué franja discrepa más.
-
-La capa de calco **no se exporta**, y no es una promesa: el compositor que
-escribe los PNG no la mira siquiera.
-
-Sirve para lo que más cuesta: una variante, un rediseño, «lo mismo pero de
-metal». Las proporciones son lo único que no se deduce de una descripción, y es
-justo lo que una referencia da medido.
-
-![Pidgey y su versión de fuego](capturas/pidgey-fuego.png)
-![El ciclo de andar, con las llamas](capturas/pidgey-fuego-ciclo.png)
-
-Y sobre la **criatura entera**, no sobre una hoja suya: `pinza_referencia` y el
-catálogo del pack traen sus ocho acciones —cada una con su geometría— y el
-mismo guion las recorre todas. Un recolor que sólo llega a `Walk` deja un bicho
-que cambia de color al pararse, y eso no se ve dibujando: se ve jugando.
-
-![Las ocho acciones de la criatura](capturas/pidey-fuego-acciones.png)
-
-Con las rampas ya sacadas, una **variante deja de dibujarse**: cada color se
-coloca en su rampa, se mira en qué escalón cae, y se sustituye por el que ocupa
-ese mismo escalón en la rampa de destino. La sombra sigue siendo sombra, así
-que el bicho se sigue reconociendo. Las cuarenta celdas de arriba —ocho caras
-por cinco fotogramas— son una llamada, y la silueta no se movió un píxel.
-
-El contorno se detecta y **se respeta**. No por su color, que puede ser
-cualquiera, sino por dónde está: los píxeles con algún vecino transparente. Un
-pack suele tener una convención de contorno —el de crabh es negro puro en todos
-sus bichos— y un solo sprite que la rompa canta desde lejos.
-
-Y hay red debajo. `pinza_verifica` lee los PNG ya escritos —no lo que se ve en
-pantalla— y avisa de colores fuera de la paleta, contornos teñidos sin querer o
-dibujos recortados contra el filo del lienzo; con el original como base, sólo
-te acusa de lo que has añadido tú. `pinza_convenciones` mira el arte que ya
-existe y te dice qué reglas sigue de verdad, que no siempre son las escritas.
-
-El servidor le entrega al modelo un **orden de trabajo** al conectarse —mide
-antes de tocar, no toques el contorno, verifica en el disco— y trae
-herramientas para cumplirlo: `pinza_convenciones` le pregunta al arte que ya
-existe cuáles son las reglas de la casa, y `pinza_verifica` lee los PNG
-escritos y dice qué salió mal, comparándolo con el original para no acusarte de
-lo que ya venía en el material.
+costuras de un tileset. Las proporciones y el carácter del bicho siguen siendo
+tuyos.
 
 ## El formato
 

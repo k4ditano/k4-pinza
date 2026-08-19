@@ -195,10 +195,10 @@ echo "  pinza Bicho.pinza        abrir un proyecto"
 echo "  pinza dibujo.png         importarlo como capa"
 echo "  pinza --estado           qué hay abierto"
 echo
-gris "Para que una IA pueda dibujar aquí, engánchala por MCP:"
+gris "Para que una IA pueda dibujar aquí: abre el editor, Ctrl+K y"
+gris "«Conectar una IA». Copia el texto y pégaselo a tu agente: se"
+gris "configura él. A mano sería:"
 gris "  claude mcp add pinza -- ${BIN}/pinza --mcp"
-gris "Conduce la ventana que ya tienes abierta, y todo lo que dibuje"
-gris "entra en el historial: un Ctrl+Z lo deshace."
 echo
 gris "El código se queda en ${RAIZ}: no hay copia, así que seguir"
 gris "desarrollando ahí es seguir usando lo instalado."

@@ -188,6 +188,54 @@ def orden_podar(p):
     return {"borrados": borrados, "cuantos": len(borrados)}
 
 
+def orden_portapapeles(p):
+    """Deja un texto en el portapapeles del sistema.
+
+    Va por aquí y no por QML porque QML no tiene portapapeles sin arrastrar
+    media biblioteca de widgets, y porque lanzar un proceso es justo lo que
+    hace esta casa.
+
+    Se prueban los tres que hay —Wayland, y los dos de X11— en vez de suponer
+    cuál toca: un editor no debería fallar al copiar por estar en el servidor
+    gráfico que no era, y el que sobra simplemente no está instalado.
+    """
+    texto = p.get("texto", "").encode("utf-8")
+    intentos = [["wl-copy"], ["xclip", "-selection", "clipboard"], ["xsel", "-ib"]]
+    fallos = []
+    for orden in intentos:
+        try:
+            proc = subprocess.Popen(orden, stdin=subprocess.PIPE,
+                                    stdout=subprocess.DEVNULL,
+                                    stderr=subprocess.PIPE,
+                                    start_new_session=True)
+        except FileNotFoundError:
+            continue
+        except Exception as e:                          # noqa: BLE001
+            fallos.append("%s: %s" % (orden[0], e))
+            continue
+        try:
+            proc.stdin.write(texto)
+            proc.stdin.close()
+        except (BrokenPipeError, OSError) as e:
+            fallos.append("%s: %s" % (orden[0], e))
+            continue
+
+        #  En Wayland el que copia NO termina: se queda vivo siendo el dueño
+        #  del portapapeles hasta que otro se lo quita. Esperarlo es esperar
+        #  para siempre — el texto ya está copiado y el proceso sigue ahí
+        #  porque ese es su trabajo. Así que seguir corriendo cuenta como
+        #  éxito, y sólo un final con código distinto de cero es un fallo.
+        try:
+            codigo = proc.wait(timeout=1.5)
+        except subprocess.TimeoutExpired:
+            return {"con": orden[0], "bytes": len(texto), "sigueVivo": True}
+        if codigo == 0:
+            return {"con": orden[0], "bytes": len(texto), "sigueVivo": False}
+        fallos.append("%s: código %d" % (orden[0], codigo))
+    raise RuntimeError("no hay con qué copiar (wl-copy, xclip o xsel)"
+                       + ((" · " + "; ".join(fallos)) if fallos else ""))
+
+
 PNG_FIRMA = b"\x89PNG\r\n\x1a\n"
 
 
@@ -437,6 +485,7 @@ def orden_abrir(p):
 
 
 ORDENES = {
+    "portapapeles": orden_portapapeles,
     "podar": orden_podar,
     "ping": orden_ping,
     "packs": orden_packs,

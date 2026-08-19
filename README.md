@@ -130,20 +130,28 @@ not a barrier: it tells you where you are and it can be switched off.
 
 ## Let the AI draw
 
-There is an **MCP** server in `mcp/pinza-mcp.py`: hook it up to Claude Code —or
+There is an **MCP** server: hook it up to your agent —Claude Code, Codex, or
 any MCP client— and you can ask it to make you things.
 
-    claude mcp add pinza -- ~/.local/bin/pinza --mcp
+**You do not need to know how to configure it.** In the editor, `Ctrl+K` →
+"Conectar una IA" shows you a piece of text and copies it; paste it to your
+agent and it sets itself up. Working without a window, the same text comes out
+of
+
+    pinza --mcp                           # the server, to wire up by hand
+    qs -c pinza ipc call pinza promptIA   # the text, if you would rather paste
 
 It drives **the window you already have open**, so you watch it draw live, and
 everything it does enters the history as **one** step: a single Ctrl+Z undoes
-the whole intervention. It can create documents, draw, run any editor command,
-measure the silhouette, save and export according to the contract — and above
-all it can **look**: `pinza_ver` hands it back an image of how it is going,
-which is what turns this into a draw-and-correct loop instead of a shot in the
-dark.
+the whole intervention. No keys, no accounts, and it does not talk to the
+internet unless you ask it to fetch a reference from a URL.
 
 ![Four generated items](capturas/cacharros.png)
+
+It can create documents and creatures, draw, run any editor command, measure
+the silhouette, save and export according to the contract — and above all it
+can **look**: it gets an image of how things are going back, which is what
+turns this into a draw-and-correct loop instead of a shot in the dark.
 
 What it does not do is place pixels by hand, because it is bad at it: writing a
 grid symbol by symbol it loses track between rows and cannot proofread itself.
@@ -160,61 +168,51 @@ moves each pixel **along its ramp** instead of smearing grey on top, what comes
 out keeps the game's colours and can be recoloured afterwards like any other
 drawing.
 
+![A steel creature in eight facings](capturas/pidey.png)
+
+Those eight facings are not eight drawings: they are **one rig**. The creature
+is described once as parts placed at (side, up, forward) and each facing is the
+same description rotated. The beak disappears when it turns away and the tail
+appears because they sit at opposite ends of the creature, not because anyone
+decided it facing by facing.
+
+### Starting from something that already exists
+
+This is what gets asked for most: a variant, a recolour, "the same but in
+metal".
+
+`pinza_hoja` slices a sprite sheet you already have. `pinza_referencia` brings
+an image in as a **tracing layer** —from your disk, from a URL, or from PokeAPI
+by name— and that layer **is never exported**: not a promise, the compositor
+that writes the PNGs does not even look at it.
+
+`pinza_analiza` pulls out the numbers a description cannot give: proportions,
+width profile, and the colours grouped into **ramps**. With the ramps, a
+variant stops being drawn: each colour is placed in its ramp, you look at which
+step it lands on, and it is replaced by whatever occupies that step in the
+target ramp. Shadow stays shadow, so the creature still reads as itself.
+
+The **outline** is detected and left alone. Not by its colour, which can be
+anything, but by where it is: the pixels with a transparent neighbour. Your
+project probably has an outline convention, and a single sprite breaking it
+stands out from across the room — `pinza_convenciones` asks the art you already
+have instead of assuming.
+
+And a creature is worked on **whole**: `pinza_criatura` walks every one of its
+actions. A recolour that only reaches one leaves a creature that changes colour
+when it stops, and that does not show up while drawing: it shows up while
+playing.
+
+Finally, `pinza_verifica` reads the PNGs **already written** and says what went
+wrong —a colour left unsubstituted, an outline tinted by accident, something
+clipped against the edge of the canvas— comparing against the original so it
+does not blame you for what the source material already had. What you see in
+the editor is not what comes out; only the disk knows that.
+
 That said: this does not give it taste. It gives it consistency and precision —
 the eighth facing, the in-betweens, the outline, a conforming palette, the
-seams of a tileset, the forty-seven pieces of an autotile. The proportions and
-the creature's character are still yours.
-
-**And it can start from something that already exists.** `pinza_referencia`
-brings an image in as a tracing layer —from your disk, from a URL, or
-`pokeapi:pidgey` to fetch a sprite— and `pinza_analiza` pulls its numbers:
-proportions, width profile, and the colours already grouped into **ramps**,
-which is what makes a palette substitutable. `pinza_compara` tells you in a
-single number how close yours is to the reference, and which band disagrees
-most.
-
-The tracing layer **is never exported**, and that is not a promise: the
-compositor that writes the PNGs does not even look at it.
-
-It is for the part that costs the most: a variant, a redesign, "the same but in
-metal". Proportions are the one thing you cannot deduce from a description, and
-they are exactly what a reference hands you measured.
-
-![Pidgey and its fire version](capturas/pidgey-fuego.png)
-![The walk cycle, with the flames](capturas/pidgey-fuego-ciclo.png)
-
-And over the **whole creature**, not one of its sheets: `pinza_referencia` and
-the pack's catalogue bring in all eight actions —each with its own geometry—
-and the same script walks every one. A recolour that only reaches `Walk` leaves
-a creature that changes colour when it stops, and that does not show up while
-drawing: it shows up while playing.
-
-![The creature's eight actions](capturas/pidey-fuego-acciones.png)
-
-With the ramps pulled out, a **variant stops being drawn**: each colour is
-placed in its ramp, you look at which step it lands on, and it is replaced by
-whatever occupies that same step in the target ramp. Shadow stays shadow, so
-the creature still reads as itself. The forty cels above —eight facings by five
-frames— are one call, and the silhouette did not move by a single pixel.
-
-The outline is detected and **left alone**. Not by its colour, which can be
-anything, but by where it is: the pixels with a transparent neighbour. A pack
-usually has an outline convention —crabh's is pure black across every creature—
-and a single sprite breaking it stands out from across the room.
-
-And there is a net underneath. `pinza_verifica` reads the PNGs already
-written —not what is on screen— and flags colours outside the palette, outlines
-tinted by accident, or drawings clipped against the edge of the canvas; given
-the original as a baseline, it only blames you for what you added.
-`pinza_convenciones` looks at the art that already exists and tells you which
-rules it actually follows, which are not always the written ones.
-
-The server hands the model a **working order** on connect —measure before you
-touch, leave the outline alone, verify on disk— and ships the tools to follow
-it: `pinza_convenciones` asks the existing art what the house rules actually
-are, and `pinza_verifica` reads the written PNGs and says what went wrong,
-comparing against the original so it does not blame you for what the source
-material already had.
+seams of a tileset. The proportions and the creature's character are still
+yours.
 
 ## The format
 

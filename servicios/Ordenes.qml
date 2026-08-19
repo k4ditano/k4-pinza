@@ -37,6 +37,42 @@ Singleton {
     function _capa() { return S.Documento.capa(S.Documento.capaActiva) }
     function _buf() { return S.Documento.celdaActiva(true) }
 
+    /**
+     * El texto que se le pega a un agente para que se conecte solo.
+     *
+     * Vive aquí y no en la hoja que lo enseña porque hay dos sitios que lo
+     * piden —la hoja y el IPC— y quien trabaja por SSH no puede pulsar un
+     * botón. Un texto duplicado es un texto que se actualiza en un sitio.
+     */
+    function promptIA(instalado) {
+        const casa = Quickshell.env("HOME") || "~"
+        const suelto = Qt.resolvedUrl("../mcp/pinza-mcp.py").toString().replace("file://", "")
+        const orden = instalado === false ? suelto : (casa + "/.local/bin/pinza --mcp")
+        const binario = orden.split(" ")[0]
+        const args = orden.indexOf(" --mcp") >= 0 ? '["--mcp"]' : "[]"
+        return [
+            "Quiero que puedas dibujar en K4 Pinza, un editor de pixel art que tengo abierto.",
+            "",
+            "Trae un servidor MCP. Regístralo con lo que use tu cliente:",
+            "",
+            "  Claude Code:  claude mcp add pinza -- " + orden,
+            "  Codex CLI:    codex mcp add pinza -- " + orden,
+            "",
+            "Si el tuyo se configura con un JSON, la entrada es:",
+            "",
+            '  "pinza": { "command": ' + JSON.stringify(binario) + ', "args": ' + args + ' }',
+            "",
+            "Es un servidor MCP por entrada estándar, sin claves ni cuentas. Al conectar",
+            "tendrás unas veinte herramientas «pinza_*», y el propio servidor te entrega",
+            "un orden de trabajo; síguelo. Empieza llamando a pinza_estado para ver qué",
+            "hay abierto.",
+            "",
+            "Conduce la ventana que ya tengo delante, así que veré lo que haces, y todo",
+            "lo que dibujes entra en el historial como un solo paso: si no me gusta, un",
+            "Ctrl+Z lo deshace entero."
+        ].join("\n")
+    }
+
     /** Envuelve un cambio de píxeles con su entrada en el historial. */
     function _conHistorial(nombre, fn) {
         const c = _capa()
@@ -266,6 +302,17 @@ Singleton {
           hacer: () => ord.pideHoja("exportarAnim") },
         { id: "abrirImagen", titulo: "Abrir una imagen…", grupo: "fichero", icono: "carpeta",
           hacer: () => ord.pideAbrirImagen() },
+        //  El prompt para que una IA se conecte sola.
+        //
+        //  Configurar un servidor MCP a mano es buscar en qué fichero va, con
+        //  qué forma, y qué ruta poner — distinto en cada cliente y a estrenar
+        //  cada vez que sale uno nuevo. Copiar un texto y pegárselo al agente
+        //  para que se configure él es un paso en vez de cinco, y además lo
+        //  puedes leer antes de pegarlo.
+        { id: "promptIA", titulo: "Conectar una IA: copiar el prompt…", grupo: "fichero",
+          icono: "guiones", cuando: () => true,
+          hacer: () => ord.pideHoja("ia") },
+
         { id: "acciones", titulo: "Acciones de la criatura…", grupo: "especie", icono: "juego",
           cuando: () => ord.hayDoc, hacer: () => ord.pideHoja("acciones") },
         { id: "importar", titulo: "Importar imagen…", grupo: "fichero", icono: "importar",

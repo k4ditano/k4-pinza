@@ -1195,6 +1195,16 @@ ShellRoot {
             return JSON.stringify({ bien: false, error: "no sé qué es «" + que + "»" })
         }
 
+        /**
+         * El texto para que una IA se configure sola, por si no hay ventana
+         * donde pulsar un botón — por SSH, por ejemplo.
+         *
+         *     qs -c pinza ipc call pinza promptIA
+         */
+        function promptIA(): string {
+            return S.Ordenes.promptIA(true)
+        }
+
         /** Guardar en una carpeta concreta, sin diálogo. Para un lote. */
         function guardarEn(ruta: string): string {
             if (!S.Documento.abierto) return JSON.stringify({ bien: false, error: "no hay nada abierto" })

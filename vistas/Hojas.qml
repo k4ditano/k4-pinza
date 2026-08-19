@@ -10,6 +10,7 @@
 
 import QtQuick
 import QtQuick.Dialogs
+import Quickshell
 import "../core" as C
 import "../core/pixeles.js" as P
 import "../servicios" as S
@@ -90,7 +91,7 @@ Item {
             "etiqueta": cEtiqueta, "cuantizar": cCuantizar, "desplazar": cDesplazar,
             "importar": cImportar, "exportarAnim": cAnim, "guiones": cGuiones,
             "especie": cEspecie, "transformar": cTransformar,
-            "acciones": cAcciones
+            "acciones": cAcciones, "ia": cIa
         })
 
         Flickable {
@@ -116,7 +117,8 @@ Item {
         "comprobar": "comprobaciones del juego", "etiqueta": "etiqueta",
         "cuantizar": "cuantizar", "desplazar": "desplazar envolviendo",
         "importar": "importar", "exportarAnim": "exportar animación",
-        "acciones": "acciones de la criatura"
+        "acciones": "acciones de la criatura",
+        "ia": "conectar una IA"
     })
 
     // ═══════════════════════════════════════════════════════════
@@ -1757,4 +1759,91 @@ Item {
             }
         }
     }
+
+    // ═══════════════════════════════════════════════════════════
+    // conectar una IA
+    // ═══════════════════════════════════════════════════════════
+    //
+    //  Un texto para pegárselo a tu agente y que se configure él.
+    //
+    //  Configurar un servidor MCP a mano es averiguar en qué fichero va, con
+    //  qué forma y qué ruta poner, y eso cambia con cada cliente. Aquí se
+    //  copia un párrafo y se pega. Se enseña entero antes de copiarlo a
+    //  propósito: un texto que le vas a dar a algo que va a ejecutar cosas en
+    //  tu ordenador se lee antes.
+
+    Component {
+        id: cIa
+        Column {
+            id: hojaIa
+            spacing: 10
+
+            //  La ruta del lanzador si está instalado, y si no la del guion
+            //  dentro del repositorio: quien lo esté desarrollando no ha
+            //  pasado necesariamente por el instalador.
+            property bool instalado: true
+            readonly property string texto: S.Ordenes.promptIA(instalado)
+
+            Text {
+                width: parent.width
+                text: "Copia esto y pégaselo a tu agente. Se configurará solo."
+                wrapMode: Text.WordWrap
+                font.family: C.Tema.tipo; font.pixelSize: 12; color: C.Tema.tinta
+            }
+
+            C.Interruptor {
+                width: parent.width
+                etiqueta: "usar el comando instalado (pinza --mcp)"
+                valor: hojaIa.instalado
+                onCambiado: (v) => hojaIa.instalado = v
+            }
+
+            Rectangle {
+                width: parent.width
+                height: Math.min(230, cuerpo.implicitHeight + 16)
+                color: C.Tema.fondo
+                border.color: C.Tema.borde; border.width: 1
+                radius: 4
+                Flickable {
+                    anchors.fill: parent; anchors.margins: 8
+                    contentHeight: cuerpo.implicitHeight
+                    clip: true
+                    TextEdit {
+                        id: cuerpo
+                        width: parent.width
+                        text: hojaIa.texto
+                        readOnly: true
+                        selectByMouse: true
+                        wrapMode: TextEdit.NoWrap
+                        font.family: C.Tema.tipoMono
+                        font.pixelSize: 10
+                        color: C.Tema.tenue
+                    }
+                }
+            }
+
+            Text {
+                id: aviso
+                width: parent.width
+                text: ""
+                visible: text !== ""
+                wrapMode: Text.WordWrap
+                font.family: C.Tema.tipo; font.pixelSize: 11; color: C.Tema.acento
+            }
+
+            C.Boton {
+                texto: "copiar"; activo: true; relleno: 14
+                onPulsado: {
+                    const t = hojaIa.texto
+                    S.Forja.copiaTexto(t, (r) => {
+                        aviso.text = (r && r.bien)
+                            ? "copiado — pégalo en tu agente"
+                            : "no se pudo copiar: " + ((r && r.error) || "no sé por qué")
+                                + ". Selecciónalo de arriba con el ratón."
+                    })
+                }
+            }
+        }
+    }
+
 }

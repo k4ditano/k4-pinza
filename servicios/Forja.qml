@@ -89,6 +89,8 @@ Singleton {
     function leeTexto(ruta, cb)             { pide("leerTexto", { ruta: ruta }, cb) }
     function creaCarpeta(ruta, cb)          { pide("carpeta", { ruta: ruta }, cb) }
     function lista_(ruta, patron, cb)       { pide("listar", { ruta: ruta, patron: patron }, cb) }
+    /** Deja un texto en el portapapeles del sistema. */
+    function copiaTexto(texto, cb)         { pide("portapapeles", { texto: texto }, cb) }
     /** Borra de una carpeta lo que no esté en `conservar`. Ver `orden_podar`. */
     function poda(ruta, patron, conservar, cb) {
         pide("podar", { ruta: ruta, patron: patron, conservar: conservar }, cb)

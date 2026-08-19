@@ -1,26 +1,14 @@
-//  Una variante de estilo, sin dibujar nada.
+//  Pidgey de fuego: sustituir rampas, no repintar.
 //
-//  Ejemplo largo a propósito: es la técnica entera de hacer un bicho «pero de
-//  fuego» a partir del que ya existe, con las tres cosas que hay que saber
-//  antes de tocar un píxel.
+//  La idea entera es que una variante NO se dibuja otra vez. Un sprite tiene
+//  una estructura de valores —qué es sombra, qué es medio, qué es brillo— y
+//  esa estructura es lo que hace que se reconozca la silueta. Cambiar el
+//  color sin tocarla es lo que da una variante; repintar a ojo la destroza y
+//  entonces ya no es el mismo bicho de otro color, es otro bicho peor.
 //
-//  1 · SE MIDE ANTES DE TOCAR. `F.analiza` dice qué colores hay, agrupados en
-//      las rampas con las que se pintó, y —lo que importa— cuáles forman el
-//      contorno.
-//
-//  2 · EL CONTORNO NO SE TOCA. Y no se reconoce por su color, que puede ser
-//      cualquiera, sino por dónde está: los píxeles con algún vecino
-//      transparente. Un pack suele tener una convención de contorno —el de
-//      crabh es negro puro en todos sus bichos— y un solo sprite que la rompa
-//      canta desde lejos.
-//
-//  3 · SE SUSTITUYE POR ESCALÓN, no por color. Cada color se coloca en su
-//      rampa, se mira en qué peldaño cae por luminancia, y se cambia por el
-//      que ocupa ese mismo peldaño en la rampa de destino. La sombra sigue
-//      siendo sombra, y por eso el bicho se sigue reconociendo.
-//
-//  Probado sobre el Walk de un Pidgey de crabh: cuarenta celdas —ocho caras
-//  por cinco fotogramas— en una pasada, con la silueta intacta.
+//  Así que cada color se coloca en SU rampa, se mira en qué escalón cae —por
+//  luminancia, normalizado— y se sustituye por el color que ocupa ese mismo
+//  escalón en la rampa de destino. La sombra sigue siendo sombra.
 
 const F = pinza.fig, P = pinza.px
 
@@ -83,7 +71,33 @@ function enRampa(t, rampa, desde, hasta) {
 //  Y lo peor no era la decisión: era cómo se tomaba. El contorno caía en «los
 //  neutros» junto al blanco de los brillos y se separaban por luminancia. Eso
 //  funciona hasta que un bicho tiene el contorno marrón, o un ojo casi negro.
-const analisis = F.analiza(pinza.compuesto())
+/**
+ * Todas las celdas juntas en un mosaico, para medirlas de una vez.
+ *
+ * Medir sólo el compuesto que tienes delante es medir UNA celda, y un color
+ * que sólo sale en otro fotograma o en otra cara no entra en el mapa y se
+ * queda sin sustituir. Es el mismo fallo que hacer la variante sólo en `Walk`,
+ * un piso más abajo: sale un bicho que cambia de color al girarse.
+ *
+ * Van con dos píxeles de hueco entre celdas a propósito. Pegadas, dos siluetas
+ * vecinas se tocan y sus bordes dejan de ser borde — y entonces el contorno,
+ * que se detecta por posición, se detecta mal.
+ */
+function mosaico() {
+    const cels = []
+    pinza.paraCada((buf) => cels.push(buf))
+    if (!cels.length) return pinza.compuesto()
+    const G = 2
+    const cols = Math.max(1, Math.ceil(Math.sqrt(cels.length)))
+    const filas = Math.ceil(cels.length / cols)
+    const an = pinza.doc.ancho + G, al = pinza.doc.alto + G
+    const m = P.nuevo(cols * an, filas * al)
+    for (let i = 0; i < cels.length; i++)
+        P.vuelca(m, cels[i], (i % cols) * an + 1, Math.floor(i / cols) * al + 1)
+    return m
+}
+
+const analisis = F.analiza(mosaico())
 const CONTORNO = {}
 for (let i = 0; i < analisis.contorno.colores.length; i++)
     CONTORNO[analisis.contorno.colores[i]] = true

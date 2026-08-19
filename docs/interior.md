@@ -273,6 +273,17 @@ los píxeles opacos con algún vecino transparente— y por eso `contornoDe` lo
 mide en vez de adivinarlo, y `analiza` lo trae de serie: lo que no se pide por
 defecto se olvida.
 
+El contorno son el color que más manda en el anillo y los que le hagan sombra
+de verdad, no los que hagan falta para llegar a un porcentaje. Acumular hasta
+cubrir el 90 % parecía razonable y era una trampa: **en un sprite pequeño casi
+todo el dibujo está a un píxel del borde**, así que colores del cuerpo entran
+en el anillo con un 20 % cada uno y se colaban como contorno. En el `Hurt` de
+Pidgey —un bicho de doscientos píxeles en un lienzo de 48×48— el negro es el
+60 % del anillo y otros dos rondan el 20 %: no son contorno, son borde del
+cuerpo. Y un color protegido por error es un color que el recolor no toca:
+media variante sin recolorear y ninguna queja. Un contorno de dos tonos sí
+existe —matizado por el lado de la luz— pero entonces los dos pesan parecido.
+
 De cada color se devuelven dos fracciones que contestan preguntas distintas y
 hacen falta las dos: `delAnillo` es cuánto del contorno es ese color —alto
 significa «este color ES el contorno»— y `suyoFuera` es cuánto de ese color
@@ -294,6 +305,20 @@ cuerpo a la rampa entera, su tono más oscuro caía en el mismo carbón que el
 contorno y la forma de dentro desaparecía. Los números decían que la luminancia
 había SUBIDO, así que no era cuestión de aclarar: era que el contorno había
 dejado de ser el suelo del dibujo.
+
+Y una variante se hace sobre la CRIATURA, no sobre una hoja suya. `traer` se
+baja una del catálogo del pack con todas sus acciones —cada una con su
+geometría y sus duraciones— y `accion` salta entre ellas guardando sola la que
+dejas, que es lo que permite recorrerlas en un bucle. Un recolor que sólo llega
+a `Walk` deja un bicho que cambia de color al pararse, y eso no se ve
+dibujando: se ve jugando.
+
+El mismo fallo tiene un piso más abajo, y es más fácil de cometer: **medir el
+compuesto que tienes delante es medir UNA celda**. Un color que sólo sale en
+otro fotograma o en otra cara no entra en el mapa de sustitución y se queda sin
+tocar. Se miden todas las celdas juntas, en un mosaico con dos píxeles de hueco
+entre ellas — pegadas, dos siluetas vecinas se tocan y sus bordes dejan de ser
+borde, y entonces el contorno, que se detecta por posición, se detecta mal.
 
 **Y ahí hay una trampa que conviene saber antes de usarlo.** El solape es un
 sustituto, no el objetivo. Ajustando el ancho del Pidey contra un Pidgey de

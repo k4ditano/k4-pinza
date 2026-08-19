@@ -1080,6 +1080,77 @@ ShellRoot {
             return JSON.stringify({ bien: true, ruta: s.ruta, celda: cw + "x" + ch, esperando: true })
         }
 
+        // ═══════════════════════════════════════════════════════
+        // criaturas
+        // ═══════════════════════════════════════════════════════
+
+        /**
+         * Trae una criatura entera del catálogo del pack.
+         *
+         *     {"dex":16, "nombre":"PideyFuego", "destino":"/ruta/donde"}
+         *
+         * Entera quiere decir TODAS sus acciones, cada una con su geometría y
+         * sus duraciones. Es la diferencia entre retocar un bicho y retocar
+         * una hoja suya: un recolor que sólo llega a `Walk` deja un bicho que
+         * cambia de color al pararse, y eso no se ve dibujando — se ve
+         * jugando.
+         */
+        function traer(spec: string): string {
+            let s = {}
+            try { s = spec ? JSON.parse(spec) : {} } catch (e) { return JSON.stringify({ bien: false, error: "el spec no es JSON" }) }
+            if (s.dex === undefined) return JSON.stringify({ bien: false, error: "hace falta un dex" })
+            if (!s.destino) return JSON.stringify({ bien: false, error: "hace falta un destino" })
+
+            //  `Especie.importa` espera la ruta COMPLETA del .especie, no la
+            //  carpeta donde meterlo. Dándole una carpeta a secas te esparce
+            //  las ocho acciones y el especie.json por dentro de ella — que
+            //  con un descuido es tu carpeta personal llena de Idle.pinza y
+            //  Walk.pinza sueltos. Si no acaba en .especie se toma como el
+            //  sitio, que es lo que cualquiera querría decir.
+            const nom = s.nombre || ("dex" + s.dex)
+            const destino = /\.especie$/.test(s.destino)
+                            ? s.destino
+                            : s.destino.replace(/\/+$/, "") + "/" + nom + ".especie"
+            S.Especie.importa(s.dex, s.nombre || "", destino, () => {})
+            ventana.visible = true
+            return JSON.stringify({ bien: true, dex: s.dex, destino: destino, esperando: true })
+        }
+
+        /**
+         * Cambia a una acción de la criatura abierta.
+         *
+         * Guarda sola la que dejas, que es lo que permite recorrerlas todas en
+         * un bucle sin perder nada por el camino.
+         */
+        function accion(id: string): string {
+            if (!S.Especie.abierta) return JSON.stringify({ bien: false, error: "no hay ninguna criatura abierta" })
+            if (!id) return JSON.stringify({ bien: true, accion: S.Especie.accion,
+                                             acciones: S.Especie.acciones.map((a) => a.id) })
+            const hay = S.Especie.acciones.some((a) => a.id === id)
+            if (!hay) return JSON.stringify({ bien: false, error: "no tiene la acción «" + id + "»" })
+            S.Especie.editaAccion(id, () => {})
+            return JSON.stringify({ bien: true, accion: id, esperando: true })
+        }
+
+        /** Recoge lo que hay delante y guarda la criatura entera. */
+        function guardarCriatura(): string {
+            if (!S.Especie.abierta) return JSON.stringify({ bien: false, error: "no hay ninguna criatura abierta" })
+            S.Especie.recogeYGuarda(() => {})
+            return JSON.stringify({ bien: true, ruta: S.Especie.ruta, esperando: true })
+        }
+
+        /** El catálogo del pack, para saber qué se puede traer. */
+        function catalogo(): string {
+            S.Especie.cargaCatalogo(() => {})
+            return JSON.stringify({
+                bien: S.Especie.catalogoListo,
+                error: S.Especie.catalogoError || null,
+                leyendo: S.Especie.catalogoLeyendo,
+                cuantas: S.Especie.catalogo.length,
+                criaturas: S.Especie.catalogo.map((c) => ({ dex: c.dex, nombre: c.name }))
+            })
+        }
+
         /** Guardar en una carpeta concreta, sin diálogo. Para un lote. */
         function guardarEn(ruta: string): string {
             if (!S.Documento.abierto) return JSON.stringify({ bien: false, error: "no hay nada abierto" })

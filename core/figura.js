@@ -752,15 +752,32 @@ function contornoDe(b) {
         suyoFuera: +(cuenta[h] / dentro[h]).toFixed(3)
     })).sort((a, b2) => b2.delAnillo - a.delAnillo)
 
-    //  «El contorno» son los colores que hacen falta para cubrir casi todo el
-    //  anillo. Con un solo color se quedaría corto en los bichos que lo
-    //  matizan por el lado de la luz, que es normal y no es otro contorno.
+    //  «El contorno» son el color que más manda en el anillo y los que le
+    //  hagan sombra de verdad — no los que hagan falta para llegar a un
+    //  porcentaje.
+    //
+    //  Acumulando hasta cubrir el 90 % parecía razonable y era una trampa: en
+    //  un sprite pequeño casi todo el dibujo está a un píxel del borde, así
+    //  que colores del CUERPO entran en el anillo con un 20 % cada uno y se
+    //  colaban como contorno. Y un color protegido por error es un color que
+    //  el recolor no toca: media variante sin recolorear y ninguna queja.
+    //
+    //  Un contorno de dos tonos —matizado por el lado de la luz— sí existe y
+    //  hay que admitirlo, pero entonces los dos pesan parecido. Un tercero al
+    //  20 % contra un primero al 60 % no es la otra mitad de un contorno: es
+    //  otra cosa.
     const son = []
     let acumulado = 0
-    for (let i = 0; i < lista.length && acumulado < 0.9; i++) {
-        if (lista[i].delAnillo < 0.04) break
+    for (let i = 0; i < lista.length; i++) {
+        if (i > 0 && lista[i].delAnillo < lista[0].delAnillo * 0.5) break
+        if (lista[i].delAnillo < 0.08) break
         son.push(lista[i].color)
         acumulado += lista[i].delAnillo
     }
-    return { pixeles: total, colores: son, cubren: +acumulado.toFixed(3), todos: lista }
+    return { pixeles: total, colores: son, cubren: +acumulado.toFixed(3),
+             //  Cuánto manda el primero. Bajo quiere decir que este dibujo no
+             //  tiene un contorno claro, y que quien vaya a recolorear haría
+             //  bien en mirarlo antes de fiarse.
+             manda: lista.length ? lista[0].delAnillo : 0,
+             todos: lista }
 }

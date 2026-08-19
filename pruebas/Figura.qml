@@ -251,6 +251,34 @@ ShellRoot {
         ck("analizar lo trae de serie, que es lo que hace que no se olvide",
            F.analiza(dib).contorno.colores[0] === "#000000")
 
+        //  El caso que costó encontrar: en un sprite PEQUEÑO casi todo el
+        //  dibujo está a un píxel del borde, así que colores del CUERPO
+        //  aparecen en el anillo con un peso nada despreciable. Acumulando
+        //  hasta cubrir el 90 % se colaban como contorno — y un color
+        //  protegido por error es un color que el recolor no toca: media
+        //  variante sin recolorear y ninguna queja.
+        let chico = P.nuevo(12, 12)
+        const bolita = F.disco(12, 12, 6, 6, 4)
+        F.cuerpo(chico, bolita, { rampa: F.rampa("#c08040", 5), contorno: false })
+        F.pinta(chico, F.borde(bolita), "#000000")
+        //  Y se le muerde el contorno por un lado, como hacen los sprites de
+        //  verdad donde asoma un ala o un pico.
+        F.pinta(chico, F.corta(F.borde(bolita), F.rect(12,12,7,0,5,4)), "#f0e0c0")
+        const cc = F.contornoDe(chico)
+        ck("en un dibujo pequeño, un color de cuerpo en el borde no es contorno",
+           cc.colores.length === 1 && cc.colores[0] === "#000000",
+           JSON.stringify(cc.colores) + " · manda " + cc.manda)
+
+        //  Pero un contorno de DOS tonos sí existe —matizado por el lado de la
+        //  luz— y entonces los dos pesan parecido y hay que admitir los dos.
+        let dos = P.nuevo(20, 20)
+        F.cuerpo(dos, redonda, { rampa: F.rampa("#4080c0", 5), contorno: false })
+        F.pinta(dos, F.borde(redonda), "#101018")
+        F.pinta(dos, F.corta(F.borde(redonda), F.rect(20,20,0,0,20,10)), "#404860")
+        const cd = F.contornoDe(dos)
+        ck("y un contorno matizado en dos tonos se admite entero",
+           cd.colores.length === 2, JSON.stringify(cd.colores))
+
         console.log(malas ? "\n" + malas + " FALLOS" : "\nla figura pasa entera")
         fin.start()
     }

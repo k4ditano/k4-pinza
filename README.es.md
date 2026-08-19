@@ -180,6 +180,13 @@ justo lo que una referencia da medido.
 ![Pidgey y su versión de fuego](capturas/pidgey-fuego.png)
 ![El ciclo de andar, con las llamas](capturas/pidgey-fuego-ciclo.png)
 
+Y sobre la **criatura entera**, no sobre una hoja suya: `pinza_referencia` y el
+catálogo del pack traen sus ocho acciones —cada una con su geometría— y el
+mismo guion las recorre todas. Un recolor que sólo llega a `Walk` deja un bicho
+que cambia de color al pararse, y eso no se ve dibujando: se ve jugando.
+
+![Las ocho acciones de la criatura](capturas/pidey-fuego-acciones.png)
+
 Con las rampas ya sacadas, una **variante deja de dibujarse**: cada color se
 coloca en su rampa, se mira en qué escalón cae, y se sustituye por el que ocupa
 ese mismo escalón en la rampa de destino. La sombra sigue siendo sombra, así

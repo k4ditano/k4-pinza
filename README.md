@@ -183,6 +183,14 @@ they are exactly what a reference hands you measured.
 ![Pidgey and its fire version](capturas/pidgey-fuego.png)
 ![The walk cycle, with the flames](capturas/pidgey-fuego-ciclo.png)
 
+And over the **whole creature**, not one of its sheets: `pinza_referencia` and
+the pack's catalogue bring in all eight actions —each with its own geometry—
+and the same script walks every one. A recolour that only reaches `Walk` leaves
+a creature that changes colour when it stops, and that does not show up while
+drawing: it shows up while playing.
+
+![The creature's eight actions](capturas/pidey-fuego-acciones.png)
+
 With the ramps pulled out, a **variant stops being drawn**: each colour is
 placed in its ramp, you look at which step it lands on, and it is replaced by
 whatever occupies that same step in the target ramp. Shadow stays shadow, so

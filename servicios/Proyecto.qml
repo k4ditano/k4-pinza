@@ -169,16 +169,34 @@ Singleton {
         for (let i = 0; i < claves.length; i++)
             lista.push({ ruta: ruta + "/celdas/" + claves[i].split(":").join(".") + ".png",
                          buf: celdas[claves[i]] })
+        //  La misma regla que `guarda`, que aquí faltaba: si las celdas no
+        //  llegan al disco, NO se escribe el proyecto.json.
+        //
+        //  Escribía el índice pasara lo que pasara y contestaba que sí. Un
+        //  índice que promete celdas que no están es lo único que no se puede
+        //  arreglar mirando la carpeta — y por aquí pasa la importación de una
+        //  criatura entera, que son ocho proyectos de un tirón: bastaba con que
+        //  fallara uno para acabar con una criatura que dice tener ocho
+        //  acciones y tiene siete, sin que nada lo dijera.
         S.Forja.creaCarpeta(ruta + "/celdas", () => {
             exportador.escribeVarios(lista, (bien) => {
+                if (!bien) {
+                    falla("guardar", "no se pudieron escribir las celdas en " + ruta)
+                    if (cb) cb(false)
+                    return
+                }
                 S.Forja.escribeTexto(ruta + "/proyecto.json",
-                                     JSON.stringify(meta, null, 2) + "\n",
-                                     () => {
-                    //  Sólo se poda si las celdas llegaron. Podar detrás de una
-                    //  escritura fallida sería borrar lo viejo sin tener lo
-                    //  nuevo, que es la única forma de que esto pierda trabajo.
-                    if (bien) _poda(ruta, claves)
-                    if (cb) cb(bien)
+                                     JSON.stringify(meta, null, 2) + "\n", (r) => {
+                    if (!r || !r.bien) {
+                        falla("guardar", "las celdas están escritas, pero el proyecto.json de "
+                              + ruta + " no: " + ((r && r.error) || "no sé por qué"))
+                        if (cb) cb(false)
+                        return
+                    }
+                    //  Podar va detrás de todo y sólo si todo salió: hacerlo
+                    //  antes borraría lo viejo sin tener lo nuevo.
+                    _poda(ruta, claves)
+                    if (cb) cb(true)
                 })
             })
         })

@@ -203,7 +203,34 @@ ShellRoot {
                (r && r.omitido) || "")
             S.Forja.lista_(ruta, "*.png", (r2) => {
                 ck("y la carpeta sigue entera", r2.ficheros.length === 2, r2.ficheros.length)
-                fin.start()
+                paso7()
+            })
+        })
+    }
+
+    // ── 7 · el camino crudo tampoco puede mentir ────────────────
+    //
+    //  `guardaCrudo` escribía el proyecto.json pasara lo que pasara y
+    //  contestaba que sí. Es el camino por el que se importa una criatura
+    //  entera —ocho proyectos de un tirón—, así que bastaba con que fallara
+    //  uno para acabar con una criatura que dice tener ocho acciones y tiene
+    //  siete, sin que nada lo dijera. Un índice que promete celdas que no
+    //  están es lo único que no se arregla mirando la carpeta.
+    function paso7() {
+        //  Un sitio donde no se puede escribir: la carpeta se llama como un
+        //  fichero que ya existe. No hace falta romper nada para provocarlo.
+        const tapon = base + "/tapon"
+        S.Forja.escribeTexto(tapon, "no soy una carpeta\n", () => {
+            const meta = S.Documento.meta()
+            const celdas = {}
+            celdas["c1:0:0"] = P.nuevo(4, 4)
+            S.Proyecto.guardaCrudo(tapon + "/Roto.pinza", meta, celdas, (bien) => {
+                ck("un guardado crudo que no puede escribir dice que NO", bien === false, bien)
+                S.Forja.leeTexto(tapon + "/Roto.pinza/proyecto.json", (r) => {
+                    ck("y no deja un proyecto.json prometiendo celdas que no están",
+                       !r.bien || !r.texto, r.texto ? "lo escribió igual" : "no hay")
+                    fin.start()
+                })
             })
         })
     }

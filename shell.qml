@@ -534,6 +534,51 @@ ShellRoot {
     //
     //      qs -c pinza ipc call pinza abrir /ruta/al/proyecto.pinza
 
+    //  Los ayudantes del IPC, fuera del IpcHandler.
+    //
+    //  `IpcHandler` intenta exponer TODAS sus funciones, tengan tipo o no, y
+    //  con una que lleve argumentos sin tipar suelta un aviso por cada
+    //  recarga. Un ayudante privado no tiene por qué salir a la interfaz
+    //  pública sólo por vivir al lado, así que vive aquí.
+    QtObject {
+        id: mira
+
+    /** El índice de la primera capa de calco, o -1. */
+    function _iReferencia() {
+        const d = S.Documento.d
+        if (!d) return -1
+        for (let i = 0; i < d.capas.length; i++)
+            if (d.capas[i].tipo === "referencia") return i
+        return -1
+    }
+
+    function _bufDe(que, f, o, capa) {
+        if (!S.Documento.abierto) return null
+        const d = S.Documento.d
+        const ff = f === undefined || f === null ? S.Documento.fotograma : f
+        const oo = o === undefined || o === null ? S.Documento.orientacion : o
+        if (que === "referencia" || que === "capa") {
+            const i = que === "referencia" ? _iReferencia()
+                      : (capa === undefined || capa === null ? S.Documento.capaActiva : capa)
+            const c = S.Documento.capa(i)
+            if (!c) return null
+            return S.Documento.celda(c.id, ff, oo, false)
+        }
+        if (que === "celda") return S.Documento.celdaActiva(false)
+        if (que === "hoja") {
+            //  Toda la animación de un vistazo: los fotogramas en columnas
+            //  y las orientaciones en filas, que es como las lee el juego y
+            //  como se ve de un golpe si una cara se ha quedado atrás.
+            const cols = d.fotogramas.length, filas = d.orientaciones.length
+            const celdas = []
+            for (let y = 0; y < filas; y++) for (let x = 0; x < cols; x++)
+                celdas.push(S.Documento.compuesto(x, y))
+            return exportador.componHoja(celdas, cols, filas, d.ancho, d.alto)
+        }
+        return S.Documento.compuesto(f, o)
+    }
+    }
+
     IpcHandler {
         target: "pinza"
 
@@ -696,23 +741,6 @@ ShellRoot {
         //  `rename`, así que el fichero existe sólo cuando está entero — no
         //  hace falta ningún otro aviso.
 
-        function _bufDe(que, f, o): var {
-            if (!S.Documento.abierto) return null
-            const d = S.Documento.d
-            if (que === "celda") return S.Documento.celdaActiva(false)
-            if (que === "hoja") {
-                //  Toda la animación de un vistazo: los fotogramas en columnas
-                //  y las orientaciones en filas, que es como las lee el juego y
-                //  como se ve de un golpe si una cara se ha quedado atrás.
-                const cols = d.fotogramas.length, filas = d.orientaciones.length
-                const celdas = []
-                for (let y = 0; y < filas; y++) for (let x = 0; x < cols; x++)
-                    celdas.push(S.Documento.compuesto(x, y))
-                return exportador.componHoja(celdas, cols, filas, d.ancho, d.alto)
-            }
-            return S.Documento.compuesto(f, o)
-        }
-
         /**
          * Escribe un PNG de lo que hay, para poder MIRARLO desde fuera.
          *
@@ -729,7 +757,7 @@ ShellRoot {
             if (!S.Documento.abierto) return JSON.stringify({ bien: false, error: "no hay nada abierto" })
             if (!s.ruta) return JSON.stringify({ bien: false, error: "hace falta una ruta" })
 
-            const src = _bufDe(s.que || "compuesto",
+            const src = mira._bufDe(s.que || "compuesto",
                                s.fotograma === undefined ? undefined : s.fotograma,
                                s.orientacion === undefined ? undefined : s.orientacion)
             if (!src) return JSON.stringify({ bien: false, error: "no hay nada que enseñar" })
@@ -810,7 +838,7 @@ ShellRoot {
         function rejilla(spec: string): string {
             let s = {}
             try { s = spec ? JSON.parse(spec) : {} } catch (e) { return JSON.stringify({ bien: false, error: "el spec no es JSON" }) }
-            const b = _bufDe(s.que || "compuesto", s.fotograma, s.orientacion)
+            const b = mira._bufDe(s.que || "compuesto", s.fotograma, s.orientacion)
             if (!b) return JSON.stringify({ bien: false, error: "no hay nada abierto" })
             const r = F.aTexto(b)
             r.bien = true
@@ -873,14 +901,23 @@ ShellRoot {
         function crear(spec: string): string {
             let s = {}
             try { s = spec ? JSON.parse(spec) : {} } catch (e) { return JSON.stringify({ bien: false, error: "el spec no es JSON" }) }
-            let o = { nombre: s.nombre || "sin nombre",
-                      ancho: s.ancho || 32, alto: s.alto || 32,
-                      fotogramas: s.fotogramas || 1,
-                      orientaciones: s.orientaciones || ["S"] }
+            //  Sólo lo que de verdad han pedido: `paraDocumento` rellena lo
+            //  que falte CON EL CONTRATO, así que meter aquí un 32×32 por
+            //  defecto no era un defecto, era pisar al contrato. Pedir la
+            //  criatura de crabh daba un lienzo suelto de 32×32 con una sola
+            //  cara, que es justo lo contrario de lo que se había pedido.
+            let o = { nombre: s.nombre || "sin nombre" }
+            for (const k of ["ancho", "alto", "fotogramas", "orientaciones"])
+                if (s[k] !== undefined) o[k] = s[k]
             if (s.contrato) {
                 const c = S.Packs.contrato(s.contrato)
                 if (!c) return JSON.stringify({ bien: false, error: "no hay contrato «" + s.contrato + "»" })
                 o = S.Packs.paraDocumento(c, o)
+            } else {
+                o.ancho = o.ancho || 32
+                o.alto = o.alto || 32
+                o.fotogramas = o.fotogramas || 1
+                o.orientaciones = o.orientaciones || ["S"]
             }
             S.Documento.nuevo(o)
             S.Proyecto._aplicaRejilla()
@@ -888,6 +925,122 @@ ShellRoot {
             ventana.visible = true
             return JSON.stringify({ bien: true, nombre: S.Documento.nombre,
                                     ancho: S.Documento.ancho, alto: S.Documento.alto })
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // referencia y medida
+        // ═══════════════════════════════════════════════════════
+
+        /**
+         * Mete una imagen como capa de CALCO.
+         *
+         *     {"ruta":"/tmp/x.png", "opacidad":0.4, "anclaje":"abajo"}
+         *
+         * Una capa de calco no se exporta —`compuesto()` compone con
+         * `conReferencia` en falso y la exportación pasa por ahí—, así que lo
+         * que entre por aquí no puede acabar dentro de un PNG por accidente.
+         * Es la diferencia entre mirar una referencia y copiarla.
+         *
+         * Se recorta a lo dibujado y se reescala para caber en el lienzo,
+         * porque una referencia viene del tamaño que viene —un sprite de 96
+         * contra un contrato de 40— y superponerla a pelo no sirve de nada.
+         */
+        function referencia(spec: string): string {
+            let s = {}
+            try { s = spec ? JSON.parse(spec) : {} } catch (e) { return JSON.stringify({ bien: false, error: "el spec no es JSON" }) }
+            if (!S.Documento.abierto) return JSON.stringify({ bien: false, error: "no hay nada abierto" })
+            if (!s.ruta) return JSON.stringify({ bien: false, error: "hace falta una ruta" })
+            const nombre = s.nombre || "calco"
+
+            exportador.dePng(s.ruta, (buf) => {
+                if (!buf) { console.warn("no se puede leer " + s.ruta); return }
+                const W = S.Documento.ancho, H = S.Documento.alto
+                let puesto = P.nuevo(W, H)
+                const l = P.limites(buf, 8)
+                if (l) {
+                    const f = Math.min((W - 2) / l.w, (H - 2) / l.h)
+                    const trozo = P.recorte(buf, l.x, l.y, l.w, l.h)
+                    const esc = f < 1 || s.encaja
+                        ? P.escalaVecino(trozo, Math.max(1, Math.round(l.w * f)),
+                                                Math.max(1, Math.round(l.h * f)))
+                        : trozo
+                    const dx = Math.round((W - esc.w) / 2)
+                    //  Apoyada abajo y no centrada: dos bichos comparten el
+                    //  suelo, no el centro. Centrando, la referencia queda
+                    //  flotando un par de píxeles por encima de tus pies y
+                    //  todas las medidas salen corridas.
+                    const dy = (s.anclaje === "centro") ? Math.round((H - esc.h) / 2)
+                                                        : (H - esc.h - 1)
+                    P.estampa(puesto, esc, dx, dy)
+                }
+                S.Historial.abreEstructura()
+                const vieja = mira._iReferencia()
+                if (vieja >= 0 && s.sustituye !== false) S.Documento.borraCapa(vieja)
+                //  Dónde estabas dibujando, para devolverte ahí.
+                const antes = S.Documento.capa(S.Documento.capaActiva)
+                const capa = S.Documento.añadeCapa(nombre, "referencia")
+                capa.opacidad = s.opacidad === undefined ? 0.45 : s.opacidad
+                capa.bloqueada = true
+                for (let f2 = 0; f2 < S.Documento.nFotogramas; f2++)
+                    for (let o2 = 0; o2 < S.Documento.nOrientaciones; o2++)
+                        P.vuelca(S.Documento.celda(capa.id, f2, o2, true), puesto, 0, 0)
+                //  La capa activa vuelve a ser la tuya.
+                //
+                //  `añadeCapa` deja activa la que acaba de crear, que para una
+                //  capa normal es lo que quieres y para un CALCO es justo lo
+                //  contrario: poner una referencia no es cambiar de sitio de
+                //  trabajo. Y el calco nace bloqueado, así que el siguiente
+                //  trazo no iba a ninguna parte y no decía por qué.
+                if (antes) {
+                    const i = S.Documento.indiceDe(antes.id)
+                    if (i >= 0) S.Documento.capaActiva = i
+                }
+                S.Historial.cierraEstructura("referencia")
+                S.Documento.cambiaPixeles(null)
+            })
+            return JSON.stringify({ bien: true, ruta: s.ruta, nombre: nombre, esperando: true })
+        }
+
+        /** Los números de un dibujo: proporciones, perfil, rampas, valores. */
+        function analiza(spec: string): string {
+            let s = {}
+            try { s = spec ? JSON.parse(spec) : {} } catch (e) { return JSON.stringify({ bien: false, error: "el spec no es JSON" }) }
+            const b = mira._bufDe(s.que || "compuesto", s.fotograma, s.orientacion, s.capa)
+            if (!b) return JSON.stringify({ bien: false, error: "ahí no hay nada que medir" })
+            const r = F.analiza(b, s.franjas)
+            r.bien = true
+            return JSON.stringify(r)
+        }
+
+        /**
+         * Cuánto se parecen dos siluetas, en un número.
+         *
+         *     {"a":{"que":"compuesto"}, "b":{"que":"referencia"}}
+         *
+         * Es lo que convierte «se parece» en algo con lo que se puede BUSCAR:
+         * mueves un parámetro del aparejo, vuelves a medir, y te quedas con el
+         * que sube. Sin un número, ajustar es opinar ocho veces seguidas.
+         */
+        function compara(spec: string): string {
+            let s = {}
+            try { s = spec ? JSON.parse(spec) : {} } catch (e) { return JSON.stringify({ bien: false, error: "el spec no es JSON" }) }
+            const A = s.a || { que: "compuesto" }, B = s.b || { que: "referencia" }
+            const ba = mira._bufDe(A.que || "compuesto", A.fotograma, A.orientacion, A.capa)
+            const bb = mira._bufDe(B.que || "referencia", B.fotograma, B.orientacion, B.capa)
+            if (!ba || !bb) return JSON.stringify({ bien: false, error: "falta uno de los dos" })
+            const ka = F.deBuffer(ba), kb = F.deBuffer(bb)
+            const sol = F.solape(ka, kb)
+            const pa = F.perfil(ka, s.franjas || 12), pb = F.perfil(kb, s.franjas || 12)
+            //  La diferencia franja a franja dice DÓNDE discrepan, que es lo
+            //  accionable: un solape bajo sólo dice que algo va mal.
+            const dif = pa.map((f, i) => +(f.ancho - (pb[i] ? pb[i].ancho : 0)).toFixed(3))
+            return JSON.stringify({
+                bien: true, solape: sol.iou, desplazamiento: { x: sol.dx, y: sol.dy },
+                relacion: sol.relacion,
+                anchoPorFranja: { tuyo: pa.map((f) => f.ancho), suyo: pb.map((f) => f.ancho),
+                                  diferencia: dif },
+                peor: dif.reduce((m, v, i) => Math.abs(v) > Math.abs(dif[m]) ? i : m, 0)
+            })
         }
 
         /** Guardar en una carpeta concreta, sin diálogo. Para un lote. */

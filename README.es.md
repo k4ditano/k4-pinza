@@ -163,6 +163,20 @@ octava orientación, los intercalados, el contorno, la paleta conforme, las
 costuras de un tileset, las cuarenta y siete piezas de un autotile. Las
 proporciones y el carácter del bicho siguen siendo tuyos.
 
+**Y puede partir de algo que ya existe.** `pinza_referencia` mete una imagen
+como capa de calco —de tu disco, de una URL, o `pokeapi:pidgey` para traerse un
+sprite— y `pinza_analiza` le saca los números: proporciones, perfil de anchura,
+y los colores ya agrupados en **rampas**, que es lo que hace sustituible una
+paleta. `pinza_compara` te dice en un número cuánto se parece lo tuyo a la
+referencia y en qué franja discrepa más.
+
+La capa de calco **no se exporta**, y no es una promesa: el compositor que
+escribe los PNG no la mira siquiera.
+
+Sirve para lo que más cuesta: una variante, un rediseño, «lo mismo pero de
+metal». Las proporciones son lo único que no se deduce de una descripción, y es
+justo lo que una referencia da medido.
+
 ## El formato
 
 Una carpeta con un JSON y un PNG por celda:

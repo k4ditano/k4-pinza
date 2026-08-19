@@ -179,6 +179,58 @@ silueta, que no aparece ningún color que no esté en la rampa, y que el contorn
 —que va por dentro— no engorda la figura. Un sombreado fijo pasaría la primera
 de esas pruebas igual de bien; por eso están las seis.
 
+## Referencia y medida
+
+Dibujar por descripción tiene un agujero: la descripción sale de la cabeza de
+quien la escribe, y las **proporciones** no se deducen de nada. Se puede
+razonar que un pájaro tiene cresta; no se puede razonar que mide cinco píxeles
+y se echa atrás treinta grados.
+
+Ese agujero lo tapa una referencia — pero no mirándola, **midiéndola**.
+
+`referencia` mete una imagen como capa de calco. No se exporta y no puede
+hacerlo: `compuesto()` compone con `conReferencia` en falso y la exportación
+pasa por ahí, así que lo que entre por ese verbo no acaba en un PNG ni por
+accidente. Se recorta a lo dibujado y se reescala para caber, porque una
+referencia viene del tamaño que viene —un sprite de 96 contra un contrato de
+40— y superponerla a pelo no sirve de nada. Y se apoya abajo y no al centro:
+dos bichos comparten el suelo.
+
+`analiza` le saca los números: caja, densidad, simetría, centro de masa, el
+perfil de anchura por franjas —**normalizado por su propia caja**, que es lo
+que permite comparar un sprite de 96 con uno de 40 número a número— y los
+colores agrupados en **rampas**. Lo de las rampas importa para hacer variantes:
+una rampa se sustituye entera y el dibujo conserva su estructura de valores;
+una lista de colores sueltos, no.
+
+Agrupar por tono tiene una trampa que costó encontrar porque no fallaba
+siempre: **el tono es un ángulo**. Promediarlo como un número normal parece
+funcionar hasta que entra un rojo —que está a la vez en 350 y en 10— y la media
+sale en 120, en pleno verde; a partir de ahí el grupo deja de atraer a los
+suyos y empieza a robarle colores a otro. Lo peor es que dependía del ORDEN de
+llegada de los colores, así que daba un resultado en el motor de QML y otro
+distinto en node. Se promedia sumando senos y cosenos.
+
+`compara` convierte «se parece» en un número. Escala una silueta a la altura de
+la otra **sin deformarla** —estirar cada una hasta llenar la misma caja parece
+lo cómodo y es justo lo que no se quiere: una figura alta y estrecha y una baja
+y ancha salen idénticas después de estirarlas, y la proporción se pierde por el
+camino— y devuelve el solape, la relación de aspecto de cada una y la
+diferencia de anchura franja a franja, que es lo accionable: dice **dónde**
+discrepan y no sólo que discrepan.
+
+Con eso el ajuste deja de ser una opinión y pasa a ser una búsqueda: mueves un
+parámetro del aparejo, vuelves a dibujar, vuelves a medir, te quedas con el que
+sube.
+
+**Y ahí hay una trampa que conviene saber antes de usarlo.** El solape es un
+sustituto, no el objetivo. Ajustando el ancho del Pidey contra un Pidgey de
+verdad, el máximo de solape estaba en ×1.45 — y a ×1.45 el bicho sale
+rechoncho y peor que a ×1.18, que puntúa algo menos. Maximizar el parecido con
+la silueta de OTRA criatura no es lo mismo que hacer un buen sprite. Los
+números sirven para saber en qué dirección moverse y cuánto margen hay; quien
+decide dónde parar sigue siendo quien mira.
+
 ## El puerto de la IA
 
 `mcp/pinza-mcp.py` es un servidor MCP sin dependencias —ciento cincuenta líneas
@@ -228,6 +280,9 @@ Y los que contestan en JSON, que son los que usa el servidor MCP:
     qs -c pinza ipc call pinza rejilla '{}'       # el dibujo en caracteres
     qs -c pinza ipc call pinza previa '{"ruta":"/tmp/x.png","escala":8}'
     qs -c pinza ipc call pinza guion 'pinza.log(pinza.doc.ancho)' prueba
+    qs -c pinza ipc call pinza referencia '{"ruta":"/tmp/ref.png"}'
+    qs -c pinza ipc call pinza analiza '{"que":"referencia"}'
+    qs -c pinza ipc call pinza compara '{}'      # lo tuyo contra el calco
 
 ## El icono
 

@@ -113,6 +113,97 @@ def pideJson(funcion, *args):
 
 
 # ═══════════════════════════════════════════════════════════════
+# traer una referencia de fuera
+# ═══════════════════════════════════════════════════════════════
+#
+#  La red vive AQUÍ y no en el editor. Pinza no habla con internet: se le pasa
+#  una ruta a un fichero que ya está en el disco. Así la forja sigue siendo el
+#  único sitio que toca el mundo exterior, el editor sigue funcionando sin
+#  conexión, y lo que se descarga queda en un fichero que se puede mirar.
+
+CACHE = os.path.join(
+    os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache"),
+    "pinza-mcp")
+
+AGENTE = "pinza-mcp/1.0 (+https://github.com/k4ditano/k4-pinza)"
+
+#  Las generaciones que son pixel art de verdad. La "por defecto" de PokeAPI
+#  es un render moderno y no sirve de referencia para dibujar píxeles: te da
+#  proporciones de un modelo 3D suavizado.
+GENERACIONES = {
+    "iii": ("generation-iii", "emerald"),
+    "iv": ("generation-iv", "platinum"),
+    "v": ("generation-v", "black-white"),
+}
+
+
+def baja(url, destino):
+    import urllib.request
+    pet = urllib.request.Request(url, headers={"User-Agent": AGENTE})
+    with urllib.request.urlopen(pet, timeout=25) as r:
+        datos = r.read()
+    os.makedirs(os.path.dirname(destino), exist_ok=True)
+    tmp = destino + ".parcial"
+    with open(tmp, "wb") as f:
+        f.write(datos)
+    os.replace(tmp, destino)
+    return destino
+
+
+def dePokeapi(nombre, generacion, dorso, brillante):
+    """El sprite de un bicho de PokeAPI, en fichero local.
+
+    Se cachea la ficha y el PNG: pedir cinco variantes del mismo bicho no
+    debería ser cinco viajes, y sobre todo así se puede seguir trabajando sin
+    conexión en cuanto lo has traído una vez.
+    """
+    import json as _json
+    import urllib.request
+    nombre = nombre.strip().lower()
+    ficha = os.path.join(CACHE, "pokeapi", nombre + ".json")
+    if not os.path.exists(ficha):
+        baja("https://pokeapi.co/api/v2/pokemon/" + nombre, ficha)
+    with open(ficha) as f:
+        d = _json.load(f)
+
+    sp = d["sprites"]
+    gen = GENERACIONES.get((generacion or "v").lower())
+    if gen:
+        try:
+            sp = sp["versions"][gen[0]][gen[1]]
+        except KeyError:
+            pass
+    clave = ("back_" if dorso else "front_") + ("shiny" if brillante else "default")
+    url = sp.get(clave) or sp.get("front_default")
+    if not url:
+        raise RuntimeError("«%s» no tiene sprite %s en la generación %s"
+                           % (nombre, clave, generacion or "v"))
+    destino = os.path.join(CACHE, "pokeapi",
+                           "%s-%s-%s.png" % (nombre, generacion or "v", clave))
+    if not os.path.exists(destino):
+        baja(url, destino)
+    return destino, url
+
+
+def aFicheroLocal(fuente, generacion, dorso, brillante):
+    """Cualquier fuente -> una ruta en el disco. Devuelve (ruta, de dónde)."""
+    if fuente.startswith("pokeapi:"):
+        return dePokeapi(fuente[8:], generacion, dorso, brillante)
+    if fuente.startswith("http://") or fuente.startswith("https://"):
+        import hashlib
+        h = hashlib.sha256(fuente.encode()).hexdigest()[:16]
+        ext = os.path.splitext(fuente.split("?")[0])[1] or ".png"
+        destino = os.path.join(CACHE, "url", h + ext)
+        if not os.path.exists(destino):
+            baja(fuente, destino)
+        return destino, fuente
+    ruta = os.path.expanduser(fuente)
+    if not os.path.exists(ruta):
+        raise RuntimeError("no existe " + ruta)
+    return ruta, ruta
+
+
+# ═══════════════════════════════════════════════════════════════
 # mirar
 # ═══════════════════════════════════════════════════════════════
 
@@ -313,6 +404,84 @@ HERRAMIENTAS = [
         "inputSchema": {"type": "object", "properties": {}},
     },
     {
+        "name": "pinza_referencia",
+        "description":
+            "Mete una imagen como CAPA DE CALCO: se ve mientras dibujas y no "
+            "se exporta nunca. Úsala cuando te pidan una variante, un rediseño "
+            "o «algo al estilo de X» — tener el original delante arregla las "
+            "proporciones, que es lo único que no se puede deducir de una "
+            "descripción.\n"
+            "`fuente` admite tres cosas: una ruta local, una URL, o "
+            "`pokeapi:pidgey` para traer un sprite de PokeAPI (se cachea en "
+            "disco; la generación v es la que mejor pixel art tiene).\n"
+            "Se recorta a lo dibujado y se reescala para caber en el lienzo, "
+            "apoyada abajo — dos bichos comparten el suelo, no el centro.\n"
+            "Después de meterla, mide con pinza_analiza y compara con "
+            "pinza_compara: los números valen más que mirarla. Y no la calques "
+            "píxel a píxel: sácale las proporciones y las rampas, y genera con "
+            "pinza_dibuja.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "fuente": {"type": "string",
+                           "description": "ruta local, URL, o pokeapi:nombre"},
+                "generacion": {"type": "string", "enum": ["iii", "iv", "v"],
+                               "description": "sólo para pokeapi. Por defecto v."},
+                "dorso": {"type": "boolean", "description": "el sprite de espaldas"},
+                "brillante": {"type": "boolean", "description": "la variante shiny"},
+                "opacidad": {"type": "number", "description": "0 a 1. Por defecto 0.45."},
+                "anclaje": {"type": "string", "enum": ["abajo", "centro"]},
+                "nombre": {"type": "string"},
+            },
+            "required": ["fuente"],
+        },
+    },
+    {
+        "name": "pinza_analiza",
+        "description":
+            "Los números de un dibujo: caja, densidad, simetría, centro de "
+            "masa, dónde apoyan los pies, el perfil de anchura por franjas "
+            "—normalizado, así que compara entre tamaños distintos—, el "
+            "histograma de valores y los colores AGRUPADOS EN RAMPAS.\n"
+            "Las rampas son lo que hace posible una variante: una rampa se "
+            "sustituye entera y el dibujo conserva su estructura de valores. "
+            "Una lista de colores sueltos, no.\n"
+            "`que`: 'compuesto', 'celda', 'capa' (con `capa`) o 'referencia'.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "que": {"type": "string",
+                        "enum": ["compuesto", "celda", "capa", "referencia", "hoja"]},
+                "capa": {"type": "integer"},
+                "fotograma": {"type": "integer"},
+                "orientacion": {"type": "integer"},
+                "franjas": {"type": "integer", "description": "franjas del perfil. Por defecto 16."},
+            },
+        },
+    },
+    {
+        "name": "pinza_compara",
+        "description":
+            "Cuánto se parecen dos siluetas, en un número del 0 al 1. Por "
+            "defecto compara lo que has dibujado contra la capa de calco.\n"
+            "Escala una a la altura de la otra sin deformarla, así que "
+            "compara FORMA y no tamaño, y devuelve además la relación de "
+            "aspecto de cada una y la diferencia de anchura franja a franja — "
+            "que es lo accionable: dice DÓNDE discrepan, no sólo que "
+            "discrepan.\n"
+            "Es la herramienta del ajuste fino: cambia un parámetro, vuelve a "
+            "dibujar, vuelve a comparar, quédate con el que sube. Sin un "
+            "número, ajustar es opinar.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "a": {"type": "object", "description": "{que, capa, fotograma, orientacion}"},
+                "b": {"type": "object", "description": "idem. Por defecto la referencia."},
+                "franjas": {"type": "integer"},
+            },
+        },
+    },
+    {
         "name": "pinza_ordenes",
         "description":
             "Todas las órdenes del editor con su id, su título y si se pueden "
@@ -429,6 +598,50 @@ def ejecuta(nombre, args):
         r = pideJson("medidas")
         if not r.get("bien"):
             return fallo(r.get("error", "no hay nada abierto"))
+        return texto(json.dumps(r, ensure_ascii=False, indent=1))
+
+    if nombre == "pinza_referencia":
+        try:
+            ruta, origen = aFicheroLocal(args.get("fuente", ""),
+                                         args.get("generacion"),
+                                         bool(args.get("dorso")),
+                                         bool(args.get("brillante")))
+        except Exception as e:                          # noqa: BLE001
+            return fallo("no he podido traer la referencia: %s" % e)
+        etiqueta = args.get("nombre") or os.path.splitext(os.path.basename(ruta))[0]
+        spec = {"ruta": ruta, "nombre": etiqueta}
+        for k in ("opacidad", "anclaje"):
+            if k in args:
+                spec[k] = args[k]
+        r = pideJson("referencia", json.dumps(spec))
+        if not r.get("bien"):
+            return fallo(r.get("error", "no se pudo meter la referencia"))
+        #  La capa se crea leyendo el PNG, que es asíncrono: se espera a verla
+        #  en la ficha en vez de devolver un «hecho» que aún no es verdad.
+        limite = time.time() + 15
+        while time.time() < limite:
+            f = pideJson("ficha")
+            capas = ((f.get("documento") or {}).get("capas")) or []
+            if any(c.get("tipo") == "referencia" for c in capas):
+                return texto("calco «%s» puesto, desde %s.\n"
+                             "No se exporta. Mídelo con pinza_analiza "
+                             "{\"que\":\"referencia\"}." % (etiqueta, origen))
+            time.sleep(0.15)
+        return fallo("la referencia no llegó a aparecer como capa")
+
+    if nombre == "pinza_analiza":
+        spec = {k: args[k] for k in
+                ("que", "capa", "fotograma", "orientacion", "franjas") if k in args}
+        r = pideJson("analiza", json.dumps(spec))
+        if not r.get("bien"):
+            return fallo(r.get("error", "no se pudo medir"))
+        return texto(json.dumps(r, ensure_ascii=False, indent=1))
+
+    if nombre == "pinza_compara":
+        spec = {k: args[k] for k in ("a", "b", "franjas") if k in args}
+        r = pideJson("compara", json.dumps(spec))
+        if not r.get("bien"):
+            return fallo(r.get("error", "no se pudo comparar"))
         return texto(json.dumps(r, ensure_ascii=False, indent=1))
 
     if nombre == "pinza_ordenes":

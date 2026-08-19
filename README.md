@@ -165,6 +165,21 @@ the eighth facing, the in-betweens, the outline, a conforming palette, the
 seams of a tileset, the forty-seven pieces of an autotile. The proportions and
 the creature's character are still yours.
 
+**And it can start from something that already exists.** `pinza_referencia`
+brings an image in as a tracing layer —from your disk, from a URL, or
+`pokeapi:pidgey` to fetch a sprite— and `pinza_analiza` pulls its numbers:
+proportions, width profile, and the colours already grouped into **ramps**,
+which is what makes a palette substitutable. `pinza_compara` tells you in a
+single number how close yours is to the reference, and which band disagrees
+most.
+
+The tracing layer **is never exported**, and that is not a promise: the
+compositor that writes the PNGs does not even look at it.
+
+It is for the part that costs the most: a variant, a redesign, "the same but in
+metal". Proportions are the one thing you cannot deduce from a description, and
+they are exactly what a reference hands you measured.
+
 ## The format
 
 A folder with one JSON and one PNG per cel:

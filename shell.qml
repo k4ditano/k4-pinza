@@ -1151,6 +1151,50 @@ ShellRoot {
             })
         }
 
+        /**
+         * Las capas, por ÍNDICE y no por «la que esté activa».
+         *
+         *     {"que":"lista"}                     qué hay
+         *     {"que":"elige","capa":0}            trabajar en esa
+         *     {"que":"borra","capa":1}            borrar ESA
+         *
+         * Existe porque las órdenes del editor trabajan sobre la capa activa,
+         * que es lo correcto para una persona con el panel delante y una
+         * trampa para un programa: pedir «borra la capa» creyendo que se
+         * llevará el calco y que se lleve el dibujo es un error de una línea
+         * que no avisa. Aquí hay que decir cuál.
+         */
+        function capa(spec: string): string {
+            let s = {}
+            try { s = spec ? JSON.parse(spec) : {} } catch (e) { return JSON.stringify({ bien: false, error: "el spec no es JSON" }) }
+            if (!S.Documento.abierto) return JSON.stringify({ bien: false, error: "no hay nada abierto" })
+            const d = S.Documento.d
+            const lista = () => d.capas.map((c, i) => ({
+                i: i, nombre: c.nombre, tipo: c.tipo, visible: c.visible,
+                opacidad: c.opacidad, activa: i === S.Documento.capaActiva }))
+            const que = s.que || "lista"
+            if (que === "lista") return JSON.stringify({ bien: true, capas: lista() })
+
+            const i = s.capa
+            if (i === undefined || i < 0 || i >= d.capas.length)
+                return JSON.stringify({ bien: false, error: "no hay capa " + i,
+                                        capas: lista() })
+            if (que === "elige") {
+                S.Documento.capaActiva = i
+                return JSON.stringify({ bien: true, capa: i, nombre: d.capas[i].nombre })
+            }
+            if (que === "borra") {
+                if (d.capas.length < 2)
+                    return JSON.stringify({ bien: false, error: "es la única capa que hay" })
+                const nom = d.capas[i].nombre
+                S.Historial.abreEstructura()
+                const fue = S.Documento.borraCapa(i)
+                S.Historial.cierraEstructura("borrar capa")
+                return JSON.stringify({ bien: fue, capa: i, nombre: nom, capas: lista() })
+            }
+            return JSON.stringify({ bien: false, error: "no sé qué es «" + que + "»" })
+        }
+
         /** Guardar en una carpeta concreta, sin diálogo. Para un lote. */
         function guardarEn(ruta: string): string {
             if (!S.Documento.abierto) return JSON.stringify({ bien: false, error: "no hay nada abierto" })

@@ -202,6 +202,20 @@ anything, but by where it is: the pixels with a transparent neighbour. A pack
 usually has an outline convention —crabh's is pure black across every creature—
 and a single sprite breaking it stands out from across the room.
 
+And there is a net underneath. `pinza_verifica` reads the PNGs already
+written —not what is on screen— and flags colours outside the palette, outlines
+tinted by accident, or drawings clipped against the edge of the canvas; given
+the original as a baseline, it only blames you for what you added.
+`pinza_convenciones` looks at the art that already exists and tells you which
+rules it actually follows, which are not always the written ones.
+
+The server hands the model a **working order** on connect —measure before you
+touch, leave the outline alone, verify on disk— and ships the tools to follow
+it: `pinza_convenciones` asks the existing art what the house rules actually
+are, and `pinza_verifica` reads the written PNGs and says what went wrong,
+comparing against the original so it does not blame you for what the source
+material already had.
+
 ## The format
 
 A folder with one JSON and one PNG per cel:

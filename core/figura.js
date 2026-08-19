@@ -781,3 +781,30 @@ function contornoDe(b) {
              manda: lista.length ? lista[0].delAnillo : 0,
              todos: lista }
 }
+
+/**
+ * Todas las celdas en un mosaico, para medirlas de una vez.
+ *
+ * Medir el compuesto que tienes delante es medir UNA celda, y un color que
+ * sólo sale en otro fotograma o en otra cara no entra en lo que midas. Con eso
+ * un recolor deja sin tocar lo que no llegó a ver, y no se queja nadie: el
+ * bicho cambia de color al girarse y te enteras jugando.
+ *
+ * El hueco entre celdas no es un margen bonito. Pegadas, dos siluetas vecinas
+ * se tocan y sus bordes dejan de tener vecino transparente — y entonces el
+ * contorno, que se detecta por posición, se detecta mal justo donde se juntan.
+ */
+function mosaico(cels, w, h, hueco) {
+    const g = hueco === undefined ? 2 : hueco
+    if (!cels || !cels.length) return P.nuevo(1, 1)
+    const cols = Math.max(1, Math.ceil(Math.sqrt(cels.length)))
+    const filas = Math.ceil(cels.length / cols)
+    const an = w + g, al = h + g
+    const m = P.nuevo(cols * an, filas * al)
+    for (let i = 0; i < cels.length; i++) {
+        if (!cels[i]) continue
+        P.vuelca(m, cels[i], (i % cols) * an + Math.floor(g / 2),
+                             Math.floor(i / cols) * al + Math.floor(g / 2))
+    }
+    return m
+}

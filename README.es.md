@@ -198,6 +198,19 @@ cualquiera, sino por dónde está: los píxeles con algún vecino transparente. 
 pack suele tener una convención de contorno —el de crabh es negro puro en todos
 sus bichos— y un solo sprite que la rompa canta desde lejos.
 
+Y hay red debajo. `pinza_verifica` lee los PNG ya escritos —no lo que se ve en
+pantalla— y avisa de colores fuera de la paleta, contornos teñidos sin querer o
+dibujos recortados contra el filo del lienzo; con el original como base, sólo
+te acusa de lo que has añadido tú. `pinza_convenciones` mira el arte que ya
+existe y te dice qué reglas sigue de verdad, que no siempre son las escritas.
+
+El servidor le entrega al modelo un **orden de trabajo** al conectarse —mide
+antes de tocar, no toques el contorno, verifica en el disco— y trae
+herramientas para cumplirlo: `pinza_convenciones` le pregunta al arte que ya
+existe cuáles son las reglas de la casa, y `pinza_verifica` lee los PNG
+escritos y dice qué salió mal, comparándolo con el original para no acusarte de
+lo que ya venía en el material.
+
 ## El formato
 
 Una carpeta con un JSON y un PNG por celda:

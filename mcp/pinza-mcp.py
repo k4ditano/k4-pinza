@@ -31,6 +31,55 @@ import subprocess
 import sys
 import time
 
+#  Lo que el servidor le cuenta al modelo nada más conectarse.
+#
+#  Es el único sitio donde caben instrucciones que no van pegadas a una
+#  herramienta, y por eso lleva lo que se aprende ROMPIENDO cosas: el orden de
+#  trabajo. Cada línea de aquí es un fallo que ya se cometió una vez.
+GUIA = """
+Pinza es un editor de pixel art que sabe qué estás dibujando: un dibujo es
+capas x fotogramas x ORIENTACIONES, y una criatura son varias acciones, cada
+una con su geometría.
+
+Orden de trabajo. No es burocracia: cada paso evita un fallo que no da error.
+
+1. MIRA QUÉ HAY. pinza_estado. Si hay una criatura abierta, tiene ACCIONES y
+   el trabajo es sobre todas — un recolor que sólo llega a «Walk» deja un
+   bicho que cambia de color al pararse, y eso no se ve dibujando.
+
+2. MIDE ANTES DE TOCAR, y mide TODO. pinza_analiza con que:"todo" mira todas
+   las celdas juntas. Con que:"compuesto" mides UNA, y lo que no salga en esa
+   celda se queda sin tocar en las otras treinta y nueve.
+
+3. EL CONTORNO NO SE TOCA salvo que te lo pidan. No se reconoce por su color
+   —puede ser cualquiera— sino por dónde está, y pinza_analiza te lo dice ya
+   detectado. Un pack suele tener una convención de contorno; pregúntasela al
+   arte que ya existe con pinza_convenciones antes de decidir que la mejoras.
+
+4. DIBUJA DESCRIBIENDO, no poniendo píxeles. pinza_dibuja con `pinza.fig`:
+   masas, siluetas y una regla de luz. Escribir una rejilla a mano sale mal y
+   no se puede corregir; una descripción se corrige cambiando un número.
+
+5. MIRA LO QUE HA SALIDO. pinza_ver después de cada cambio. Dibujar sin mirar
+   es dibujar a ciegas.
+
+6. VERIFICA EN EL DISCO. pinza_verifica lee los PNG escritos. Lo que se ve en
+   el editor no es lo que sale; eso sólo lo dice el disco, y los fallos que
+   importan —un color sin sustituir, algo recortado contra el borde— no dan
+   error en ningún sitio.
+
+Dos avisos que cuestan caros:
+
+· Un número no es el objetivo. pinza_compara da un parecido de 0 a 1 y sirve
+  para saber HACIA DÓNDE moverse, no para maximizarlo: el máximo parecido con
+  la silueta de otra criatura suele ser un sprite peor.
+
+· Las órdenes del editor trabajan sobre la capa ACTIVA. Para tocar una capa
+  concreta usa pinza_capa con su índice; «borra la capa» creyendo que se
+  llevará el calco y que se lleve el dibujo es un error de una línea.
+""".strip()
+
+
 CONFIG = "pinza"
 VERSIONES = ("2025-06-18", "2025-03-26", "2024-11-05")
 
@@ -204,6 +253,172 @@ def aFicheroLocal(fuente, generacion, dorso, brillante):
 
 
 # ═══════════════════════════════════════════════════════════════
+# verificar desde fuera
+# ═══════════════════════════════════════════════════════════════
+#
+#  Lo que se ve en el editor no es lo que sale: eso sólo lo dice el disco. Es
+#  la misma regla con la que se prueba el programa —Pillow leyendo los PNG
+#  desde fuera— aplicada a lo que dibuja una IA, y por la misma razón: los
+#  fallos que importan son los que no dan error. Un color sin sustituir, un
+#  contorno teñido sin querer, una llama recortada contra el borde del lienzo.
+#  Los tres se ven en los ficheros y ninguno se queja.
+
+def _pngs(carpeta):
+    import glob
+    return sorted(glob.glob(os.path.join(carpeta, "celdas", "*.png")))
+
+
+def _proyectos(ruta):
+    """Un .pinza es uno; un .especie son todas sus acciones."""
+    import glob
+    ruta = os.path.expanduser(ruta.rstrip("/"))
+    if os.path.exists(os.path.join(ruta, "proyecto.json")):
+        return [(os.path.basename(ruta), ruta)]
+    dentro = sorted(glob.glob(os.path.join(ruta, "*.pinza")))
+    if dentro:
+        return [(os.path.basename(d)[:-6], d) for d in dentro]
+    raise RuntimeError("en %s no hay ni un proyecto.json ni carpetas .pinza" % ruta)
+
+
+def _hx(c):
+    return "#%02x%02x%02x" % (int(c[0]), int(c[1]), int(c[2]))
+
+
+def _tocanElBorde(carpeta):
+    """Los nombres de celda cuyo dibujo llega al filo del lienzo."""
+    import numpy as np
+    from PIL import Image
+    fuera = set()
+    for f in _pngs(carpeta):
+        a = np.array(Image.open(f).convert("RGBA"))[:, :, 3] > 8
+        if not a.any():
+            continue
+        if a[0].any() or a[-1].any() or a[:, 0].any() or a[:, -1].any():
+            fuera.add(os.path.basename(f))
+    return fuera
+
+
+def verifica(ruta, paleta=None, contorno=None, base=None):
+    """Audita lo que hay escrito. Devuelve un informe por acción.
+
+    Con `base` se compara contra otro proyecto —el original del que salió la
+    variante— y sólo se cuenta lo que has añadido tú. Sin eso, la herramienta
+    te acusa de lo que ya venía en el material: el Charge de un Pidgey tiene
+    treinta celdas tocando el filo del lienzo antes de que nadie lo toque, y un
+    aviso que salta siempre deja de leerse a la tercera vez.
+    """
+    try:
+        import numpy as np
+        from PIL import Image
+    except ImportError:
+        raise RuntimeError("hace falta python-pillow (y numpy) para verificar")
+
+    permitido = set(x.lower() for x in (paleta or []))
+    espera = set(x.lower() for x in (contorno or []))
+    previos = {}
+    if base:
+        try:
+            for n, c in _proyectos(base):
+                previos[n] = _tocanElBorde(c)
+        except Exception:                               # noqa: BLE001
+            previos = {}
+
+    informe = []
+    for nombre, carpeta in _proyectos(ruta):
+        fuera, celdas, vacias, pegadas, malcontorno = {}, 0, 0, [], []
+        anillo = {}
+        for f in _pngs(carpeta):
+            im = np.array(Image.open(f).convert("RGBA"))
+            celdas += 1
+            a = im[:, :, 3] > 8
+            if not a.any():
+                vacias += 1
+                continue
+            #  Contenido tocando el borde del lienzo: o el dibujo no cabe, o
+            #  algo que se le añadió por encima se está recortando.
+            if a[0].any() or a[-1].any() or a[:, 0].any() or a[:, -1].any():
+                pegadas.append(os.path.basename(f))
+            v = np.zeros_like(a)
+            for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                v |= ~np.roll(a, (dy, dx), (0, 1))
+            b = a & v
+            cuenta = {}
+            for px in im[b][:, :3]:
+                h = _hx(px)
+                cuenta[h] = cuenta.get(h, 0) + 1
+                anillo[h] = anillo.get(h, 0) + 1
+            if cuenta:
+                manda = max(cuenta.items(), key=lambda x: x[1])[0]
+                if espera and manda not in espera:
+                    malcontorno.append((os.path.basename(f), manda))
+            if permitido:
+                for px in np.unique(im[a][:, :3], axis=0):
+                    h = _hx(px)
+                    if h not in permitido:
+                        fuera[h] = fuera.get(h, 0) + 1
+        nuevas = ([p for p in pegadas if p not in previos[nombre]]
+                  if nombre in previos else pegadas)
+        informe.append({
+            "accion": nombre, "celdas": celdas, "vacias": vacias,
+            "coloresFuera": sorted(fuera.items(), key=lambda x: -x[1]),
+            "tocanElBorde": nuevas,
+            "conBase": nombre in previos,
+            "yaTocaban": len(pegadas) - len(nuevas),
+            "contornoRaro": malcontorno,
+            "anillo": sorted(anillo.items(), key=lambda x: -x[1])[:4],
+        })
+    return informe
+
+
+def convenciones(carpeta, cuantos=8):
+    """Qué reglas sigue de hecho el arte que ya existe en un sitio.
+
+    Un pack trae una guía de estilo escrita, pero las convenciones que de
+    verdad mandan están en los ficheros: de qué color es el contorno, cuántos
+    colores gasta un sprite, de qué tamaño son las celdas. Preguntárselo al
+    arte que ya hay es la diferencia entre una variante que pertenece al juego
+    y una que canta desde lejos — y a mí me costó teñir un contorno negro que
+    era negro en los ciento cincuenta y ocho bichos del pack.
+    """
+    import glob
+    try:
+        import numpy as np
+        from PIL import Image
+    except ImportError:
+        raise RuntimeError("hace falta python-pillow (y numpy)")
+
+    carpeta = os.path.expanduser(carpeta)
+    hojas = sorted(glob.glob(os.path.join(carpeta, "**", "*.png"), recursive=True))[:cuantos * 4]
+    if not hojas:
+        raise RuntimeError("no hay ningún PNG bajo " + carpeta)
+    anillo, colores, tam = {}, [], {}
+    mirados = 0
+    for h in hojas[:cuantos]:
+        im = np.array(Image.open(h).convert("RGBA"))
+        a = im[:, :, 3] > 8
+        if not a.any():
+            continue
+        mirados += 1
+        tam["%dx%d" % (im.shape[1], im.shape[0])] = tam.get("%dx%d" % (im.shape[1], im.shape[0]), 0) + 1
+        v = np.zeros_like(a)
+        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            v |= ~np.roll(a, (dy, dx), (0, 1))
+        for px in im[a & v][:, :3]:
+            k = _hx(px)
+            anillo[k] = anillo.get(k, 0) + 1
+        colores.append(len(np.unique(im[a][:, :3], axis=0)))
+    total = sum(anillo.values()) or 1
+    orden = sorted(anillo.items(), key=lambda x: -x[1])
+    return {
+        "ficheros": mirados,
+        "contorno": [{"color": c, "delAnillo": round(n / total, 3)} for c, n in orden[:3]],
+        "coloresPorHoja": {"minimo": min(colores) if colores else 0,
+                           "maximo": max(colores) if colores else 0},
+        "tamaños": sorted(tam.items(), key=lambda x: -x[1])[:4],
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
 # mirar
 # ═══════════════════════════════════════════════════════════════
 
@@ -282,6 +497,11 @@ RAMPAS
 
 LEER
   fig.aTexto(buf) -> {filas, leyenda}    fig.deTextoColor(filas, leyenda)
+  fig.analiza(buf) -> caja, centro, simetría, perfil, rampas y CONTORNO
+  fig.contornoDe(buf) -> qué colores forman el borde, por posición
+  fig.rampasDe(buf) -> los colores agrupados en las rampas con que se pintó
+  fig.mosaico(celdas, w, h, hueco) -> todas las celdas juntas, para medirlas
+  fig.solape(a, b) -> cuánto se parecen dos siluetas, de 0 a 1
 
 EL DOCUMENTO (`pinza`)
   pinza.doc -> {nombre,ancho,alto,capas,fotogramas,orientaciones,contrato}
@@ -343,7 +563,18 @@ HERRAMIENTAS = [
             "no deja rastro.\n\n"
             "No pongas píxeles a mano salvo para un retoque suelto: describe "
             "la figura con `pinza.fig` y deja que la regla de luz ponga el "
-            "sombreado. Sale mejor y se corrige cambiando un número.\n\n" + API,
+            "sombreado. Sale mejor y se corrige cambiando un número.\n\n"
+            "Antes de escribir el guion, tres cosas que se olvidan y no dan "
+            "error:\n"
+            "· MIDE TODAS LAS CELDAS, no la que tienes delante. `pinza.paraCada` "
+            "las recorre, y `fig.mosaico` las junta para medirlas de una vez. "
+            "Lo que midas en una celda lo vas a aplicar a cuarenta.\n"
+            "· NO TOQUES EL CONTORNO. `fig.analiza(...).contorno.colores` te "
+            "dice cuál es, detectado por posición y no por color.\n"
+            "· SI HAY UNA CRIATURA ABIERTA, esto es UNA de sus acciones. "
+            "Recórrelas con pinza_criatura.\n\n"
+            "Y después: pinza_ver para mirarlo, pinza_verifica para leer el "
+            "disco.\n\n" + API,
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -472,12 +703,21 @@ HERRAMIENTAS = [
             "Las rampas son lo que hace posible una variante: una rampa se "
             "sustituye entera y el dibujo conserva su estructura de valores. "
             "Una lista de colores sueltos, no.\n"
-            "`que`: 'compuesto', 'celda', 'capa' (con `capa`) o 'referencia'.",
+            "`que`: 'todo' MIDE TODAS LAS CELDAS a la vez y es lo que quieres "
+            "casi siempre — 'compuesto' mide sólo la que tienes delante, y un "
+            "color que sólo salga en otro fotograma o en otra cara se te "
+            "quedará sin tocar. También 'celda', 'capa' (con `capa`) y "
+            "'referencia'.\n"
+            "Trae el CONTORNO ya detectado, por posición y no por color: los "
+            "píxeles con algún vecino transparente. `manda` dice cuánto pesa "
+            "el color principal del borde; si es bajo, este dibujo no tiene un "
+            "contorno claro y conviene mirarlo antes de fiarse.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "que": {"type": "string",
-                        "enum": ["compuesto", "celda", "capa", "referencia", "hoja"]},
+                        "enum": ["todo", "compuesto", "celda", "capa", "referencia", "hoja"],
+                        "description": "'todo' son todas las celdas. Empieza por ahí."},
                 "capa": {"type": "integer"},
                 "fotograma": {"type": "integer"},
                 "orientacion": {"type": "integer"},
@@ -504,6 +744,102 @@ HERRAMIENTAS = [
                 "a": {"type": "object", "description": "{que, capa, fotograma, orientacion}"},
                 "b": {"type": "object", "description": "idem. Por defecto la referencia."},
                 "franjas": {"type": "integer"},
+            },
+        },
+    },
+    {
+        "name": "pinza_criatura",
+        "description":
+            "Las criaturas: varias acciones —Idle, Walk, Attack…— cada una con "
+            "su geometría, sus fotogramas y sus ocho caras. Trabajar sobre una "
+            "criatura es trabajar sobre TODAS sus acciones; un recolor que "
+            "sólo llega a una deja un bicho que cambia de color al pararse.\n"
+            "`que`: 'catalogo' lista lo que el pack tiene bajado · 'traer' se "
+            "baja una entera por su dex · 'acciones' dice cuáles tiene la "
+            "abierta y en cuál estás · 'cambiar' salta a una (guardando sola "
+            "la que dejas, así que se pueden recorrer en bucle) · 'guardar' "
+            "recoge y guarda entera.\n"
+            "Para aplicar algo a toda la criatura: 'acciones', y luego por "
+            "cada una 'cambiar' + pinza_dibuja. Al final 'guardar'.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "que": {"type": "string",
+                        "enum": ["catalogo", "traer", "acciones", "cambiar", "guardar"]},
+                "dex": {"type": "integer", "description": "para 'traer'"},
+                "nombre": {"type": "string"},
+                "destino": {"type": "string",
+                            "description": "carpeta donde dejarla. Se le añade el .especie."},
+                "accion": {"type": "string", "description": "para 'cambiar'"},
+            },
+            "required": ["que"],
+        },
+    },
+    {
+        "name": "pinza_verifica",
+        "description":
+            "Lee los PNG YA ESCRITOS y dice qué está mal. Lo que se ve en el "
+            "editor no es lo que sale: eso sólo lo dice el disco, y los fallos "
+            "que importan no dan error en ningún sitio.\n"
+            "Comprueba: colores fuera de la paleta que le des —un color sin "
+            "sustituir en una variante—, celdas cuyo borde no es el contorno "
+            "que esperas, celdas con contenido TOCANDO el borde del lienzo "
+            "—algo recortado, o un dibujo que no cabe— y celdas vacías.\n"
+            "Vale para un proyecto .pinza o para una criatura .especie entera. "
+            "Hazlo siempre después de guardar una variante.\n"
+            "Si es una variante, pásale `base` con el original: así sólo se te "
+            "acusa de lo que has añadido tú. Sin eso te avisa de lo que ya "
+            "venía en el material, y un aviso que salta siempre deja de "
+            "leerse.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "ruta": {"type": "string", "description": "un .pinza o un .especie"},
+                "paleta": {"type": "array", "items": {"type": "string"},
+                           "description": "los #rrggbb que SÍ deben aparecer"},
+                "contorno": {"type": "array", "items": {"type": "string"},
+                             "description": "los #rrggbb que deben mandar en el borde"},
+                "base": {"type": "string",
+                         "description": "el proyecto del que salió esto. Con él sólo "
+                                        "se te acusa de lo que has añadido tú."},
+            },
+            "required": ["ruta"],
+        },
+    },
+    {
+        "name": "pinza_convenciones",
+        "description":
+            "Qué reglas sigue de hecho el arte que YA existe en una carpeta: "
+            "de qué color es el contorno, cuántos colores gasta un sprite, de "
+            "qué tamaño son las hojas.\n"
+            "Un pack trae una guía escrita, pero las convenciones que mandan "
+            "están en los ficheros. Pregúntaselo al arte existente antes de "
+            "decidir que lo mejoras: teñir un contorno negro que es negro en "
+            "los ciento cincuenta y ocho bichos del juego hace que el tuyo "
+            "cante desde lejos, y eso no se ve mirando el tuyo solo.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "carpeta": {"type": "string", "description": "dónde está el arte del juego"},
+                "cuantos": {"type": "integer", "description": "cuántos ficheros mirar. Por defecto 8."},
+            },
+            "required": ["carpeta"],
+        },
+    },
+    {
+        "name": "pinza_capa",
+        "description":
+            "Las capas, por ÍNDICE. `que`: 'lista', 'elige' o 'borra'.\n"
+            "Las órdenes del editor trabajan sobre la capa ACTIVA, que es lo "
+            "correcto para una persona con el panel delante y una trampa para "
+            "un programa: pedir «borra la capa» creyendo que se llevará el "
+            "calco y que se lleve el dibujo es un error de una línea que no "
+            "avisa. Aquí hay que decir cuál.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "que": {"type": "string", "enum": ["lista", "elige", "borra"]},
+                "capa": {"type": "integer"},
             },
         },
     },
@@ -688,6 +1024,141 @@ def ejecuta(nombre, args):
             return fallo(r.get("error", "no se pudo comparar"))
         return texto(json.dumps(r, ensure_ascii=False, indent=1))
 
+    if nombre == "pinza_criatura":
+        que = args.get("que")
+        if que == "catalogo":
+            r = pideJson("catalogo")
+            if r.get("leyendo"):
+                limite = time.time() + 20
+                while time.time() < limite:
+                    time.sleep(0.3)
+                    r = pideJson("catalogo")
+                    if not r.get("leyendo"):
+                        break
+            if not r.get("bien"):
+                return fallo(r.get("error") or "no se pudo leer el catálogo")
+            return texto("%d criaturas:\n%s" % (r["cuantas"], ", ".join(
+                "%s (%d)" % (c["nombre"], c["dex"]) for c in r["criaturas"])))
+
+        if que == "traer":
+            if args.get("dex") is None:
+                return fallo("hace falta un dex; míralos con que:'catalogo'")
+            spec = {k: args[k] for k in ("dex", "nombre", "destino") if k in args}
+            r = pideJson("traer", json.dumps(spec))
+            if not r.get("bien"):
+                return fallo(r.get("error", "no se pudo traer"))
+            #  Importar son ocho proyectos escritos a disco; se espera a que la
+            #  ficha diga que hay criatura y a que aparezcan las carpetas.
+            limite = time.time() + 120
+            while time.time() < limite:
+                f = pideJson("ficha")
+                c = f.get("criatura")
+                if c and c.get("ruta") and os.path.isdir(os.path.expanduser(c["ruta"])):
+                    import glob as _g
+                    if _g.glob(os.path.join(os.path.expanduser(c["ruta"]), "*.pinza")):
+                        return texto("«%s» en %s · acciones: %s"
+                                     % (c["nombre"], c["ruta"], ", ".join(c["acciones"])))
+                time.sleep(0.5)
+            return fallo("la criatura no llegó a escribirse entera")
+
+        if que == "acciones":
+            r = pideJson("accion", "")
+            if not r.get("bien"):
+                return fallo(r.get("error", "no hay criatura"))
+            return texto("acciones: %s\nahora en: %s"
+                         % (", ".join(r["acciones"]), r["accion"] or "(ninguna)"))
+
+        if que == "cambiar":
+            a = args.get("accion")
+            if not a:
+                return fallo("hace falta una acción")
+            r = pideJson("accion", a)
+            if not r.get("bien"):
+                return fallo(r.get("error", "no se pudo cambiar"))
+            limite = time.time() + 60
+            while time.time() < limite:
+                f = pideJson("ficha")
+                if ((f.get("criatura") or {}).get("accion") == a) and f.get("documento"):
+                    d = f["documento"]
+                    return texto("%s · %dx%d · %d fotogramas · %d caras"
+                                 % (a, d["ancho"], d["alto"],
+                                    len(d["fotogramas"]), len(d["orientaciones"])))
+                time.sleep(0.3)
+            return fallo("la acción «%s» no llegó a abrirse" % a)
+
+        if que == "guardar":
+            r = pideJson("guardarCriatura")
+            if not r.get("bien"):
+                return fallo(r.get("error", "no se pudo guardar"))
+            time.sleep(1.5)
+            return texto("guardada en " + r["ruta"])
+
+        return fallo("no sé qué es «%s»" % que)
+
+    if nombre == "pinza_verifica":
+        try:
+            inf = verifica(args.get("ruta", ""), args.get("paleta"),
+                           args.get("contorno"), args.get("base"))
+        except Exception as e:                          # noqa: BLE001
+            return fallo("no se pudo verificar: %s" % e)
+        lineas, limpio = [], True
+        for r in inf:
+            partes = []
+            if r["coloresFuera"]:
+                limpio = False
+                partes.append("colores fuera de la paleta: "
+                              + " ".join(c for c, _ in r["coloresFuera"][:6]))
+            if r["contornoRaro"]:
+                limpio = False
+                partes.append("contorno distinto en %d celdas (p.ej. %s -> %s)"
+                              % (len(r["contornoRaro"]), r["contornoRaro"][0][0],
+                                 r["contornoRaro"][0][1]))
+            if r["tocanElBorde"]:
+                limpio = False
+                partes.append("%d celdas tocan el borde del lienzo%s (%s…)"
+                              % (len(r["tocanElBorde"]),
+                                 " QUE ANTES NO" if r.get("conBase") else "",
+                                 r["tocanElBorde"][0]))
+            elif r.get("yaTocaban"):
+                partes.append("%d tocaban el borde ya en el original" % r["yaTocaban"])
+            if r["vacias"]:
+                partes.append("%d celdas vacías" % r["vacias"])
+            lineas.append("%-10s %3d celdas · %s"
+                          % (r["accion"], r["celdas"],
+                             " · ".join(partes) if partes else "sin nada que decir"))
+            lineas.append("           borde: " + " ".join("%s(%d)" % (c, n) for c, n in r["anillo"]))
+        cabeza = ("todo en orden" if limpio else
+                  "HAY COSAS QUE MIRAR — lo de abajo está en el disco, no en la pantalla")
+        return texto(cabeza + "\n\n" + "\n".join(lineas))
+
+    if nombre == "pinza_convenciones":
+        try:
+            c = convenciones(args.get("carpeta", ""), args.get("cuantos") or 8)
+        except Exception as e:                          # noqa: BLE001
+            return fallo("no se pudo mirar: %s" % e)
+        return texto(
+            "mirados %d ficheros\n"
+            "contorno de la casa: %s\n"
+            "colores por hoja: de %d a %d\n"
+            "tamaños: %s"
+            % (c["ficheros"],
+               " · ".join("%s %.0f%% del borde" % (x["color"], x["delAnillo"] * 100)
+                          for x in c["contorno"]),
+               c["coloresPorHoja"]["minimo"], c["coloresPorHoja"]["maximo"],
+               ", ".join("%s (x%d)" % (t, n) for t, n in c["tamaños"])))
+
+    if nombre == "pinza_capa":
+        spec = {k: args[k] for k in ("que", "capa") if k in args}
+        r = pideJson("capa", json.dumps(spec))
+        if not r.get("bien"):
+            return fallo(r.get("error", "no se pudo"))
+        if "capas" in r:
+            return texto("\n".join(
+                "%d  %-16s %-11s %s" % (c["i"], c["nombre"], c["tipo"],
+                                        "<- activa" if c.get("activa") else "")
+                for c in r["capas"]))
+        return texto("capa %d: %s" % (r["capa"], r["nombre"]))
+
     if nombre == "pinza_ordenes":
         r = pideJson("ordenes")
         if not isinstance(r, list):
@@ -759,7 +1230,8 @@ def main():
             responde(id_, {
                 "protocolVersion": quiere if quiere in VERSIONES else VERSIONES[0],
                 "capabilities": {"tools": {}},
-                "serverInfo": {"name": "pinza", "version": "1.0.0"},
+                "serverInfo": {"name": "pinza", "version": "2.0.0"},
+                "instructions": GUIA,
             })
         elif metodo == "tools/list":
             responde(id_, {"tools": HERRAMIENTAS})

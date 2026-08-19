@@ -347,6 +347,30 @@ esto», y **ves lo que hace mientras lo hace**, en la ventana que ya tenías
 delante. Y como el verbo de dibujar pasa por `Guiones`, lo que haga entra en el
 historial como **un** paso: un Ctrl+Z deshace la intervención entera.
 
+El servidor entrega una **guía** en el `initialize`, que es el único sitio
+donde caben instrucciones que no van pegadas a una herramienta. Lleva el orden
+de trabajo, y cada línea de ese orden es un fallo que ya se cometió una vez:
+mira qué hay abierto —si es una criatura, el trabajo es sobre todas sus
+acciones—, mide **todo** y no la celda que tienes delante, no toques el
+contorno, describe en vez de poner píxeles, mira lo que ha salido, y verifica
+en el disco. Más dos avisos: un número no es el objetivo, y las órdenes del
+editor trabajan sobre la capa **activa**.
+
+`pinza_verifica` lee los PNG ya escritos y dice qué está mal: colores fuera de
+la paleta, celdas cuyo borde no es el contorno que esperabas, contenido tocando
+el filo del lienzo, celdas vacías. Es la regla de las pruebas del programa
+—Pillow leyendo los ficheros desde fuera— aplicada a lo que dibuja una IA, y
+por el mismo motivo: los fallos que importan no dan error en ningún sitio. Con
+`base` se compara contra el original del que salió la variante y sólo se cuenta
+lo añadido; sin eso te acusa de lo que ya venía en el material —el `Charge` de
+un Pidgey tiene treinta celdas tocando el filo antes de que nadie lo toque— y
+un aviso que salta siempre deja de leerse a la tercera vez.
+
+`pinza_convenciones` mira el arte que YA existe en una carpeta y dice qué
+reglas sigue de hecho: de qué color es el contorno, cuántos colores gasta una
+hoja, de qué tamaños son. Un pack trae una guía escrita, pero las convenciones
+que mandan están en los ficheros.
+
 Los verbos nuevos del IPC contestan en JSON y no en prosa, que es la diferencia
 entre ellos y los de arriba: `ficha`, `previa`, `rejilla`, `medidas`,
 `ordenes`, `guion`, `crear` y `guardarEn`. «0054 · 40x40 · 1 fotogramas» está
@@ -358,6 +382,45 @@ colores. Un PNG en base64 no le dice nada a un modelo de lenguaje y un volcado
 de hexadecimales son cuatro mil símbolos para un sprite de 32×32; esto son mil,
 y sobre todo es **editable** — se puede decir «la fila 12 columna 7 sobra» y que
 la frase signifique algo.
+
+## Lo que el servidor le cuenta al modelo
+
+MCP deja al servidor entregar unas instrucciones al conectarse, y es el único
+sitio donde caben cosas que no van pegadas a una herramienta. Ahí va el ORDEN
+DE TRABAJO, y no es burocracia: cada línea de esa guía es un fallo que ya se
+cometió una vez y que **no dio ningún error**.
+
+    mira qué hay · mide TODO antes de tocar · no toques el contorno ·
+    dibuja describiendo · mira lo que ha salido · verifica en el disco
+
+Las tres herramientas que salieron de tropezar:
+
+`pinza_verifica` lee los PNG **ya escritos** y dice qué está mal: colores fuera
+de la paleta —un color sin sustituir en una variante—, celdas cuyo borde no es
+el contorno que esperas, celdas con contenido tocando el filo del lienzo, y
+celdas vacías. Es la misma regla con la que se prueba el programa —Pillow
+leyendo los ficheros desde fuera— aplicada a lo que dibuja una IA, y por la
+misma razón: lo que se ve en el editor no es lo que sale.
+
+Y lleva `base`, que importa más de lo que parece. Sin ella te acusa de lo que
+ya venía en el material: el `Charge` de un Pidgey tiene treinta celdas tocando
+el filo antes de que nadie lo toque, y **un aviso que salta siempre deja de
+leerse a la tercera vez**. Con la base sólo se cuenta lo que has añadido tú.
+
+`pinza_convenciones` mira el arte que YA existe en una carpeta y dice de qué
+color es el contorno de la casa, cuántos colores gasta un sprite y de qué
+tamaño son las hojas. Un pack trae una guía escrita, pero las convenciones que
+mandan están en los ficheros: en crabh el contorno es negro puro en el 98 % del
+borde de todo lo que hay. Preguntárselo al arte cuesta una llamada; no
+preguntárselo costó teñir un contorno y no enterarse.
+
+`pinza_criatura` trabaja al nivel que importa —catálogo, traer, acciones,
+cambiar, guardar— porque una variante es de la criatura entera.
+
+Y `pinza_capa` toca capas **por índice**. Las órdenes del editor trabajan sobre
+la capa activa, que es lo correcto para alguien con el panel delante y una
+trampa para un programa: pedir «borra la capa» creyendo que se llevará el calco
+y que se lleve el dibujo es un error de una línea que no avisa de nada.
 
 ## El IPC
 

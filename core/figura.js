@@ -704,6 +704,63 @@ function analiza(b, franjas) {
         luminancia: +m.luminancia.toFixed(1),
         valores: val,
         perfil: perfil(k, franjas || 16),
+        //  Antes de tocar un dibujo hay que saber qué es contorno. Va aquí y
+        //  no en una llamada aparte porque quien mide para hacer una variante
+        //  lo necesita SIEMPRE, y lo que no se pide por defecto se olvida.
+        contorno: contornoDe(b),
         rampas: rampasDe(b)
     }
+}
+
+/**
+ * Qué colores forman el CONTORNO, y no por su color sino por dónde están.
+ *
+ * Hacía falta porque adivinarlo por el color es adivinar. Agrupando la paleta
+ * por tono, el negro del contorno y el blanco de un brillo caen los dos en «los
+ * neutros», y separarlos por luminancia parece que funciona hasta que un bicho
+ * tiene el contorno marrón oscuro o el fondo de un ojo casi negro. Entonces un
+ * recolor se lleva por delante el contorno sin enterarse, que es la forma más
+ * rápida de que una variante deje de pertenecer a su juego: en un pack con
+ * contorno negro, un solo bicho con el contorno teñido canta desde lejos.
+ *
+ * El contorno no es un color: es una POSICIÓN. Son los píxeles opacos con
+ * algún vecino transparente, y eso se mide.
+ *
+ * Por cada color se devuelven dos fracciones que contestan preguntas
+ * distintas y hacen falta las dos:
+ *   `delAnillo`  cuánto del contorno es este color — alto significa «este
+ *                color ES el contorno».
+ *   `suyoFuera`  cuánto de este color está en el contorno — bajo significa
+ *                que además se usa por dentro, como el negro de un ojo.
+ */
+function contornoDe(b) {
+    const k = deBuffer(b)
+    const anillo = borde(k)
+    const total = cuantos(anillo)
+    const cuenta = {}, dentro = {}
+    for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) {
+        const i = y * b.w + x
+        if (b.d[i * 4 + 3] < 8) continue
+        const key = P.aHex([b.d[i*4], b.d[i*4+1], b.d[i*4+2], 255])
+        dentro[key] = (dentro[key] || 0) + 1
+        if (anillo.m[i]) cuenta[key] = (cuenta[key] || 0) + 1
+    }
+    const lista = Object.keys(cuenta).map((h) => ({
+        color: h,
+        pixeles: cuenta[h],
+        delAnillo: total ? +(cuenta[h] / total).toFixed(3) : 0,
+        suyoFuera: +(cuenta[h] / dentro[h]).toFixed(3)
+    })).sort((a, b2) => b2.delAnillo - a.delAnillo)
+
+    //  «El contorno» son los colores que hacen falta para cubrir casi todo el
+    //  anillo. Con un solo color se quedaría corto en los bichos que lo
+    //  matizan por el lado de la luz, que es normal y no es otro contorno.
+    const son = []
+    let acumulado = 0
+    for (let i = 0; i < lista.length && acumulado < 0.9; i++) {
+        if (lista[i].delAnillo < 0.04) break
+        son.push(lista[i].color)
+        acumulado += lista[i].delAnillo
+    }
+    return { pixeles: total, colores: son, cubren: +acumulado.toFixed(3), todos: lista }
 }

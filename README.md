@@ -188,6 +188,11 @@ whatever occupies that same step in the target ramp. Shadow stays shadow, so
 the creature still reads as itself. The forty cels above —eight facings by five
 frames— are one call, and the silhouette did not move by a single pixel.
 
+The outline is detected and **left alone**. Not by its colour, which can be
+anything, but by where it is: the pixels with a transparent neighbour. A pack
+usually has an outline convention —crabh's is pure black across every creature—
+and a single sprite breaking it stands out from across the room.
+
 ## The format
 
 A folder with one JSON and one PNG per cel:

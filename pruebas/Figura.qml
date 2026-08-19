@@ -213,6 +213,44 @@ ShellRoot {
            an.limites.w === 20 && an.perfil.length === 16 && an.rampas.length === 2,
            JSON.stringify(an.limites))
 
+
+        // ── qué es contorno ──────────────────────────────────────
+        //
+        //  Adivinarlo por el color es adivinar: agrupando por tono, el negro
+        //  del contorno y el blanco de un brillo caen los dos en «los
+        //  neutros». El contorno no es un color, es una POSICIÓN.
+        let dib = P.nuevo(20, 20)
+        const redonda = F.disco(20, 20, 10, 10, 7)
+        F.cuerpo(dib, redonda, { rampa: F.rampa("#c04040", 5), contorno: false })
+        F.pinta(dib, F.borde(redonda), "#000000")
+        //  Un ojo NEGRO por dentro: el mismo color que el contorno, en un
+        //  sitio que no es contorno. Es el caso que rompe cualquier regla
+        //  basada en el color.
+        F.pinta(dib, F.disco(20, 20, 8, 8, 1.5), "#000000")
+
+        const con = F.contornoDe(dib)
+        ck("el contorno se reconoce por dónde está, no por qué color es",
+           con.colores.length === 1 && con.colores[0] === "#000000",
+           JSON.stringify(con.colores))
+        ck("y cubre el anillo entero", con.cubren > 0.98, con.cubren)
+
+        const negro = con.todos.filter((c) => c.color === "#000000")[0]
+        ck("el negro ES el contorno", negro.delAnillo > 0.98, negro.delAnillo)
+        ck("pero no todo el negro está en el contorno: el ojo también es negro",
+           negro.suyoFuera < 0.95, negro.suyoFuera)
+
+        //  Un contorno que NO es negro tiene que salir igual: si sólo valiera
+        //  para el negro, sería la misma regla por color con otro nombre.
+        let dib2 = P.nuevo(20, 20)
+        F.cuerpo(dib2, redonda, { rampa: F.rampa("#4080c0", 5), contorno: false })
+        F.pinta(dib2, F.borde(redonda), "#3b2a1a")
+        ck("y un contorno marrón se reconoce igual que uno negro",
+           F.contornoDe(dib2).colores[0] === "#3b2a1a",
+           JSON.stringify(F.contornoDe(dib2).colores))
+
+        ck("analizar lo trae de serie, que es lo que hace que no se olvide",
+           F.analiza(dib).contorno.colores[0] === "#000000")
+
         console.log(malas ? "\n" + malas + " FALLOS" : "\nla figura pasa entera")
         fin.start()
     }

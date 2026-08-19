@@ -26,6 +26,13 @@ propósito: al que sólo quiere dibujar no le sirve de nada, y al que va a abrir
     cata/              las trampas de Qt, como aserciones
     pruebas/           todo lo demás, en seco
 
+Quickshell recarga la configuración cuando cambia un **`.qml`**, y **no** cuando
+cambia un `.js`. Tocar `pixeles.js`, `herramientas.js` o `figura.js` y probar
+por IPC contra la ventana abierta te contesta con el código de antes, sin
+avisar de nada — que es media hora buscando un fallo que ya habías arreglado.
+Hace falta tocar un `.qml` de verdad (un `touch` no basta: mira el contenido,
+no la fecha) o reabrir el programa.
+
 El dibujo vive en un objeto JS dentro de `PersistentProperties` y no en un árbol
 de propiedades QML, por dos razones que importan las dos: Quickshell **recarga
 la configuración cada vez que guardas un `.qml`**, y sin eso tocar el código
@@ -257,13 +264,36 @@ ocupa ese mismo escalón en la rampa de destino: la sombra sigue siendo sombra.
 Repintar a ojo destroza eso, y entonces no es el mismo bicho de otro color, es
 otro bicho peor.
 
-Haciéndolo con el Pidgey de crabh salió una cosa que conviene saber: **el
-contorno tiene que seguir siendo lo más oscuro del dibujo**. Mapeando el cuerpo
-a la rampa de fuego entera, su tono más oscuro caía en el mismo carbón que el
-contorno y la forma de dentro desaparecía — el bicho quedaba en silueta plana.
-Y los números decían que la luminancia había SUBIDO, así que no era cuestión de
-aclarar: era que el contorno había dejado de ser el suelo del dibujo. Se le
-reservan los dos escalones de abajo a la rampa.
+Pero antes de sustituir nada hay que saber **qué es contorno**, y eso no se
+puede preguntar por el color. Agrupando la paleta por tono, el negro del
+contorno y el blanco de un brillo caen los dos en «los neutros»; separarlos por
+luminancia parece que funciona hasta que un bicho tiene el contorno marrón
+oscuro, o un ojo casi negro. **El contorno no es un color: es una posición** —
+los píxeles opacos con algún vecino transparente— y por eso `contornoDe` lo
+mide en vez de adivinarlo, y `analiza` lo trae de serie: lo que no se pide por
+defecto se olvida.
+
+De cada color se devuelven dos fracciones que contestan preguntas distintas y
+hacen falta las dos: `delAnillo` es cuánto del contorno es ese color —alto
+significa «este color ES el contorno»— y `suyoFuera` es cuánto de ese color
+está en el contorno —bajo significa que además se usa por dentro—. En el Pidgey
+de crabh el negro da 1.000 y 0.646: es todo el contorno, y aun así un tercio
+del negro del dibujo está en los ojos y en las líneas de dentro. Ninguna regla
+por luminancia distingue esas dos cosas.
+
+Esto se aprendió tiñendo el contorno «para que no pareciera un agujero
+recortado». Medido después: en crabh el **100 % del borde de la silueta es
+negro puro en todos los bichos**. No era un gusto que mejorar, era la
+convención de la casa — y un solo bicho con el contorno teñido canta desde
+lejos al lado de los demás. Un pack puede tener otra, y por eso la regla no es
+«el contorno es negro» sino «el contorno es el que ya había».
+
+Y si algún día se tiñe a propósito, la otra mitad de la lección sigue en pie:
+**el contorno tiene que seguir siendo lo más oscuro del dibujo**. Mapeando el
+cuerpo a la rampa entera, su tono más oscuro caía en el mismo carbón que el
+contorno y la forma de dentro desaparecía. Los números decían que la luminancia
+había SUBIDO, así que no era cuestión de aclarar: era que el contorno había
+dejado de ser el suelo del dibujo.
 
 **Y ahí hay una trampa que conviene saber antes de usarlo.** El solape es un
 sustituto, no el objetivo. Ajustando el ancho del Pidey contra un Pidgey de

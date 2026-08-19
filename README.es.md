@@ -185,6 +185,11 @@ ese mismo escalón en la rampa de destino. La sombra sigue siendo sombra, así
 que el bicho se sigue reconociendo. Las cuarenta celdas de arriba —ocho caras
 por cinco fotogramas— son una llamada, y la silueta no se movió un píxel.
 
+El contorno se detecta y **se respeta**. No por su color, que puede ser
+cualquiera, sino por dónde está: los píxeles con algún vecino transparente. Un
+pack suele tener una convención de contorno —el de crabh es negro puro en todos
+sus bichos— y un solo sprite que la rompa canta desde lejos.
+
 ## El formato
 
 Una carpeta con un JSON y un PNG por celda:

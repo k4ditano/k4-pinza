@@ -127,6 +127,42 @@ PNG; GIF y APNG.
 **Sin límites de color.** Un pack puede traer una guía de estilo, pero es un
 cuentakilómetros y no una barrera: te dice dónde estás y se apaga.
 
+## Que dibuje la IA
+
+Hay un servidor **MCP** en `mcp/pinza-mcp.py`: engánchalo a Claude Code —o a
+cualquier cliente MCP— y puedes pedirle que te haga cosas.
+
+    claude mcp add pinza -- ~/.local/bin/pinza --mcp
+
+Conduce **la ventana que ya tienes abierta**, así que lo ves dibujar en directo,
+y todo lo que hace entra en el historial como **un** paso: un Ctrl+Z deshace la
+intervención entera. Puede crear documentos, dibujar, ejecutar cualquier orden
+del editor, medir la silueta, guardar y exportar según el contrato — y sobre
+todo puede **mirar**: `pinza_ver` le devuelve una imagen de cómo va, que es lo
+que convierte esto en un ciclo de dibujar y corregir en vez de un disparo a
+ciegas.
+
+![Cuatro cacharros generados](capturas/cacharros.png)
+
+Lo que no hace es poner píxeles a mano, porque se le da mal: escribiendo una
+rejilla símbolo a símbolo se pierde entre filas y no puede releerse. Dibuja con
+`core/figura.js`, que es la otra mitad de esto y sirve igual para un guion
+tuyo — se declaran **masas** (elipses, cápsulas, polígonos), se unen en una
+silueta, y el sombreado sale de **una regla**: una dirección de luz y una rampa.
+
+    const cuerpo = F.une(F.disco(W,H,16,21,8), F.capsula(W,H,16,10,16,15,3.5))
+    F.cuerpo(b, cuerpo, { rampa: pinza.rampa("fríos"), luz: "NO", amplitud: 2 })
+
+Es el mismo truco con el que está dibujado el icono del programa. Y como
+sombrear mueve cada píxel **por su rampa** en vez de echarle gris encima, lo
+que sale conserva los colores del juego y se puede recolorear después como
+cualquier otro dibujo.
+
+Dicho lo cual: esto no le da criterio. Le da consistencia y precisión — la
+octava orientación, los intercalados, el contorno, la paleta conforme, las
+costuras de un tileset, las cuarenta y siete piezas de un autotile. Las
+proporciones y el carácter del bicho siguen siendo tuyos.
+
 ## El formato
 
 Una carpeta con un JSON y un PNG por celda:

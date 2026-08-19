@@ -128,6 +128,43 @@ cels; symmetry and grids; `.gpl`, `.hex` and from-PNG palettes; GIF and APNG.
 **No colour limits.** A pack may bring a style guide, but it is an odometer and
 not a barrier: it tells you where you are and it can be switched off.
 
+## Let the AI draw
+
+There is an **MCP** server in `mcp/pinza-mcp.py`: hook it up to Claude Code —or
+any MCP client— and you can ask it to make you things.
+
+    claude mcp add pinza -- ~/.local/bin/pinza --mcp
+
+It drives **the window you already have open**, so you watch it draw live, and
+everything it does enters the history as **one** step: a single Ctrl+Z undoes
+the whole intervention. It can create documents, draw, run any editor command,
+measure the silhouette, save and export according to the contract — and above
+all it can **look**: `pinza_ver` hands it back an image of how it is going,
+which is what turns this into a draw-and-correct loop instead of a shot in the
+dark.
+
+![Four generated items](capturas/cacharros.png)
+
+What it does not do is place pixels by hand, because it is bad at it: writing a
+grid symbol by symbol it loses track between rows and cannot proofread itself.
+It draws with `core/figura.js`, which is the other half of this and works just
+as well for a script of your own — you declare **masses** (ellipses, capsules,
+polygons), union them into a silhouette, and the shading comes out of **a
+rule**: a light direction and a ramp.
+
+    const cuerpo = F.une(F.disco(W,H,16,21,8), F.capsula(W,H,16,10,16,15,3.5))
+    F.cuerpo(b, cuerpo, { rampa: pinza.rampa("fríos"), luz: "NO", amplitud: 2 })
+
+It is the same trick the program's own icon is drawn with. And because shading
+moves each pixel **along its ramp** instead of smearing grey on top, what comes
+out keeps the game's colours and can be recoloured afterwards like any other
+drawing.
+
+That said: this does not give it taste. It gives it consistency and precision —
+the eighth facing, the in-betweens, the outline, a conforming palette, the
+seams of a tileset, the forty-seven pieces of an autotile. The proportions and
+the creature's character are still yours.
+
 ## The format
 
 A folder with one JSON and one PNG per cel:

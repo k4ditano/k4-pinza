@@ -95,6 +95,7 @@ cat > "${BIN}/pinza.nuevo" <<LANZADOR
 #      pinza --estado               qué hay abierto ahora mismo
 #      pinza --nuevo                la hoja de documento nuevo
 #      pinza --mostrar              devolver la ventana si la cerraste
+#      pinza --mcp                  hablar por MCP, para que dibuje una IA
 #
 set -euo pipefail
 
@@ -118,6 +119,10 @@ hablar() {
 }
 
 case "\${1:-}" in
+    #  El servidor MCP habla por la entrada estándar con quien lo lance, así
+    #  que se ejecuta en primer plano y no dice nada por su cuenta: cualquier
+    #  cosa que escribiera aquí se colaría en medio del protocolo.
+    --mcp) exec python3 "${RAIZ}/mcp/pinza-mcp.py" ;;
     --estado) hablar estado || echo "pinza no está abierta"; exit 0 ;;
     --mostrar) hablar mostrar && exit 0 || true ;;
     --nuevo)  hablar nuevo  && exit 0 || true ;;
@@ -189,6 +194,11 @@ echo "  pinza                    abrir el editor"
 echo "  pinza Bicho.pinza        abrir un proyecto"
 echo "  pinza dibujo.png         importarlo como capa"
 echo "  pinza --estado           qué hay abierto"
+echo
+gris "Para que una IA pueda dibujar aquí, engánchala por MCP:"
+gris "  claude mcp add pinza -- ${BIN}/pinza --mcp"
+gris "Conduce la ventana que ya tienes abierta, y todo lo que dibuje"
+gris "entra en el historial: un Ctrl+Z lo deshace."
 echo
 gris "El código se queda en ${RAIZ}: no hay copia, así que seguir"
 gris "desarrollando ahí es seguir usando lo instalado."

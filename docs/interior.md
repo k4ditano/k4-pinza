@@ -10,6 +10,7 @@ propósito: al que sólo quiere dibujar no le sirve de nada, y al que va a abrir
     core/              el motor y las piezas de interfaz
       pixeles.js       búferes, mezcla, formas, transformaciones, paleta
       herramientas.js  qué hace cada herramienta
+      figura.js        dibujar por descripción: masas y una regla de luz
     servicios/         el estado, en singletons
       Documento.qml    capas × fotogramas × orientaciones
       Historial.qml    deshacer por comandos, no por instantáneas
@@ -21,6 +22,7 @@ propósito: al que sólo quiere dibujar no le sirve de nada, y al que va a abrir
     vistas/            lienzo, compás, tira, paneles, hojas
     packs/             los contratos y las paletas
     forja/forja.py     lo que toca ficheros
+    mcp/pinza-mcp.py   el puerto por el que dibuja una IA
     cata/              las trampas de Qt, como aserciones
     pruebas/           todo lo demás, en seco
 
@@ -138,6 +140,76 @@ las tres cosas con el modelo perfecto por dentro.
 tamaños distintos con las vistas que pintan delante y mide lo que cuesta
 reservar memoria. Con el fallo puesto da 71 ms; sin él, 0.
 
+## Dibujar por descripción
+
+`core/figura.js` es la otra forma de poner píxeles: en vez de ponerlos, se
+declaran **masas** —elipses, cápsulas, polígonos—, se unen en una silueta con
+álgebra booleana, y el sombreado sale de **una regla**: una dirección de luz y
+una rampa. Es lo que ya hacía `tools/icono.py` para el icono del programa,
+sacado de sus 32×32 y puesto sobre cualquier dibujo.
+
+No es un segundo motor. Las máscaras son booleanas y los únicos sitios que
+escriben color —`pinta` y `sombrea`— van por `P.pon`. Lo que sale es un búfer
+normal que el resto del programa no distingue de uno pintado a mano.
+
+La normal de cada píxel **no** sale del gradiente de un mapa de distancias, que
+a 32×32 es ruido: sale de dónde está la masa alrededor. Para cada píxel se mira
+un disco de radio `grosor` y se calcula el centro de gravedad de lo que cae
+dentro de la silueta; el vector que va del píxel a ese centro apunta hacia
+dentro, y la normal exterior es ese vector cambiado de signo. Tiene dos
+propiedades que el gradiente no da y que son justo las que hacen falta:
+
+- En mitad de una masa el centro de gravedad cae encima del propio píxel, el
+  vector se queda en nada y el color no se toca. **El interior es color base**,
+  que es lo que separa esto de un degradado.
+- La **longitud** del vector mide cuánto de borde es el píxel, así que sirve de
+  peso sin calcular nada más. Un borde recto da 0.42 del radio —el centro de
+  gravedad de un semicírculo—, y por eso se normaliza por ahí.
+
+Y el sombreado mueve cada píxel **por su rampa**, arriba o abajo, en vez de
+echarle gris encima: es la misma decisión que toma la tinta de sombreado del
+editor, y la razón de que un sprite generado así siga teniendo los colores del
+juego y se pueda recolorear después. Un tono intermedio inventado no pertenece
+a ninguna rampa y se queda atrás cuando cambias el color.
+
+`pruebas/Figura.qml` comprueba lo que no se ve: que con la luz al noroeste el
+noroeste sale **más claro**, que girando la luz al sureste se invierte, que el
+interior se queda en el color base, que no se pinta un píxel fuera de la
+silueta, que no aparece ningún color que no esté en la rampa, y que el contorno
+—que va por dentro— no engorda la figura. Un sombreado fijo pasaría la primera
+de esas pruebas igual de bien; por eso están las seis.
+
+## El puerto de la IA
+
+`mcp/pinza-mcp.py` es un servidor MCP sin dependencias —ciento cincuenta líneas
+de JSON-RPC por la entrada estándar— que deja a un modelo conducir el editor:
+crear un documento, dibujar con `figura.js`, **mirar** lo que le ha salido y
+corregirlo.
+
+Lo de mirar no es un adorno. Sin devolver la imagen no hay bucle y el modelo
+dibuja a ciegas; con ella cada paso se puede juzgar y arreglar, que es como
+dibuja cualquiera. Por eso `previa` compone sobre un fondo de ajedrez: sin él,
+lo transparente y lo negro son el mismo píxel para quien mira la imagen.
+
+Por debajo no hace nada por su cuenta — todo pasa por el IPC contra la
+instancia que ya está abierta. Eso son tres cosas que en realidad son la misma:
+no hay un segundo motor de píxeles, no hay una segunda respuesta a «cómo se ve
+esto», y **ves lo que hace mientras lo hace**, en la ventana que ya tenías
+delante. Y como el verbo de dibujar pasa por `Guiones`, lo que haga entra en el
+historial como **un** paso: un Ctrl+Z deshace la intervención entera.
+
+Los verbos nuevos del IPC contestan en JSON y no en prosa, que es la diferencia
+entre ellos y los de arriba: `ficha`, `previa`, `rejilla`, `medidas`,
+`ordenes`, `guion`, `crear` y `guardarEn`. «0054 · 40x40 · 1 fotogramas» está
+bien para una persona en una terminal y obliga a cada cliente a inventarse un
+analizador que se rompe el día que alguien mueve un punto medio de sitio.
+
+`rejilla` merece una nota: devuelve el dibujo como caracteres con su leyenda de
+colores. Un PNG en base64 no le dice nada a un modelo de lenguaje y un volcado
+de hexadecimales son cuatro mil símbolos para un sprite de 32×32; esto son mil,
+y sobre todo es **editable** — se puede decir «la fila 12 columna 7 sobra» y que
+la frase signifique algo.
+
 ## El IPC
 
 Si ya hay una ventana abierta se le habla en vez de arrancar otra. Por debajo es
@@ -148,6 +220,14 @@ el IPC de Quickshell, que también sirve desde un guion:
     qs -c pinza ipc call pinza exportar
     qs -c pinza ipc call pinza orden deshacer     # cualquier orden, por su id
     qs -c pinza ipc call pinza mostrar            # devolver la ventana
+
+Y los que contestan en JSON, que son los que usa el servidor MCP:
+
+    qs -c pinza ipc call pinza ficha              # todo el estado
+    qs -c pinza ipc call pinza medidas            # silueta, colores, guía
+    qs -c pinza ipc call pinza rejilla '{}'       # el dibujo en caracteres
+    qs -c pinza ipc call pinza previa '{"ruta":"/tmp/x.png","escala":8}'
+    qs -c pinza ipc call pinza guion 'pinza.log(pinza.doc.ancho)' prueba
 
 ## El icono
 

@@ -14,6 +14,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import "../core/pixeles.js" as P
+import "../core/figura.js" as F
 import "." as S
 
 Singleton {
@@ -49,6 +50,12 @@ Singleton {
     function api() {
         return {
             px: P,
+
+            //  Dibujar por descripción: masas, siluetas y una regla de luz.
+            //  Está aquí porque es lo que hace que un guion pueda CREAR algo y
+            //  no sólo retocar lo que ya hay — y porque describir una figura
+            //  sale bien escrito, mientras que ponerla píxel a píxel no.
+            fig: F,
 
             get doc() {
                 const d = S.Documento.d
@@ -112,6 +119,15 @@ Singleton {
             get primario() { return S.Paleta.primario.slice() },
             get secundario() { return S.Paleta.secundario.slice() },
             get rampas() { return S.Paleta.rampas },
+
+            /** Una rampa de la paleta, por nombre o por número, lista para `fig`. */
+            rampa: (q) => {
+                const rs = S.Paleta.rampas
+                if (typeof q === "number") return rs[q] ? rs[q].colores.map((c) => c.slice()) : []
+                for (let i = 0; i < rs.length; i++)
+                    if (rs[i].nombre === q) return rs[i].colores.map((c) => c.slice())
+                return []
+            },
 
             seleccionado: (x, y) => S.Seleccion.contiene(x, y),
 

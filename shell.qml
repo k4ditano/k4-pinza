@@ -28,6 +28,8 @@ import QtQuick.Dialogs
 import Quickshell
 import Quickshell.Io
 import "core" as C
+import "core/pixeles.js" as P
+import "core/figura.js" as F
 import "servicios" as S
 import "vistas" as V
 
@@ -676,6 +678,224 @@ ShellRoot {
                  + " · " + S.Documento.nFotogramas + " fotogramas"
                  + " · " + S.Documento.nOrientaciones + " orientaciones"
                  + (S.Documento.sucio ? " · sin guardar" : "")
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // para máquinas
+        // ═══════════════════════════════════════════════════════
+        //
+        //  Los verbos de arriba contestan en prosa porque los lee una persona
+        //  en una terminal. Estos contestan en JSON porque los lee un programa
+        //  —hoy, el servidor MCP de `mcp/`—, y «0054 · 40x40 · 1 fotogramas»
+        //  obliga a cada cliente a inventarse un analizador que se rompe el día
+        //  que alguien cambia un punto medio de sitio.
+        //
+        //  Todos son de ida y vuelta INMEDIATA salvo `previa`, que escribe un
+        //  fichero y por tanto pasa por la forja: ahí se devuelve la ruta y el
+        //  que llama espera a que aparezca. La forja escribe con temporal y
+        //  `rename`, así que el fichero existe sólo cuando está entero — no
+        //  hace falta ningún otro aviso.
+
+        function _bufDe(que, f, o): var {
+            if (!S.Documento.abierto) return null
+            const d = S.Documento.d
+            if (que === "celda") return S.Documento.celdaActiva(false)
+            if (que === "hoja") {
+                //  Toda la animación de un vistazo: los fotogramas en columnas
+                //  y las orientaciones en filas, que es como las lee el juego y
+                //  como se ve de un golpe si una cara se ha quedado atrás.
+                const cols = d.fotogramas.length, filas = d.orientaciones.length
+                const celdas = []
+                for (let y = 0; y < filas; y++) for (let x = 0; x < cols; x++)
+                    celdas.push(S.Documento.compuesto(x, y))
+                return exportador.componHoja(celdas, cols, filas, d.ancho, d.alto)
+            }
+            return S.Documento.compuesto(f, o)
+        }
+
+        /**
+         * Escribe un PNG de lo que hay, para poder MIRARLO desde fuera.
+         *
+         *     {"ruta":"/tmp/x.png", "escala":8, "que":"compuesto|celda|hoja",
+         *      "fotograma":0, "orientacion":0, "fondo":"ajedrez|#rrggbb|ninguno"}
+         *
+         * El fondo de ajedrez no es decoración: sin él, lo transparente y lo
+         * negro son el mismo píxel para quien mira la imagen, y media
+         * conversación se va en discutir si el hueco está vacío o pintado.
+         */
+        function previa(spec: string): string {
+            let s = {}
+            try { s = spec ? JSON.parse(spec) : {} } catch (e) { return JSON.stringify({ bien: false, error: "el spec no es JSON: " + e }) }
+            if (!S.Documento.abierto) return JSON.stringify({ bien: false, error: "no hay nada abierto" })
+            if (!s.ruta) return JSON.stringify({ bien: false, error: "hace falta una ruta" })
+
+            const src = _bufDe(s.que || "compuesto",
+                               s.fotograma === undefined ? undefined : s.fotograma,
+                               s.orientacion === undefined ? undefined : s.orientacion)
+            if (!src) return JSON.stringify({ bien: false, error: "no hay nada que enseñar" })
+
+            //  La escala se recorta sola para no devolver una imagen enorme:
+            //  una hoja de once fotogramas por ocho caras a ×8 son cuatro mil
+            //  píxeles de ancho, y nadie gana nada con eso.
+            const tope = Math.max(64, s.max || 1200)
+            let esc = Math.max(1, Math.round(s.escala || 8))
+            while (esc > 1 && (src.w * esc > tope || src.h * esc > tope)) esc--
+
+            let out = P.escalaVecino(src, src.w * esc, src.h * esc)
+
+            const fondo = s.fondo === undefined ? "ajedrez" : s.fondo
+            if (fondo && fondo !== "ninguno") {
+                const cuadro = Math.max(4, esc)
+                const base = P.nuevo(out.w, out.h)
+                const claro = [70, 70, 76, 255], oscuro = [54, 54, 60, 255]
+                const plano = fondo === "ajedrez" ? null : P.deHex(fondo)
+                for (let y = 0; y < out.h; y++) for (let x = 0; x < out.w; x++)
+                    P.pon(base, x, y, plano ? plano
+                          : ((Math.floor(x / cuadro) + Math.floor(y / cuadro)) % 2 ? oscuro : claro))
+                for (let y = 0; y < out.h; y++) for (let x = 0; x < out.w; x++) {
+                    const c = P.lee(out, x, y)
+                    if (c[3] > 0) P.mezcla(base, x, y, c, false)
+                }
+                out = base
+            }
+
+            exportador.escribe(s.ruta, out, () => {})
+            return JSON.stringify({ bien: true, ruta: s.ruta, ancho: out.w, alto: out.h,
+                                    escala: esc, origen: { ancho: src.w, alto: src.h } })
+        }
+
+        /** Todo el estado, en JSON. Lo que `estado` cuenta en prosa. */
+        function ficha(): string {
+            const out = {
+                abierto: S.Documento.abierto,
+                pack: S.Ajustes.pack,
+                herramienta: S.Pinceles.herramienta,
+                paleta: {
+                    primario: P.aHex(S.Paleta.primario),
+                    secundario: P.aHex(S.Paleta.secundario),
+                    rampas: S.Paleta.rampas.map((r) => ({
+                        nombre: r.nombre, colores: r.colores.map((c) => P.aHex(c)) }))
+                },
+                criatura: null,
+                documento: null
+            }
+            if (S.Especie.abierta)
+                out.criatura = { nombre: S.Especie.nombre, ruta: S.Especie.ruta,
+                                 accion: S.Especie.accion,
+                                 acciones: S.Especie.acciones.map((a) => a.id) }
+            const d = S.Documento.d
+            if (d) out.documento = {
+                nombre: d.nombre, ruta: d.ruta, imagen: d.imagen,
+                ancho: d.ancho, alto: d.alto, sucio: d.sucio,
+                fotogramas: d.fotogramas.map((f) => f.duracion),
+                orientaciones: d.orientaciones.slice(),
+                capas: d.capas.map((c, i) => ({ i: i, nombre: c.nombre, visible: c.visible,
+                                                opacidad: c.opacidad, modo: c.modo,
+                                                tipo: c.tipo, grupo: c.grupo })),
+                capaActiva: S.Documento.capaActiva,
+                fotograma: S.Documento.fotograma,
+                orientacion: S.Documento.orientacion,
+                contrato: d.contrato ? { id: d.contrato.id, titulo: d.contrato.titulo || d.contrato.id } : null,
+                seleccion: S.Seleccion.activa ? S.Seleccion.limites : null
+            }
+            return JSON.stringify(out)
+        }
+
+        /**
+         * El dibujo como rejilla de caracteres.
+         *
+         * Para quien lee esto sin ojos: mil símbolos legibles en vez de un PNG
+         * que no puede abrir. Y editable — se puede hablar de la fila 12.
+         */
+        function rejilla(spec: string): string {
+            let s = {}
+            try { s = spec ? JSON.parse(spec) : {} } catch (e) { return JSON.stringify({ bien: false, error: "el spec no es JSON" }) }
+            const b = _bufDe(s.que || "compuesto", s.fotograma, s.orientacion)
+            if (!b) return JSON.stringify({ bien: false, error: "no hay nada abierto" })
+            const r = F.aTexto(b)
+            r.bien = true
+            return JSON.stringify(r)
+        }
+
+        /** Las medidas que el juego saca de los píxeles, y la guía del pack. */
+        function medidas(): string {
+            if (!S.Documento.abierto) return JSON.stringify({ bien: false, error: "no hay nada abierto" })
+            const b = S.Documento.compuesto()
+            const sil = P.silueta(b)
+            return JSON.stringify({
+                bien: true,
+                ancho: b.w, alto: b.h,
+                limites: P.limites(b, 8),
+                silueta: { pieBajo: sil.pieBajo, medioAncho: sil.medioAncho, base: sil.base },
+                paleta: S.Paleta.mide(b),
+                guia: S.Paleta.guia,
+                colores: P.coloresDe(b, 24).map((x) => ({ color: P.aHex(x.color), veces: x.veces }))
+            })
+        }
+
+        /** Las órdenes que existen y cuáles se pueden ahora mismo. */
+        function ordenes(): string {
+            return JSON.stringify(S.Ordenes.lista.map((o) => ({
+                id: o.id, titulo: o.titulo, grupo: o.grupo, atajo: o.atajo || "",
+                disponible: S.Ordenes.disponible(o)
+            })))
+        }
+
+        /**
+         * Corre JavaScript contra el documento abierto.
+         *
+         * Es el verbo que lo abre todo, y por eso lleva la red debajo: pasa por
+         * `Guiones`, así que entra en el historial como UN paso con el nombre
+         * que se le dé y un Ctrl+Z lo deshace entero. Un guion que revienta a
+         * mitad no deja rastro.
+         */
+        function guion(codigo: string, nombre: string): string {
+            if (!codigo) return JSON.stringify({ bien: false, error: "no hay código" })
+            const bien = S.Guiones.corre(codigo, nombre || "guion")
+            return JSON.stringify({
+                bien: bien,
+                error: bien ? null : (S.Guiones.ultimoError ? S.Guiones.ultimoError.mensaje : "falló"),
+                linea: bien || !S.Guiones.ultimoError ? null : (S.Guiones.ultimoError.linea || null),
+                salida: S.Guiones.salida
+            })
+        }
+
+        /**
+         * Un documento nuevo sin pasar por la hoja.
+         *
+         *     {"nombre":"poción","ancho":32,"alto":32,"fotogramas":1,
+         *      "orientaciones":["S"],"contrato":"idDelPack"}
+         *
+         * Con `contrato` sale con la geometría y las caras que manda el pack,
+         * que es la diferencia entre un lienzo suelto y algo que el juego sabrá
+         * leer al exportarlo.
+         */
+        function crear(spec: string): string {
+            let s = {}
+            try { s = spec ? JSON.parse(spec) : {} } catch (e) { return JSON.stringify({ bien: false, error: "el spec no es JSON" }) }
+            let o = { nombre: s.nombre || "sin nombre",
+                      ancho: s.ancho || 32, alto: s.alto || 32,
+                      fotogramas: s.fotogramas || 1,
+                      orientaciones: s.orientaciones || ["S"] }
+            if (s.contrato) {
+                const c = S.Packs.contrato(s.contrato)
+                if (!c) return JSON.stringify({ bien: false, error: "no hay contrato «" + s.contrato + "»" })
+                o = S.Packs.paraDocumento(c, o)
+            }
+            S.Documento.nuevo(o)
+            S.Proyecto._aplicaRejilla()
+            S.Historial.limpia()
+            ventana.visible = true
+            return JSON.stringify({ bien: true, nombre: S.Documento.nombre,
+                                    ancho: S.Documento.ancho, alto: S.Documento.alto })
+        }
+
+        /** Guardar en una carpeta concreta, sin diálogo. Para un lote. */
+        function guardarEn(ruta: string): string {
+            if (!S.Documento.abierto) return JSON.stringify({ bien: false, error: "no hay nada abierto" })
+            if (!ruta) return JSON.stringify({ bien: false, error: "hace falta una ruta" })
+            S.Proyecto.guarda(ruta, null)
+            return JSON.stringify({ bien: true, ruta: ruta })
         }
     }
 

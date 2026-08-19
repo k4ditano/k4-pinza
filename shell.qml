@@ -1043,6 +1043,43 @@ ShellRoot {
             })
         }
 
+        /**
+         * Trocea una hoja de sprites y la abre como documento.
+         *
+         *     {"ruta":"…/Walk-Anim.png","ancho":32,"alto":32,"contrato":"pmd"}
+         *
+         * Las columnas son fotogramas y las filas orientaciones, que es como
+         * las escribe el juego. Es la puerta de entrada para trabajar sobre
+         * algo que YA existe —una variante, un recolor, un rediseño— sin tener
+         * que dibujarlo otra vez desde cero.
+         *
+         * Con `contrato` se le ponen a las filas los nombres de cara que manda
+         * el pack en vez de d0…d7, que es la diferencia entre ocho filas y
+         * ocho ORIENTACIONES: sin eso el editor no sabe cuál es el sur y el
+         * compás no puede colocarlas.
+         */
+        function hoja(spec: string): string {
+            let s = {}
+            try { s = spec ? JSON.parse(spec) : {} } catch (e) { return JSON.stringify({ bien: false, error: "el spec no es JSON" }) }
+            if (!s.ruta) return JSON.stringify({ bien: false, error: "hace falta una ruta" })
+            const cw = s.ancho || 32, ch = s.alto || 32
+            S.Proyecto.importaHoja(s.ruta, cw, ch, s.orientaciones === false ? false : true, (bien) => {
+                if (!bien) return
+                if (s.contrato) {
+                    const c = S.Packs.contrato(s.contrato)
+                    if (c && c.orientaciones
+                        && c.orientaciones.length === S.Documento.nOrientaciones) {
+                        S.Documento.ponOrientaciones(c.orientaciones.map((o) => o.id))
+                        S.Documento.d.contrato = JSON.parse(JSON.stringify(c))
+                        S.Documento.cambia()
+                    }
+                }
+                if (s.nombre) S.Documento.ponNombre(s.nombre)
+            })
+            ventana.visible = true
+            return JSON.stringify({ bien: true, ruta: s.ruta, celda: cw + "x" + ch, esperando: true })
+        }
+
         /** Guardar en una carpeta concreta, sin diálogo. Para un lote. */
         function guardarEn(ruta: string): string {
             if (!S.Documento.abierto) return JSON.stringify({ bien: false, error: "no hay nada abierto" })

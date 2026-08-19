@@ -230,6 +230,13 @@ suyos y empieza a robarle colores a otro. Lo peor es que dependía del ORDEN de
 llegada de los colores, así que daba un resultado en el motor de QML y otro
 distinto en node. Se promedia sumando senos y cosenos.
 
+`hoja` trocea una hoja de sprites que ya existe y la abre como documento: las
+columnas son fotogramas y las filas orientaciones, que es como las escribe el
+juego. Con un contrato encima, las filas se quedan con los nombres de cara del
+pack en vez de `d0…d7` — que es la diferencia entre ocho filas y ocho
+**orientaciones**: sin eso el editor no sabe cuál es el sur y el compás no
+puede colocarlas.
+
 `compara` convierte «se parece» en un número. Escala una silueta a la altura de
 la otra **sin deformarla** —estirar cada una hasta llenar la misma caja parece
 lo cómodo y es justo lo que no se quiere: una figura alta y estrecha y una baja
@@ -241,6 +248,22 @@ discrepan y no sólo que discrepan.
 Con eso el ajuste deja de ser una opinión y pasa a ser una búsqueda: mueves un
 parámetro del aparejo, vuelves a dibujar, vuelves a medir, te quedas con el que
 sube.
+
+Con las rampas extraídas, una **variante** deja de dibujarse. Un sprite tiene
+una estructura de valores —qué es sombra, qué es medio, qué es brillo— y esa
+estructura es lo que hace reconocible la silueta. Se coloca cada color en su
+rampa, se mira en qué escalón cae por luminancia, y se sustituye por el que
+ocupa ese mismo escalón en la rampa de destino: la sombra sigue siendo sombra.
+Repintar a ojo destroza eso, y entonces no es el mismo bicho de otro color, es
+otro bicho peor.
+
+Haciéndolo con el Pidgey de crabh salió una cosa que conviene saber: **el
+contorno tiene que seguir siendo lo más oscuro del dibujo**. Mapeando el cuerpo
+a la rampa de fuego entera, su tono más oscuro caía en el mismo carbón que el
+contorno y la forma de dentro desaparecía — el bicho quedaba en silueta plana.
+Y los números decían que la luminancia había SUBIDO, así que no era cuestión de
+aclarar: era que el contorno había dejado de ser el suelo del dibujo. Se le
+reservan los dos escalones de abajo a la rampa.
 
 **Y ahí hay una trampa que conviene saber antes de usarlo.** El solape es un
 sustituto, no el objetivo. Ajustando el ancho del Pidey contra un Pidgey de

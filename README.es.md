@@ -177,6 +177,14 @@ Sirve para lo que más cuesta: una variante, un rediseño, «lo mismo pero de
 metal». Las proporciones son lo único que no se deduce de una descripción, y es
 justo lo que una referencia da medido.
 
+![Pidgey y su versión de fuego](capturas/pidgey-fuego.png)
+
+Con las rampas ya sacadas, una **variante deja de dibujarse**: cada color se
+coloca en su rampa, se mira en qué escalón cae, y se sustituye por el que ocupa
+ese mismo escalón en la rampa de destino. La sombra sigue siendo sombra, así
+que el bicho se sigue reconociendo. Las cuarenta celdas de arriba —ocho caras
+por cinco fotogramas— son una llamada, y la silueta no se movió un píxel.
+
 ## El formato
 
 Una carpeta con un JSON y un PNG por celda:

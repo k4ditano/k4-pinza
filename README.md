@@ -180,6 +180,14 @@ It is for the part that costs the most: a variant, a redesign, "the same but in
 metal". Proportions are the one thing you cannot deduce from a description, and
 they are exactly what a reference hands you measured.
 
+![Pidgey and its fire version](capturas/pidgey-fuego.png)
+
+With the ramps pulled out, a **variant stops being drawn**: each colour is
+placed in its ramp, you look at which step it lands on, and it is replaced by
+whatever occupies that same step in the target ramp. Shadow stays shadow, so
+the creature still reads as itself. The forty cels above —eight facings by five
+frames— are one call, and the silhouette did not move by a single pixel.
+
 ## The format
 
 A folder with one JSON and one PNG per cel:

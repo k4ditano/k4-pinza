@@ -404,6 +404,32 @@ HERRAMIENTAS = [
         "inputSchema": {"type": "object", "properties": {}},
     },
     {
+        "name": "pinza_hoja",
+        "description":
+            "Trocea una hoja de sprites que YA existe y la abre como "
+            "documento: las columnas son fotogramas y las filas "
+            "orientaciones. Es la puerta de entrada para trabajar sobre algo "
+            "hecho —una variante, un recolor, un rediseño— en vez de dibujarlo "
+            "otra vez.\n"
+            "Con `contrato` las filas se quedan con los nombres de cara del "
+            "pack en vez de d0…d7, que es la diferencia entre ocho filas y "
+            "ocho ORIENTACIONES: sin eso el editor no sabe cuál es el sur.\n"
+            "OJO: sustituye lo que hubiera abierto.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "ruta": {"type": "string"},
+                "ancho": {"type": "integer", "description": "ancho de celda. Por defecto 32."},
+                "alto": {"type": "integer", "description": "alto de celda. Por defecto 32."},
+                "contrato": {"type": "string", "description": "id de contrato del pack"},
+                "orientaciones": {"type": "boolean",
+                                  "description": "las filas son caras. Por defecto sí."},
+                "nombre": {"type": "string"},
+            },
+            "required": ["ruta"],
+        },
+    },
+    {
         "name": "pinza_referencia",
         "description":
             "Mete una imagen como CAPA DE CALCO: se ve mientras dibujas y no "
@@ -599,6 +625,24 @@ def ejecuta(nombre, args):
         if not r.get("bien"):
             return fallo(r.get("error", "no hay nada abierto"))
         return texto(json.dumps(r, ensure_ascii=False, indent=1))
+
+    if nombre == "pinza_hoja":
+        spec = {k: args[k] for k in
+                ("ruta", "ancho", "alto", "contrato", "orientaciones", "nombre") if k in args}
+        r = pideJson("hoja", json.dumps(spec))
+        if not r.get("bien"):
+            return fallo(r.get("error", "no se pudo trocear"))
+        #  Trocear lee un PNG, que es asíncrono: se espera a ver el documento
+        #  en la ficha en vez de contestar un «hecho» que aún no es verdad.
+        limite = time.time() + 20
+        while time.time() < limite:
+            d = (pideJson("ficha").get("documento")) or {}
+            if d and d.get("ancho") == (args.get("ancho") or 32):
+                return texto("%s · %dx%d · %d fotogramas · %d orientaciones"
+                             % (d["nombre"], d["ancho"], d["alto"],
+                                len(d["fotogramas"]), len(d["orientaciones"])))
+            time.sleep(0.15)
+        return fallo("la hoja no llegó a abrirse")
 
     if nombre == "pinza_referencia":
         try:

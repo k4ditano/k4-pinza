@@ -2,6 +2,8 @@
 
 # K4 Pinza
 
+[![Follow @k4ditano on X](https://img.shields.io/badge/follow-%40k4ditano-000000?style=flat&logo=x&logoColor=white)](https://x.com/k4ditano)
+
 A pixel art editor that knows **what** you are drawing, not just that you are
 drawing pixels.
 

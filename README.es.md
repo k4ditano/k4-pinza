@@ -2,6 +2,8 @@
 
 # K4 Pinza
 
+[![Sígueme en X](https://img.shields.io/badge/follow-%40k4ditano-000000?style=flat&logo=x&logoColor=white)](https://x.com/k4ditano)
+
 Un editor de pixel art que sabe **qué** estás dibujando, no sólo que estás
 dibujando píxeles.
 
